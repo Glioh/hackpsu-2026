@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "two-body-brawl",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2026-10-24",
+  "workers_dev": true,
+  "containers": [
+    { "class_name": "GameServer", "image": "./Dockerfile", "instance_type": "lite", "max_instances": 1 }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "GAME_SERVER", "class_name": "GameServer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameServer"] }]
+}

@@ -17,22 +17,26 @@ Open **http://localhost:3000** on the laptop/projector. `npm run dev` restarts a
 
 For a single-machine match, expand **Developer Playground**, then **Start keyboard / bot match**. Red: WASD body-relative movement, Q/E turn, Space jump, F punch. Blue: arrows move, J/L turn, I jump, K punch. Disable the Blue bot to use those keys. The stats toggle shows positions, speed, heading, grounded state, and cooldowns. Debug mode is labeled and does not satisfy the four-phone demo requirements.
 
+**Spring body motion** enables cosmetic torso inertia, head lag, arm follow-through, distance-driven steps, and jump/landing reactions. Compare **Subtle**, **Floppy** (default), and **Lively** in Developer Playground, or turn the checkbox off for a rigid baseline. Pose updates run at 60 Hz and interpolate with the root movement; results freeze the pose and rematches reset all motion. These are visual effects; collisions and combat still use the existing root simulation.
+
 ## Play with phones
 
 1. Run this Node server behind a trusted **HTTPS** origin with Socket.IO support. An ordinary laptop LAN HTTP URL is insufficient for mobile motion sensors. A deployment or secure tunnel must forward all routes and `/socket.io/` to this process.
 2. Open the host through that origin, or paste it into **Phone-accessible origin** and press the arrow to update the QR. This changes the join link; it does not create a tunnel or deploy the application.
 3. Scan with four separate phones. The server assigns Red Legs, Red Arm, Blue Legs, Blue Arm in that order.
 4. Tap **Enable motion sensors**, allow access, hold the phone comfortably in portrait, then **Hold neutral & calibrate**. Both orientation and acceleration streams are required.
-5. Once all four slots show ready, press **Start the brawl**. Watch the shared screen. Legs movement follows the fighter's facing, controlled by the Arm teammate.
+5. Once all four slots show ready, press **Start the brawl**. The arena enters fullscreen (or fills the browser viewport if fullscreen is unavailable). Phone calibration appears in the corner. Legs movement follows the fighter's facing, controlled by the Arm teammate.
 6. Ring-out results offer **Run it back** without rejoining. Hold phones securely and use small jolts while standing still.
 
-The steering flip checkbox reverses left/right; recalibration resets neutral. Rotating, backgrounding, losing sensors, or reconnecting requires recalibration. A controller disconnect during normal play returns everyone to the lobby. The original controller can reclaim its role using its stored token for 30 seconds. Occupied slots cannot be replaced. After host disconnect/reload, the room expires; phones must join the new code.
+The steering flip checkbox reverses left/right; recalibration resets neutral. Rotating, backgrounding, losing sensors, or reconnecting requires recalibration. Calibration errors and controller disconnects pause normal matches in place. The corner status identifies the affected role; recalibrate on the phone, then press **Resume match** on the host once all four phones are ready. Silent controllers are marked stale after 2.5 seconds. The original controller can reclaim its role using its stored token for 30 seconds. Occupied slots cannot be replaced. After host disconnect/reload, the room expires; phones must join the new code. Results or **Return to lobby** exit fullscreen.
 
 ## Deploy
 
 Use a Node.js service supporting persistent processes, HTTPS, and WebSockets. Install: `npm ci --omit=dev`. Start: `npm start`. The process binds `0.0.0.0` and honors `PORT` (default 3000). `/health` returns a JSON health response.
 
-Use **one server process/instance**: rooms live in memory, so restarts invalidate rooms and multiple instances need shared storage/routing. The host remains the combat authority; keep its tab visible and active. Hiding it returns the match to the lobby.
+Use **one server process/instance**: rooms live in memory, so restarts invalidate rooms and multiple instances need shared storage/routing. The host remains the combat authority; keep its tab visible and active. Hiding it pauses the match.
+
+For cloud hosting with automatic updates on pushes to `main`, use the included [GitHub → Cloudflare deployment workflow](docs/cloudflare-deploy.md). It runs the Node/WebSocket server in one Cloudflare Container, provides a stable HTTPS URL, and offers a manual **Run workflow** action. Activation requires Cloudflare account credentials stored in GitHub Actions secrets and a Workers Paid account with Containers enabled. The laptop's temporary quick tunnel is separate from this workflow.
 
 ### Vercel gateway with a persistent backend
 
@@ -50,6 +54,8 @@ For this session, an HTTPS Cloudflare quick tunnel to the existing port 3000 pro
 - `shared/config.js`: version, slots, input validation, physics and sensor tuning.
 - `host/src/simulation.js`: fixed-step X/Z movement, Y gravity, circle separation, facing, punch windup/cooldown, knockback and ring-outs.
 - `host/src/render.js`: Three.js three-quarter camera, thick platform, boundaries, shadows, cosmetic limbs and recoil.
+- `host/src/characters.js`: neutral character meshes with waist, neck, shoulder, and hip pivots.
+- `host/src/motion.js`: exact bounded angular springs, movement inertia, event reactions, pose snapshots, and root/pose interpolation.
 - `host/src/camera.js`: wide, low-angle camera that smoothly pans horizontally with the fighters at a steady height and fits both bodies as they separate. The arena is 22 by 16 units; accepted punches alternate arms independently for each fighter.
 - `host/src/main.js`: host UI, simulation loop, stale input expiry, one-shot consumption, keyboard/bot debug.
 - `controller/src/sensors.js`: permissions, calibration, smoothing, dead zone, impulse detection, gravity filtering fallback.
@@ -59,8 +65,8 @@ Slot identity comes from the socket's server assignment. Client-supplied team/ke
 
 ## Verification status
 
-`npm test`: 14 passing tests for spatial/body-relative/normalized movement, collision, punch timing/knockback and alternating arms, four-edge ring-outs, airborne recovery, rematch reset, camera following and framing across aspect ratios, tilt normalization, role spoofing, duplicate sequences, full rooms, ready gate, reconnect, host expiry, and debug start.
+`npm test`: 32 passing tests covering gameplay and room behavior, calibration interruption/resume and stale-controller detection, fullscreen fallback, camera framing, spring decay and bounds, neutral model hierarchy, directional inertia, distance-driven gait, baseline mode, punch timing, landing reactions, heading wrapping, full pose reset, once-per-tick motion events, and identical fixed-step pose evolution under simulated 30/60/120/144 Hz render schedules.
 
-Layout and actual WebGL rendering are **not browser-verified**. The temporary public HTTPS tunnel passed automated host/four-controller WebSocket, role assignment, input relay, and room QR checks. Real iPhone/Android motion and four-human matches remain **not tested**. See [QA.md](QA.md) for release gates. This implementation is not yet demo-qualified.
+Desktop WebGL rendering, normal/debug native fullscreen, the corner calibration HUD, round-end fullscreen exit, and a visible calibration-error pause were inspected in Brave through the temporary HTTPS tunnel. The pause check used four simulated Socket.IO controllers. The tunnel also passed automated role assignment, input relay, and room QR checks. Real iPhone/Android motion, four-human matches, and Cloudflare container deployment remain **not tested**. See [QA.md](QA.md) for release gates.
 
 API references: [Socket.IO](https://socket.io/docs/v4/server-initialization/), [Three.js](https://threejs.org/manual/en/installation.html), [motion permissions](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent/requestPermission_static).

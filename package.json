@@ -3,8 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "node --watch server/index.js", "start": "node server/index.js", "test": "node --test" },
-  "dependencies": { "express": "^5.1.0", "qrcode": "^1.5.4", "socket.io": "^4.8.1", "three": "^0.180.0" },
-  "devDependencies": { "socket.io-client": "^4.8.1" },
-  "engines": { "node": ">=22" }
+  "scripts": {
+    "dev": "node --watch server/index.js",
+    "start": "node server/index.js",
+    "test": "node --test",
+    "deploy:cloudflare": "wrangler deploy"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@cloudflare/containers": "0.3.7",
+    "socket.io-client": "^4.8.1",
+    "wrangler": "4.152.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "undici": "7.30.1"
+  }
 }

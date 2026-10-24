@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
 import QRCode from 'qrcode';
 import { CONFIG, SLOTS, validInput } from '../shared/config.js';
+import { CALIBRATION, validCalibration } from '../shared/calibration.js';
 
-export function createApp() {
+export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500 } = {}) {
   const app = express(), http = createServer(app), io = new Server(http, { maxHttpBufferSize: 8192 });
   const rooms = new Map();
   const root = fileURLToPath(new URL('../', import.meta.url));
@@ -17,7 +18,7 @@ export function createApp() {
       `globalThis.BRAWL_SOCKET_ORIGIN = ${JSON.stringify(process.env.PUBLIC_SOCKET_ORIGIN || '')};`
     );
   });
-  app.get('/health', (_, res) => res.json({ ok: true, version: CONFIG.version }));
+  app.get('/health', (_, res) => res.set('Cache-Control', 'no-store').json({ ok: true, version: CONFIG.version, commit: process.env.APP_COMMIT || null }));
   app.get('/', (_, res) => res.sendFile(root + 'host/index.html'));
   app.get('/controller', (_, res) => res.sendFile(root + 'controller/index.html'));
   for (const dir of ['host', 'controller', 'shared']) app.use('/' + dir, express.static(root + dir));
@@ -30,12 +31,29 @@ export function createApp() {
   function roster(room) {
     io.to(room.code).emit('room:roster', { slots: SLOTS.map(key => {
       const p = room.players.get(key);
-      return { key, connected: !!p?.socketId, ready: !!p?.ready };
+      const status = p ? p.status : 'waiting';
+      return { key, connected: !!p?.socketId, ready: !!p?.ready, status, message: CALIBRATION[status] };
     }) });
   }
-  function state(room, phase, winner = null) {
-    room.phase = phase; io.to(room.code).emit('game:state', { phase, winner, debug: room.debug });
+  function state(room, phase, winner = null, interruption = null, resumed = false) {
+    room.phase = phase; room.interruption = interruption;
+    io.to(room.code).emit('game:state', { phase, winner, debug: room.debug, interruption, resumed });
   }
+  const allReady = room => SLOTS.every(key => { const p = room.players.get(key); return p?.socketId && p.ready; });
+  function calibrationChanged(room, key, status) {
+    const player = room.players.get(key);
+    player.status = status; player.ready = status === 'calibrated'; player.lastSeen = Date.now();
+    roster(room);
+    if (!player.ready && room.phase === 'playing' && !room.debug) {
+      state(room, 'paused', null, { key, status, message: CALIBRATION[status] });
+    }
+  }
+  const watchdog = setInterval(() => {
+    for (const room of rooms.values()) for (const [key, player] of room.players) {
+      if (player.ready && Date.now() - player.lastSeen > controllerTimeoutMs) calibrationChanged(room, key, 'sensor-stale');
+    }
+  }, watchdogIntervalMs);
+  watchdog.unref(); http.once('close', () => clearInterval(watchdog));
   io.on('connection', socket => {
     socket.emit('server:hello', { version: CONFIG.version });
     const reply = (ack, value) => { if (typeof ack === 'function') ack(value); };
@@ -61,29 +79,45 @@ export function createApp() {
         entry = [key, { token: randomBytes(24).toString('hex') }]; room.players.set(...entry);
       }
       const [key, p] = entry;
-      Object.assign(p, { socketId: socket.id, ready: false, seq: -1 });
+      Object.assign(p, { socketId: socket.id, ready: false, status: 'calibration-required', lastSeen: Date.now(), seq: -1 });
       socket.data.room = room.code; socket.data.key = key; socket.join(room.code);
       const [team, role] = key.split(':');
       const assignment = { team, role, clientToken: p.token, roomCode: room.code };
       reply(ack, assignment); socket.emit('player:assign', assignment);
-      socket.emit('game:state', { phase: room.phase, debug: room.debug }); roster(room);
+      socket.emit('game:state', { phase: room.phase, debug: room.debug, interruption: room.interruption }); roster(room);
     });
     socket.on('player:ready', ready => {
       const room = rooms.get(socket.data.room), p = room?.players.get(socket.data.key);
-      if (p?.socketId === socket.id) { p.ready = ready === true; roster(room); if (!p.ready && room.phase === 'playing' && !room.debug) state(room, 'lobby'); }
+      if (p?.socketId === socket.id) calibrationChanged(room, socket.data.key, ready === true ? 'calibrated' : 'calibration-required');
+    });
+    socket.on('player:calibration', payload => {
+      const room = rooms.get(socket.data.room), p = room?.players.get(socket.data.key);
+      if (p?.socketId === socket.id && validCalibration(payload?.status)) calibrationChanged(room, socket.data.key, payload.status);
     });
     for (const role of ['legs', 'arm']) socket.on('input:' + role, p => {
       const room = rooms.get(socket.data.room), player = room?.players.get(socket.data.key);
       if (!player || player.socketId !== socket.id || !socket.data.key.endsWith(':' + role) || !validInput(role, p) || p.seq <= player.seq) return;
-      player.seq = p.seq;
+      player.seq = p.seq; player.lastSeen = Date.now();
       io.to(room.host).emit('input:' + role, { ...p, key: socket.data.key });
     });
     socket.on('game:start', (payload, ack) => {
       const room = rooms.get(socket.data.room);
       if (room?.host !== socket.id) return;
       const debug = payload?.debug === true;
-      if (!debug && !SLOTS.every(k => { const p = room.players.get(k); return p?.socketId && p.ready; })) return reply(ack, { error: 'Four connected, calibrated phones are required.' });
+      if (room.phase === 'paused') return reply(ack, { error: 'Use Resume match after all phones are calibrated.' });
+      if (!debug && !allReady(room)) return reply(ack, { error: 'Four connected, calibrated phones are required.' });
       room.debug = debug; state(room, 'playing'); reply(ack, { ok: true });
+    });
+    socket.on('game:pause', (_, ack) => {
+      const room = rooms.get(socket.data.room);
+      if (room?.host !== socket.id || room.phase !== 'playing') return reply(ack, {error:'No active host match.'});
+      state(room, 'paused', null, {status:'host-paused',message:'The host paused the match.'}); reply(ack, {ok:true});
+    });
+    socket.on('game:resume', (_, ack) => {
+      const room = rooms.get(socket.data.room);
+      if (room?.host !== socket.id || room.phase !== 'paused') return reply(ack, {error:'Only the host can resume a paused match.'});
+      if (!room.debug && !allReady(room)) return reply(ack, {error:'Recalibrate all four phones before resuming.'});
+      state(room, 'playing', null, null, true); reply(ack, {ok:true});
     });
     socket.on('game:state', p => {
       const room = rooms.get(socket.data.room);
@@ -104,7 +138,7 @@ export function createApp() {
         rooms.delete(room.code); return;
       }
       const p = room.players.get(socket.data.key);
-      if (p?.socketId === socket.id) { Object.assign(p, { socketId: null, ready: false, leftAt: Date.now() }); if (room.phase === 'playing' && !room.debug) state(room, 'lobby'); roster(room); }
+      if (p?.socketId === socket.id) { Object.assign(p, { socketId: null, leftAt: Date.now() }); calibrationChanged(room, socket.data.key, 'disconnected'); }
     });
   });
   return { app, http, io, rooms };

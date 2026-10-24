@@ -1,0 +1,14 @@
+node_modules
+.git
+.github
+.env
+.env.*
+.vercel
+.deployment
+.wrangler
+*.log
+test
+scripts
+QA.md
+PLAN.md
+README.md

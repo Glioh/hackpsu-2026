@@ -29,7 +29,7 @@ test('room lifecycle: four unique slots, readiness, authorization, reconnect, re
   let stateEvent=waitEvent(phones[0],'game:state');assert.equal((await emit(host,'game:start',{})).ok,true);assert.equal((await stateEvent).phase,'playing');
   stateEvent=waitEvent(phones[0],'game:state');host.emit('game:state',{phase:'results',winner:'red'});assert.equal((await stateEvent).winner,'red');
   assert.equal((await emit(host,'game:start',{})).ok,true);
-  stateEvent=waitEvent(host,'game:state');phones[0].disconnect();assert.equal((await stateEvent).phase,'lobby');
+  stateEvent=waitEvent(host,'game:state');phones[0].disconnect();assert.equal((await stateEvent).phase,'paused');
   assert.ok((await emit(host,'game:start',{})).error);
   const replacement=await client(),reassigned=await emit(replacement,'room:join',{roomCode,clientToken:assignments[0].clientToken});assert.equal(reassigned.team,'red');assert.equal(reassigned.role,'legs');
   const closed=waitEvent(replacement,'room:closed');host.disconnect();await closed;
