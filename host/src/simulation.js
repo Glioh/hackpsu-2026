@@ -1,6 +1,6 @@
 import { CONFIG as C } from '../../shared/config.js';
 export function fighter(team, x, heading) {
-  return { team, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, hit: 0, stun: 0, landed: false };
+  return { team, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, punchArm: 1, hit: 0, stun: 0, landed: false };
 }
 export class Simulation {
   constructor() { this.reset(); }
@@ -18,7 +18,7 @@ export class Simulation {
       f.vx += (x * C.speed * drive - f.vx) * (1 - Math.exp(-C.damping * dt));
       f.vz += (z * C.speed * drive - f.vz) * (1 - Math.exp(-C.damping * dt));
       if (legs.jump && f.grounded) { f.vy = C.jump; f.grounded = false; }
-      if (arm.punch && f.cooldown <= 0) { f.attack = 0.28; f.cooldown = C.punchCooldown; f.landed = false; f.power = arm.power ?? 0.6; }
+      if (arm.punch && f.cooldown <= 0) { f.punchArm = 1 - f.punchArm; f.attack = 0.28; f.cooldown = C.punchCooldown; f.landed = false; f.power = arm.power ?? 0.6; }
       f.attack = Math.max(0, f.attack - dt);
       f.x += f.vx * dt; f.z += f.vz * dt;
       const support = Math.abs(f.x) <= C.arenaX && Math.abs(f.z) <= C.arenaZ;

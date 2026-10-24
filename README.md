@@ -50,6 +50,7 @@ For this session, an HTTPS Cloudflare quick tunnel to the existing port 3000 pro
 - `shared/config.js`: version, slots, input validation, physics and sensor tuning.
 - `host/src/simulation.js`: fixed-step X/Z movement, Y gravity, circle separation, facing, punch windup/cooldown, knockback and ring-outs.
 - `host/src/render.js`: Three.js three-quarter camera, thick platform, boundaries, shadows, cosmetic limbs and recoil.
+- `host/src/camera.js`: wide, low-angle camera that smoothly pans horizontally with the fighters at a steady height and fits both bodies as they separate. The arena is 22 by 16 units; accepted punches alternate arms independently for each fighter.
 - `host/src/main.js`: host UI, simulation loop, stale input expiry, one-shot consumption, keyboard/bot debug.
 - `controller/src/sensors.js`: permissions, calibration, smoothing, dead zone, impulse detection, gravity filtering fallback.
 - `controller/src/main.js`: join, reconnect, instructions, diagnostics, 30 Hz input, feedback.
@@ -58,7 +59,7 @@ Slot identity comes from the socket's server assignment. Client-supplied team/ke
 
 ## Verification status
 
-`npm test`: 10 passing tests for spatial/body-relative/normalized movement, collision, punch timing/knockback, four-edge ring-outs, airborne recovery, rematch reset, tilt normalization, role spoofing, duplicate sequences, full rooms, ready gate, reconnect, host expiry, and debug start.
+`npm test`: 14 passing tests for spatial/body-relative/normalized movement, collision, punch timing/knockback and alternating arms, four-edge ring-outs, airborne recovery, rematch reset, camera following and framing across aspect ratios, tilt normalization, role spoofing, duplicate sequences, full rooms, ready gate, reconnect, host expiry, and debug start.
 
 Layout and actual WebGL rendering are **not browser-verified**. The temporary public HTTPS tunnel passed automated host/four-controller WebSocket, role assignment, input relay, and room QR checks. Real iPhone/Android motion and four-human matches remain **not tested**. See [QA.md](QA.md) for release gates. This implementation is not yet demo-qualified.
 
