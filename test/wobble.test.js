@@ -29,3 +29,12 @@ test('fighters squash on landing, stretch on take-off, get knocked by hits, and 
   f.hit = 0; const rest = run(400);
   assert.ok(Math.abs(rest.scale.y - 1) < 1e-3 && Math.abs(rest.lean.x) < 1e-3 && Math.abs(rest.head.x) < .01);
 });
+
+test('renderer inputs stay compatible: motion.js poses have every channel render.js reads, wobble gets raw fighters', async () => {
+  const { createMotion } = await import('../host/src/motion.js');
+  const pose = createMotion(fighter('red', 0, 0)).output.pose;
+  for (const key of ['torsoPitch', 'torsoRoll', 'bodyOffset', 'headPitch', 'headYaw', 'headRoll', 'leg0Pitch', 'leg1Pitch',
+    'arm0Action', 'arm0Pitch', 'arm0Roll', 'arm1Action', 'arm1Pitch', 'arm1Roll']) assert.ok(Number.isFinite(pose[key]), key);
+  const out = createWobble()(fighter('red', 0, 0), 1 / 60, 1);
+  assert.ok([out.scale.y, out.scale.xz, out.gear.x, out.gear.z].every(Number.isFinite), 'a NaN scale makes the fighter vanish');
+});

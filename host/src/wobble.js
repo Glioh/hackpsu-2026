@@ -1,4 +1,6 @@
 // Floppy secondary motion for the fighters (render-only; the simulation is untouched).
+// render.js uses it for squash & stretch and loose gear; motion.js drives the joints. Needs raw simulation
+// fighters (vx, vy, grounded, hit), not motion.js poses.
 // Every joint chases its target through a damped spring, so bodies lag, overshoot and settle,
 // and the whole fighter squashes on landings/hits and stretches on take-off.
 
