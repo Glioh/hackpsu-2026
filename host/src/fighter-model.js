@@ -13,7 +13,7 @@ export const FIGHTERS = {
 export const TEAM_FIGHTERS = ['crank', 'squish']; // default picks: red, blue
 const gltfs = new Map();
 
-// Resolves to make(teamColor) -> { root, torso, arms, legs }, matching the placeholder rig in render.js:
+// Resolves to make(teamColor) -> { root, torso, arms, legs, wobbly }, matching the placeholder rig in render.js:
 // torso sways/bobs from the feet, arms pivot at the shoulders ([right, left]), legs at the hips.
 export async function loadFighter(id) {
   const spec = FIGHTERS[id];
@@ -31,12 +31,15 @@ export async function loadFighter(id) {
     if (spec.teamMaterial) materials.get(spec.teamMaterial)?.color.set(teamColor).lerp(new T.Color('#ffffff'), 0.3);
     // The arena has no environment map, so full metal (Sir Squish's pot) would render near-black.
     for (const m of materials.values()) if (m.metalness > 0.5) Object.assign(m, { metalness: 0.3, roughness: 0.4 });
+    // Heads and loose gear (pot helmet, shell) wobble on top of their rest pose; see wobble.js.
+    const wobbly = [];
+    root.traverse(o => { const kind = { head: 'head', helmet: 'gear', shell: 'gear' }[o.userData.ragdoll_part]; if (kind) wobbly.push({ node: o, kind, rest: o.rotation.clone() }); });
     const legs = [node('Leg_R'), node('Leg_L')]; legs.forEach(leg => root.attach(leg));
     const torso = new T.Group(); root.add(torso); torso.attach(node('Torso'));
     // Team ring at the feet keeps mirror matches readable.
     const ring = new T.Mesh(new T.RingGeometry(.42, .52, 40), new T.MeshBasicMaterial({ color: teamColor }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .01; root.add(ring);
     root.scale.setScalar(SCALE);
-    return { root, torso, arms: [node('Arm_R'), node('Arm_L')], legs };
+    return { root, torso, arms: [node('Arm_R'), node('Arm_L')], legs, wobbly };
   };
 }
