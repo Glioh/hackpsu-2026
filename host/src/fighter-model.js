@@ -8,6 +8,7 @@ const SCALE = 1.4;
 export const FIGHTERS = {
   squish: { name: 'Sir Squish', url: '/host/assets/characters/sir_squish.glb', prefix: 'SS_', teamMaterial: 'SS_PastelBlue' },
   crank: { name: 'Crank', url: '/host/assets/characters/crank.glb', prefix: 'CR_' },
+  bonk: { name: 'Bonk-3000', url: '/host/assets/characters/bonk3000.glb', prefix: 'BK_' },
 };
 export const TEAM_FIGHTERS = ['crank', 'squish']; // default picks: red, blue
 const gltfs = new Map();

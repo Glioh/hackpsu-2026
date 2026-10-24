@@ -36,7 +36,7 @@ if ROOT_NAME not in sc.collection.children:
 
 # ---------- materials ----------
 def lin(c): return tuple((v / 255.0) ** 2.2 for v in c) + (1.0,)
-def make_mat(key, rgb, rough=0.65, metal=0.0, sss=0.0):
+def make_mat(key, rgb, rough=0.65, metal=0.0, sss=0.0, emit=0.0):
     m = bpy.data.materials.get(PFX + key) or bpy.data.materials.new(PFX + key)
     try: m.use_nodes = True
     except Exception: pass
@@ -48,6 +48,11 @@ def make_mat(key, rgb, rough=0.65, metal=0.0, sss=0.0):
         try:
             b.inputs["Subsurface Weight"].default_value = sss
             b.inputs["Subsurface Radius"].default_value = (0.3, 0.2, 0.15)
+        except Exception: pass
+    if emit:
+        try:
+            b.inputs["Emission Color"].default_value = lin(rgb)
+            b.inputs["Emission Strength"].default_value = emit
         except Exception: pass
     m.diffuse_color = lin(rgb); m.roughness = rough; m.metallic = metal
     return m
@@ -80,6 +85,12 @@ def blob(bm, shape, dims, M, mat, cuts=3, bulge=0.0, taper=0.0, soft=0.0, flat=N
         k = (1 + bulge * (1 - p.z * p.z)) * (1 + taper * p.z) * (1 - soft * abs(p.z) ** 3)
         v.co = M @ Vector((p.x * k * dims[0] / 2, p.y * k * dims[1] / 2, p.z * dims[2] / 2))
     finish(t, mat); merge(bm, t)
+
+def helix(bm, M, radius, height, turns, wire, mat):
+    """Coil spring along local +Z from 0 to height."""
+    n = int(turns * 12)
+    tube(bm, [M @ Vector((radius * math.cos(2 * math.pi * turns * k / n), radius * math.sin(2 * math.pi * turns * k / n),
+                          height * k / n)) for k in range(n + 1)], wire, mat)
 
 def tube(bm, pts, radius, mat, sides=6):
     t = bmesh.new(); rings = []
