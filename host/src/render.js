@@ -2,6 +2,7 @@ import * as T from 'three';
 import { CONFIG as C } from '../../shared/config.js';
 import { CAMERA_DIRECTION, CAMERA_FOV, CAMERA_MIN_DISTANCE, frameFighters } from './camera.js';
 import { createCharacter } from './characters.js';
+import { FIGHTERS, loadFighter } from './fighter-model.js';
 export function createRenderer(container) {
   const scene = new T.Scene(); scene.background = new T.Color('#d8dfb2'); scene.fog = new T.Fog('#d8dfb2', 30, 65);
   const camera = new T.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 180);
@@ -18,8 +19,11 @@ export function createRenderer(container) {
   const ring = mesh(new T.RingGeometry(2.3,2.35,64),'#b9af86'); ring.rotation.x = -Math.PI/2; ring.position.y=.065;
   const ground = mesh(new T.PlaneGeometry(200,200),'#bac797'); ground.rotation.x=-Math.PI/2; ground.position.y=-6;
   const models = ['#ff665b','#63c7ec'].map(color => { const model = createCharacter(color, mesh); scene.add(model.group); return model; });
+  // Swaps team i's body to character id. The current body (capsule fallback at first) stays if loading fails,
+  // and a slower earlier pick never overwrites a newer one.
+  const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);m.group.clear();m.group.add(s.root);Object.assign(m,s);m.head=s.root.getObjectByName(FIGHTERS[id].prefix+'Head');m.headRest=m.head.quaternion.clone();m.torsoBaseY=s.torso.position.y;m.motionScale=s.root.scale.y;},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
   const resize=()=>{const w=container.clientWidth,h=container.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
-  return (fighters, time) => {
+  const draw = (fighters, time) => {
     const dt = previousTime === null ? 0 : Math.max(0, Math.min(.1, time - previousTime));
     const framing = frameFighters(fighters, camera.aspect);
     desiredFocus.set(...framing.target);
@@ -38,8 +42,9 @@ export function createRenderer(container) {
       m.group.position.set(f.x, f.y + .09, f.z);
       m.group.rotation.y = f.heading;
       m.torso.rotation.set(pose.torsoPitch, 0, pose.torsoRoll);
-      m.torso.position.y = .9 + pose.bodyOffset;
+      m.torso.position.y = (m.torsoBaseY ?? .9) + pose.bodyOffset / (m.motionScale ?? 1);
       m.head.rotation.set(pose.headPitch, pose.headYaw, pose.headRoll);
+      if (m.headRest) m.head.quaternion.multiply(m.headRest);
       m.legs.forEach((leg, j) => leg.rotation.x = pose[`leg${j}Pitch`]);
       m.arms.forEach((arm, j) => {
         arm.rotation.x = pose[`arm${j}Action`] + pose[`arm${j}Pitch`];
@@ -48,4 +53,6 @@ export function createRenderer(container) {
     });
     renderer.render(scene, camera);
   };
+  draw.setFighter = setFighter;
+  return draw;
 }

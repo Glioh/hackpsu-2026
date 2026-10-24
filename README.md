@@ -19,6 +19,8 @@ For a single-machine match, expand **Developer Playground**, then **Start keyboa
 
 **Spring body motion** enables cosmetic torso inertia, head lag, arm follow-through, distance-driven steps, and jump/landing reactions. Compare **Subtle**, **Floppy** (default), and **Lively** in Developer Playground, or turn the checkbox off for a rigid baseline. Pose updates run at 60 Hz and interpolate with the root movement; results freeze the pose and rematches reset all motion. These are visual effects; collisions and combat still use the existing root simulation.
 
+Pick each team's character (Sir Squish, Crank or Bonk-3000) under **03 / Choose your fighters** on the host page. Picks swap live, are remembered per browser, and lock while a round is live. Character art and build scripts live in `art/characters/`; the browser models are `host/assets/characters/*.glb`, listed in `host/src/fighter-model.js`.
+
 ## Play with phones
 
 1. Run this Node server behind a trusted **HTTPS** origin with Socket.IO support. An ordinary laptop LAN HTTP URL is insufficient for mobile motion sensors. A deployment or secure tunnel must forward all routes and `/socket.io/` to this process.

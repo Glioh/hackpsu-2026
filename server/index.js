@@ -22,6 +22,7 @@ export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500
   app.get('/', (_, res) => res.sendFile(root + 'host/index.html'));
   app.get('/controller', (_, res) => res.sendFile(root + 'controller/index.html'));
   for (const dir of ['host', 'controller', 'shared']) app.use('/' + dir, express.static(root + dir));
+  app.use('/vendor/three/addons', express.static(root + 'node_modules/three/examples/jsm'));
   app.use('/vendor/three', express.static(root + 'node_modules/three/build'));
   app.get('/qr', async (req, res) => {
     const value = typeof req.query.url === 'string' ? req.query.url : '';
