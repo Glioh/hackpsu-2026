@@ -46,19 +46,27 @@ export function createRenderer(container) {
       m.group.position.set(f.x, f.y + .09, f.z);
       m.group.rotation.y = f.heading;
       // Joints follow motion.js; squash & stretch and loose gear (pot, shell) come from wobble.js.
-      const extra = body ? wobbles[i](body, dt, time) : null;
+      const extra = body ? wobbles[i](body, dt, time) : null, bob = extra?.head ?? { x: 0, y: 0, z: 0 };
       if (extra) m.group.scale.set(extra.scale.xz, extra.scale.y, extra.scale.xz);
+      if (extra && m.jelly) { m.jelly.uJelly.value.set(extra.jelly.x, extra.jelly.y, extra.jelly.z); m.jelly.uFeet.value.copy(m.group.position); }
       m.torso.rotation.set(pose.torsoPitch, 0, pose.torsoRoll);
       m.torso.position.y = m.torsoY + pose.bodyOffset;
-      m.head?.rotation.set(pose.headPitch, pose.headYaw, pose.headRoll);
+      m.head?.rotation.set(pose.headPitch + bob.x, pose.headYaw, pose.headRoll + bob.z); // capsule fallback
       m.legs.forEach((leg, j) => leg.rotation.x = pose[`leg${j}Pitch`]);
       m.arms.forEach((arm, j) => {
         arm.rotation.x = pose[`arm${j}Action`] + pose[`arm${j}Pitch`];
         arm.rotation.z = (j ? 1 : -1) * .12 + pose[`arm${j}Roll`];
       });
-      m.wobbly?.forEach(({ node, kind, rest }) => {
-        if (kind === 'head') node.rotation.set(rest.x + pose.headPitch, rest.y + pose.headYaw, rest.z + pose.headRoll);
-        else if (extra) node.rotation.set(rest.x + extra.gear.x, rest.y, rest.z + extra.gear.z);
+      m.wobbly?.forEach(({ node, kind, rest, restY, maxTilt, lift }) => {
+        if (kind === 'head') { // bobblehead: motion.js head + extra bobble spring + bounce
+          node.rotation.set(rest.x + pose.headPitch + bob.x, rest.y + pose.headYaw, rest.z + pose.headRoll + bob.z);
+          node.position.y = restY + bob.y;
+        }
+        else if (extra) {
+          const x = Math.max(-maxTilt, Math.min(maxTilt, extra.gear.x)), z = Math.max(-maxTilt, Math.min(maxTilt, extra.gear.z));
+          node.rotation.set(rest.x + x, rest.y, rest.z + z);
+          node.position.y = restY + lift * (Math.abs(Math.sin(x)) + Math.abs(Math.sin(z))); // rock on the rim
+        }
       });
     });
     renderer.render(scene, camera);
