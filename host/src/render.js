@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { CONFIG as C } from '../../shared/config.js';
+import { TEAM_FIGHTERS, loadFighter } from './fighter-model.js';
 export function createRenderer(container) {
   const scene = new T.Scene(); scene.background = new T.Color('#d8dfb2'); scene.fog = new T.Fog('#d8dfb2', 30, 65);
   const camera = new T.PerspectiveCamera(38, 1, 0.1, 100); camera.position.set(14, 16, 21); camera.lookAt(0, 0, 0);
@@ -22,6 +23,8 @@ export function createRenderer(container) {
     const legs=[-.29,.29].map(x=>{const leg=mesh(new T.CapsuleGeometry(.22,.4,4,8),'#333e35',group);leg.position.set(x,.39,0);return leg;});
     return {group,torso,arms,legs};
   });
+  // Capsule fighters stay as the fallback until each team's character loads (or if it can't).
+  models.forEach((m,i)=>loadFighter(TEAM_FIGHTERS[i]).then(make=>{const s=make(['#ff665b','#63c7ec'][i]);m.group.clear();m.group.add(s.root);Object.assign(m,s);},err=>console.warn(TEAM_FIGHTERS[i]+' model unavailable; using placeholder fighter',err)));
   const resize=()=>{const w=container.clientWidth,h=container.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
   return (fighters,time)=>{fighters.forEach((f,i)=>{const m=models[i], walk=Math.min(1,Math.hypot(f.vx,f.vz)/4);m.group.position.set(f.x,f.y+.09,f.z);m.group.rotation.y=f.heading;m.torso.rotation.z=Math.sin(time*9+i)*.07+f.hit*.6;m.torso.rotation.x=walk*.1;m.torso.position.y=Math.sin(time*13)*.05*walk;m.legs.forEach((leg,j)=>leg.rotation.x=Math.sin(time*13+j*Math.PI)*.6*walk);m.arms.forEach((arm,j)=>{arm.rotation.x=f.attack>0&&j===1?-2.1:Math.sin(time*9+j)*(.1+walk*.4);arm.rotation.z=(j?1:-1)*(.12+(f.grounded?0:.65));});});renderer.render(scene,camera);};
 }
