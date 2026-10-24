@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { CONFIG as C } from '../../shared/config.js';
 import { CAMERA_DIRECTION, CAMERA_FOV, CAMERA_MIN_DISTANCE, frameFighters } from './camera.js';
+import { loadFighter } from './fighter-model.js';
 export function createRenderer(container) {
   const scene = new T.Scene(); scene.background = new T.Color('#d8dfb2'); scene.fog = new T.Fog('#d8dfb2', 30, 65);
   const camera = new T.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 180);
@@ -25,8 +26,11 @@ export function createRenderer(container) {
     const legs=[-.29,.29].map(x=>{const leg=mesh(new T.CapsuleGeometry(.22,.4,4,8),'#333e35',group);leg.position.set(x,.39,0);return leg;});
     return {group,torso,arms,legs};
   });
+  // Swaps team i's body to character id. The current body (capsule fallback at first) stays if loading fails,
+  // and a slower earlier pick never overwrites a newer one.
+  const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);m.group.clear();m.group.add(s.root);Object.assign(m,s);},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
   const resize=()=>{const w=container.clientWidth,h=container.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
-  return (fighters, time) => {
+  const draw = (fighters, time) => {
     const dt = previousTime === null ? 0 : Math.max(0, Math.min(.1, time - previousTime));
     const framing = frameFighters(fighters, camera.aspect);
     const desiredFocus = new T.Vector3(...framing.target);
@@ -56,4 +60,6 @@ export function createRenderer(container) {
     });
     renderer.render(scene, camera);
   };
+  draw.setFighter = setFighter;
+  return draw;
 }

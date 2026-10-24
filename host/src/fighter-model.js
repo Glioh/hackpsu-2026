@@ -6,10 +6,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // (art/characters/wobble_kit.py ARM) stays equal in game.
 const SCALE = 1.4;
 export const FIGHTERS = {
-  squish: { url: '/host/assets/characters/sir_squish.glb', prefix: 'SS_', teamMaterial: 'SS_PastelBlue' },
-  crank: { url: '/host/assets/characters/crank.glb', prefix: 'CR_' },
+  squish: { name: 'Sir Squish', url: '/host/assets/characters/sir_squish.glb', prefix: 'SS_', teamMaterial: 'SS_PastelBlue' },
+  crank: { name: 'Crank', url: '/host/assets/characters/crank.glb', prefix: 'CR_' },
 };
-export const TEAM_FIGHTERS = ['crank', 'squish']; // red, blue
+export const TEAM_FIGHTERS = ['crank', 'squish']; // default picks: red, blue
 const gltfs = new Map();
 
 // Resolves to make(teamColor) -> { root, torso, arms, legs }, matching the placeholder rig in render.js:
@@ -32,6 +32,9 @@ export async function loadFighter(id) {
     for (const m of materials.values()) if (m.metalness > 0.5) Object.assign(m, { metalness: 0.3, roughness: 0.4 });
     const legs = [node('Leg_R'), node('Leg_L')]; legs.forEach(leg => root.attach(leg));
     const torso = new T.Group(); root.add(torso); torso.attach(node('Torso'));
+    // Team ring at the feet keeps mirror matches readable.
+    const ring = new T.Mesh(new T.RingGeometry(.42, .52, 40), new T.MeshBasicMaterial({ color: teamColor }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = .01; root.add(ring);
     root.scale.setScalar(SCALE);
     return { root, torso, arms: [node('Arm_R'), node('Arm_L')], legs };
   };

@@ -2,6 +2,7 @@ import { Simulation } from './simulation.js';
 import { createRenderer } from './render.js';
 import { CONFIG as C, SLOTS } from '../../shared/config.js';
 import { connectSocket } from '../../shared/connection.js';
+import { FIGHTERS, TEAM_FIGHTERS } from './fighter-model.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
 let draw;
 try { draw = createRenderer($('arena')); } catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
@@ -21,6 +22,11 @@ function updateURL() {
 }
 $('origin').value = localStorage.getItem('brawl-origin') || location.origin;
 $('setOrigin').onclick=()=>{localStorage.setItem('brawl-origin',$('origin').value);updateURL();};
+// Character select: one pick per team, remembered per browser, locked while a round is live.
+const TEAMS=['red','blue'], picks=TEAMS.map((team,i)=>{const saved=localStorage.getItem('brawl-fighter-'+team);return FIGHTERS[saved]?saved:TEAM_FIGHTERS[i];});
+function renderPicks(){$('fighterPicks').replaceChildren(...TEAMS.map((team,i)=>{const row=document.createElement('div');row.className='pick';const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' TEAM';const choices=document.createElement('div');choices.append(...Object.entries(FIGHTERS).map(([id,f])=>{const b=document.createElement('button');b.className='secondary';b.textContent=f.name;b.setAttribute('aria-pressed',picks[i]===id);b.disabled=phase==='playing';b.onclick=()=>pickFighter(i,id);return b;}));row.append(name,choices);return row;}));}
+function pickFighter(i,id){picks[i]=id;localStorage.setItem('brawl-fighter-'+TEAMS[i],id);draw?.setFighter(i,id);renderPicks();}
+picks.forEach((id,i)=>draw?.setFighter(i,id));renderPicks();
 socket.on('room:roster', p => {
   ready = p.slots.every(s=>s.connected&&s.ready);
   $('roster').replaceChildren(...p.slots.map(s=>{const row=document.createElement('div');row.className='slot';const [team,role]=s.key.split(':');const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' / '+role.toUpperCase();const status=document.createElement('span');status.textContent=s.ready&&s.connected?'● READY':s.connected?'Calibrating…':'Waiting for phone';row.append(name,status);return row;}));
@@ -41,6 +47,7 @@ socket.on('game:state',p=>{
   if(phase==='playing'){sim.reset();for(const s of snapshots.values())s.actions=[];edges.clear();$('error').textContent='';}
   if(phase==='results'){$('winner').textContent=p.winner==='draw'?'DOUBLE RING-OUT':p.winner.toUpperCase()+' WINS!';$('winner').className=p.winner;}
   if(phase==='lobby')snapshots.clear();
+  renderPicks();
   $('phase').textContent=phase==='playing'?(debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
 });
 function start(isDebug){socket.emit('game:start',{debug:isDebug},p=>{if(p.error)$('error').textContent=p.error;});}
