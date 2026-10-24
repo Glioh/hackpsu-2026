@@ -20,8 +20,23 @@ test('punch has a windup, directional range, hit reaction, and cooldown',()=>{
 });
 test('fighters separate at contact',()=>{const s=new Simulation();s.fighters[0].x=0;s.fighters[1].x=0;s.step({});assert.ok(Math.abs(s.fighters[0].x-s.fighters[1].x)>=C.radius*2-.001);});
 test('all four platform edges produce a fall, winner, and clean rematch',()=>{
-  for(const [x,z] of [[8,0],[-8,0],[0,6],[0,-6]]){const s=new Simulation();Object.assign(s.fighters[0],{x,z});s.step({});assert.equal(s.winner,null);for(let i=0;i<120;i++)s.step({});assert.equal(s.winner,'blue');s.reset();assert.equal(s.winner,null);assert.equal(s.fighters[0].cooldown,0);assert.equal(s.fighters[0].y,0);}
+  for(const [x,z] of [[C.arenaX+1,0],[-C.arenaX-1,0],[0,C.arenaZ+1],[0,-C.arenaZ-1]]){const s=new Simulation();Object.assign(s.fighters[0],{x,z});s.step({});assert.equal(s.winner,null);for(let i=0;i<120;i++)s.step({});assert.equal(s.winner,'blue');s.reset();assert.equal(s.winner,null);assert.equal(s.fighters[0].cooldown,0);assert.equal(s.fighters[0].y,0);}
 });
-test('airborne fighter can cross edge and return before falling',()=>{const s=new Simulation();Object.assign(s.fighters[0],{x:7.1,y:1,vy:1});s.step({});assert.equal(s.winner,null);s.fighters[0].x=6;for(let i=0;i<60;i++)s.step({});assert.equal(s.winner,null);assert.equal(s.fighters[0].grounded,true);});
+test('airborne fighter can cross edge and return before falling',()=>{const s=new Simulation();Object.assign(s.fighters[0],{x:C.arenaX+.1,y:1,vy:1});s.step({});assert.equal(s.winner,null);s.fighters[0].x=C.arenaX-1;for(let i=0;i<60;i++)s.step({});assert.equal(s.winner,null);assert.equal(s.fighters[0].grounded,true);});
+
+test('accepted punches alternate arms independently and reset for a rematch',()=>{
+  const s = new Simulation(), red = s.fighters[0];
+  for (const expected of [0, 1, 0, 1]) {
+    s.step({red:{arm:{punch:true}}});
+    assert.equal(red.punchArm, expected);
+    s.step({red:{arm:{punch:true}}});
+    assert.equal(red.punchArm, expected, 'cooldown-rejected input must not switch arms');
+    for (let i=0;i<45;i++) s.step({});
+  }
+  s.step({blue:{arm:{punch:true}}});
+  assert.equal(s.fighters[1].punchArm, 0);
+  s.reset(); s.step({red:{arm:{punch:true}}});
+  assert.equal(s.fighters[0].punchArm, 0);
+});
 test('input validator rejects malformed and non-finite values',()=>{assert.equal(validInput('legs',{seq:0,moveX:NaN,moveZ:0}),false);assert.equal(validInput('arm',{seq:1,turn:0,power:-1}),false);assert.equal(validInput('legs',{seq:0,moveX:1,moveZ:-1,jumpId:1}),true);});
 test('tilt has dead zone, saturation, and symmetric signs',()=>{assert.equal(tiltAxis(7),0);assert.equal(tiltAxis(35),1);assert.equal(tiltAxis(-35),-1);assert.equal(tiltAxis(100),1);});
