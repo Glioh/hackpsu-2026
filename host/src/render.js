@@ -10,6 +10,8 @@ import { createArena } from './maps.js';
 import { createKOEffects } from './ko-effects.js';
 import { createHitEffects, createHitFlash } from './hit-effects.js';
 import { createJiggle } from './jiggle.js';
+import { createFishbowl } from './fishbowl.js';
+import { createWeaponView } from './weapon-view.js';
 import { createCrumbs } from './crumbs.js';
 export function createRenderer(container, onCombatRig = () => {}) {
   const scene = new T.Scene();
@@ -36,8 +38,9 @@ export function createRenderer(container, onCombatRig = () => {}) {
   let flashes = models.map(m => createHitFlash(m.group));
   let clumsies = models.map((_, i) => createClumsy(i));
   // Per-fighter extras that only some characters opt into: jiggling gear and crumbs on impacts.
-  let jiggles = models.map(() => createJiggle());
-  const crumbs = createCrumbs(scene), landings = [null, null];
+  let jiggles = models.map(() => createJiggle()), bowls = models.map(() => createFishbowl());
+  const crumbs = createCrumbs(scene), landings = [null, null], weaponView = createWeaponView(scene);
+  let punchShake = 0;                                                     // spring glove impacts rattle the camera
   // 1 when the floor ends within reach of a grounded fighter (map edge, tile hole, platform edge): time to teeter.
   const edgeNear = (arena, f) => {
     if (!f.grounded) return 0;
@@ -50,7 +53,8 @@ export function createRenderer(container, onCombatRig = () => {}) {
   const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(container); resize();
   // fighters: interpolated motion poses from motion.js; bodies: raw simulation fighters (velocity, landings, hits);
   // arena: the simulation's current map (maps.js).
-  const draw = (fighters, time, bodies = [], arena = fallbackArena, { active = true, motionEnabled = true, finishAge = null } = {}) => {
+  // weapons: the simulation's weapon pickups, grenades and blasts (weapons.js state).
+  const draw = (fighters, time, bodies = [], arena = fallbackArena, { active = true, motionEnabled = true, finishAge = null, weapons = null } = {}) => {
     const dt = previousTime === null ? 0 : Math.max(0, Math.min(.1, time - previousTime));
     renderer.domElement.style.filter = finishAge === null ? '' : `grayscale(${Math.min(1, finishAge / .22)}) contrast(1.15)`;
     ko.update(finishAge ?? 0);
@@ -104,8 +108,15 @@ export function createRenderer(container, onCombatRig = () => {}) {
         landings[i] = { grounded: body.grounded, vy: body.vy };
       }
       const j = body && m.wobbly?.some(w => w.kind === 'jiggle' || w.kind === 'bounce') ? jiggles[i](body, active ? dt : 0, motionEnabled) : null;
+      const bowl = body && m.wobbly?.some(w => w.kind === 'fish' || w.kind === 'water') ? bowls[i](body, active ? dt : 0, motionEnabled) : null;
       m.wobbly?.forEach(({ node, kind, rest, restY, restScale, maxTilt, lift }) => {
-        if (kind === 'jiggle') { if (j) { node.scale.set(restScale.x * j.xz, restScale.y * j.y, restScale.z * j.xz); node.rotation.set(rest.x, rest.y, rest.z + j.tilt); } }
+        if (kind === 'water' || kind === 'fish' || kind === 'fishtail') {                      // fishbowl head
+          if (!bowl) return;
+          if (kind === 'water') node.rotation.set(rest.x + bowl.water.x, rest.y, rest.z + bowl.water.z);
+          else if (kind === 'fish') { node.rotation.set(rest.x + bowl.fish.pitch, rest.y + bowl.fish.yaw, rest.z + bowl.fish.roll); node.position.y = restY + bowl.fish.y; }
+          else node.rotation.set(rest.x, rest.y + bowl.tail, rest.z);
+        }
+        else if (kind === 'jiggle') { if (j) { node.scale.set(restScale.x * j.xz, restScale.y * j.y, restScale.z * j.xz); node.rotation.set(rest.x, rest.y, rest.z + j.tilt); } }
         else if (kind === 'bounce') {                                           // cone hops off the head and rocks
           const b = j ? 1 - j.y : 0, x = Math.max(-maxTilt, Math.min(maxTilt, k.gear.x * 1.6 + b * .7)), z = Math.max(-maxTilt, Math.min(maxTilt, k.gear.z * 1.6 + b * .35));
           node.rotation.set(rest.x + x, rest.y, rest.z + z);
@@ -119,11 +130,13 @@ export function createRenderer(container, onCombatRig = () => {}) {
         }
       });
     });
+    for (const target of weaponView.update(weapons, bodies, models, time, active ? dt : 0)) { hitEffects.hit(target); punchShake = .3; }
+    if (punchShake > 0) { camera.position.add(new T.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(1.6 * punchShake)); punchShake = Math.max(0, punchShake - dt); }
     environment.apply(arena, camera);
     if(materialArena!==arena){enrichMaterials(scene);materialArena=arena;}
     renderer.render(scene, camera);
   };
-  draw.resetMotion = () => { hitEffects.clear(); crumbs.clear(); landings.fill(null); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); jiggles = models.map(() => createJiggle()); };
+  draw.resetMotion = () => { hitEffects.clear(); weaponView.clear(); crumbs.clear(); landings.fill(null); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); jiggles = models.map(() => createJiggle()); bowls = models.map(() => createFishbowl()); };
   draw.setFighter = setFighter;
   draw.dispose = () => { resizeObserver.disconnect(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });

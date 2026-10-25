@@ -32,6 +32,7 @@ FIGHTERS = {
     "toast": dict(slug="toast_malone", pfx="TM_", root="ToastMalone", hand="Hand", face="Slice", face_z=0.95),
     # The cone is taller than he is: the head icon crops it at head_clip so his face still reads.
     "conehead": dict(slug="conehead", pfx="CH_", root="Conehead", hand="Hand", head_clip=1.75),
+    "bubbles": dict(slug="captain_bubbles", pfx="CB_", root="CaptainBubbles", hand="Hand"),
 }
 # Poses. Arm targets are world directions the shoulder->wrist segment points along (+X = the fighter's left,
 # the big punching side; -Y = forward). torso/head: extra (x, y, z) rotation in radians; lift raises the whole body.
@@ -50,6 +51,10 @@ POSES = {
     },
     "toast": {
         "portrait": dict(arms={"L": (0.55, -0.35, 0.8), "R": (-0.45, -0.85, 0.3)}, torso=(0.05, 0.05, 0.12)),
+    },
+    "bubbles": {
+        "portrait": dict(arms={"L": (0.6, -0.55, 0.7), "R": (-0.4, -0.85, 0.3)}, torso=(0.06, 0.04, 0.1), head=(-0.04, 0.1, 0.06),
+                         parts={"Fish": (0, 0, -1.4)}),                   # fish swum round to the front of the bowl
     },
     "conehead": {
         "portrait": dict(arms={"L": (0.6, -0.5, 0.7), "R": (-0.4, -0.85, 0.3)}, torso=(0.06, 0.04, 0.1), head=(-0.06, 0.06, 0.1)),
@@ -126,8 +131,11 @@ def append_character(fid, spec):
     objs = [o for o in dst.objects if o]
     for o in objs:
         coll.objects.link(o); o.animation_data_clear()
-        if o.type == "MESH":                                         # comic outline: inverted hull
-            o.data = o.data.copy()
+        see_through = o.type == "MESH" and any(m and getattr(m, "surface_render_method", "") == "BLENDED" for m in o.data.materials)
+        for m in o.data.materials if see_through else ():             # dithered sorts per pixel, so things inside show
+            if m.surface_render_method == "BLENDED": m.surface_render_method = "DITHERED"
+        if o.type == "MESH" and not see_through:                     # comic outline: inverted hull (its dark back
+            o.data = o.data.copy()                                   # would show through glass, so not on see-through parts)
             o.data.materials.append(outline)
             mod = o.modifiers.new("PT_Outline", "SOLIDIFY")
             mod.thickness = 0.014; mod.offset = 1; mod.use_flip_normals = True; mod.use_rim = False
@@ -162,6 +170,8 @@ def pose(fid, ch, shot):
     torso.rotation_euler = Vector(torso.rotation_euler) + Vector(p.get("torso", (0, 0, 0)))
     head.rotation_euler = Vector(head.rotation_euler) + Vector(p.get("head", (0, 0, 0)))
     ch["root"].location.z += p.get("lift", 0)
+    for name, rot in p.get("parts", {}).items():                      # extra rotation for any other part
+        part(name).rotation_euler = Vector(part(name).rotation_euler) + Vector(rot)
     for s, target in p["arms"].items():
         aim(part("Arm_" + s), part(FIGHTERS[fid]["hand"] + "_" + s), target)
     bpy.context.view_layer.update()

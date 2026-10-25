@@ -184,7 +184,7 @@ function frame(now) {
     accumulator -= C.tick;
   }
   motions.forEach(motion => interpolateMotion(motion, phase === 'playing' && finishAge === null ? accumulator / C.tick : 1));
-  if (phase !== 'lobby') draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked, finishAge });
+  if (phase !== 'lobby') draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked, finishAge, weapons: sim.weapons.state });
   if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)}\nheading ${f.heading.toFixed(2)} grounded ${f.grounded}\nspeed ${Math.hypot(f.vx,f.vz).toFixed(2)} cooldown ${f.cooldown.toFixed(2)}`).join('\n\n');
   commentary.tick();
   requestAnimationFrame(frame);
