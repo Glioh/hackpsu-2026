@@ -10,7 +10,7 @@ The `Deploy game to Cloudflare` GitHub Actions workflow tests pushes and pull re
 4. Commit and push the workflow, Dockerfile, Cloudflare Worker/config, dependency files, and application changes to `main`.
 5. Open **Actions → Deploy game to Cloudflare → Run workflow**, or push a new commit to `main`.
 
-The deployment log prints a stable URL such as `https://two-body-brawl.YOUR-SUBDOMAIN.workers.dev`. Open that URL on the host and scan its room QR with each phone. `/health` returns the deployed Git commit so you can confirm which version is running. Initial container provisioning can take several minutes.
+The deployment log prints a stable URL such as `https://limbpossible.YOUR-SUBDOMAIN.workers.dev`. Open that URL on the host and scan its room QR with each phone. `/health` returns the deployed Git commit so you can confirm which version is running. Initial container provisioning can take several minutes.
 
 ## Missing-credentials deployment failure
 
@@ -35,8 +35,8 @@ npx wrangler deploy --dry-run --containers-rollout=none --outdir .deployment/clo
 This dry run validates the Worker bundle and bindings without building or deploying its container. To validate the Docker image, start Docker and run:
 
 ```sh
-docker build -t two-body-brawl .
-docker run --rm -p 3000:3000 two-body-brawl
+docker build -t limbpossible .
+docker run --rm -p 3000:3000 limbpossible
 ```
 
 To deploy from an authenticated machine with Docker running, use `npm run deploy:cloudflare`. The GitHub runner already supplies Docker. Full deployment and container-image validation remain pending until credentials and a Docker engine are available.

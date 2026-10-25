@@ -20,11 +20,22 @@ let serverOffset = 0, mapPreview = false, finishAge = null, visualTime = 0, intr
 const winnerView = createWinnerView($('winnerSprite'));
 const snapshots = new Map(), keys = new Set(), edges = new Set(), bot = createBotController();
 let previous = performance.now(), accumulator = 0;
+const ITEM_NAMES={spring:'SPRING GLOVE',sword:'SWORD',grenade:'GRENADE'},ITEM_COLORS={spring:'#ff6677',sword:'#48d7ff',grenade:'#b6ef6c'};
+function announceItem(event){
+  const banner=$('itemSpawnBanner');banner.textContent=`${ITEM_NAMES[event.weapon]||event.weapon.toUpperCase()} SPAWNED`;banner.style.color=ITEM_COLORS[event.weapon]||'#ffffff';
+  banner.classList.remove('show');void banner.offsetWidth;banner.classList.add('show');
+}
+function clearItemAnnouncement(){$('itemSpawnBanner').classList.remove('show');$('itemSpawnBanner').textContent='';}
+function playCombatEvents(events){if(combatAudio.events)combatAudio.events(events);else for(const event of events)combatAudio.event?.(event);}
+function debugFighters(){return [
+  {id:'red',label:'Red',character:$('devPlayerCharacter').value||'wukong',color:'#ff665b'},
+  {id:'blue',label:'Blue',character:$('devBotCharacter').value||'squish',color:'#63c7ec'},
+];}
 try { draw = createRenderer($('arena'), (i, rig) => sim.setCombatRig(i, rig)); }
 catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
 function resetPoses() { motions = sim.fighters.map(createMotion); renderFighters = motions.map(m => m.output); draw?.resetMotion(); }
 resetPoses();
-function clearFinish() { finishAge = null; introUntil = 0; draw?.clearKO(); $('faceoff').classList.add('hidden'); }
+function clearFinish() { finishAge = null; introUntil = 0; draw?.clearKO(); clearItemAnnouncement(); $('faceoff').classList.add('hidden'); }
 function error(message) { $('error').textContent = message || ''; }
 function updateURL() {
   let origin;
@@ -40,7 +51,7 @@ socket.on('connect', () => socket.emit('room:create', {}, p => {
   if (p.error) return error(p.error); roomCode = p.roomCode; $('code').textContent = roomCode; error(''); updateURL();
 }));
 socket.on('disconnect', () => {
-  phase = 'lobby'; slots = []; ready = false; snapshots.clear(); clearFinish(); syncScreen(); renderRoster();
+  phase = 'lobby'; slots = []; ready = false; snapshots.clear(); combatAudio.stop?.(); draw?.clearDropEffects?.(); clearFinish(); syncScreen(); renderRoster();
   presentation.setPhase(phase); error('Connection lost. Reconnecting creates a new room; phones must rejoin.');
 });
 function kickButton(slot) {
@@ -127,7 +138,7 @@ socket.on('game:state', p => {
   if (phase === 'playing' && oldPhase !== 'playing') {
     if (!p.resumed) {
       sim.configureMatch(debug ? null : match); clearFinish(); resetPoses();
-      if (match) draw?.configure(match.fighters); else draw?.configure([{ id: 'red', character: 'wukong', color: '#ff665b' }, { id: 'blue', character: 'squish', color: '#63c7ec' }]);
+      draw?.configure(match?.fighters||debugFighters());
       $('mapName').textContent = MAPS.find(m => m.id === sim.mapId)?.name.toUpperCase();
       introUntil = mapPreview ? 0 : performance.now() + 4150; lastCountdown = '';
       $('faceoffCountdown').textContent = '3';
@@ -137,12 +148,13 @@ socket.on('game:state', p => {
     }
     snapshots.clear(); keys.clear(); edges.clear(); accumulator = 0; previous = performance.now(); error(''); presentation.setPhase(phase); $('gameScreen').focus();
     if (p.resumed && match?.mode !== 'ffa') commentary.phase('playing', true);
-  } else if (phase !== 'playing') { introUntil = 0; $('faceoff').classList.add('hidden'); presentation.setPhase(phase); commentary.phase(phase); }
+  } else if (phase !== 'playing') { introUntil = 0; combatAudio.stop?.(); draw?.clearDropEffects?.(); clearItemAnnouncement(); $('faceoff').classList.add('hidden'); presentation.setPhase(phase); commentary.phase(phase); }
   if (phase === 'paused') { snapshots.clear(); keys.clear(); edges.clear(); $('pauseReason').textContent = `${p.interruption?.key || ''} ${p.interruption?.message || 'Recalibrate every phone to continue.'}`; }
   if (phase === 'results') {
     const winner = match?.fighters.find(f => f.id === p.winner); $('winner').textContent = p.winner === 'draw' ? 'DRAW' : `${winner?.label || p.winner.toUpperCase()} WINS!`;
-    const winners = match ? match.fighters.filter(f => p.winner === 'draw' || (match.mode === 'ffa' ? f.id : f.side) === p.winner) : [];
-    void winnerView.show(p.winner, ['wukong', 'squish'], winners.length ? winners.map(f => f.character) : undefined);
+    const roster=match?.fighters||debugFighters();
+    const winners = roster.filter(f => p.winner === 'draw' || (match?.mode === 'ffa' ? f.id : f.side||f.id) === p.winner);
+    void winnerView.show(p.winner, roster.map(f=>f.character), winners.length ? winners.map(f => f.character) : undefined);
     $('winner').style.color = winner?.color || (p.winner === 'red' ? '#ff665b' : '#63c7ec');
   }
   if (phase === 'lobby') { clearFinish(); snapshots.clear(); renderRoster(); }
@@ -153,9 +165,15 @@ $('start').onclick = () => { mapPreview = false; start(); };
 $('debugStart').onclick = () => { mapPreview = false; sim.setMap($('devMap').value); start(true); };
 $('devMode').onclick = () => { mapPreview = true; sim.setMap($('devMap').value); start(true); };
 $('devMap').replaceChildren(...MAPS.map(m => { const option = document.createElement('option'); option.value = m.id; option.textContent = m.name; return option; }));
+for(const [id,fallback] of [['devPlayerCharacter','wukong'],['devBotCharacter','squish']]){
+  $(id).replaceChildren(...CHARACTERS.map(character=>{const option=document.createElement('option');option.value=character.id;option.textContent=character.name;return option;}));$(id).value=fallback;
+}
 const lobby = () => socket.emit('game:state', { phase: 'lobby' });
 for (const id of ['cancelSetup', 'leaveGame', 'pauseLobby', 'resultLobby']) $(id).onclick = lobby;
-$('rematch').onclick = () => start(debug);
+$('rematch').onclick = () => {
+  if(debug){const choices=MAPS.filter(map=>map.id!==sim.mapId);const next=choices[Math.floor(Math.random()*choices.length)];if(next)sim.setMap(next.id);}
+  start(debug);
+};
 $('resumeGame').onclick = () => { combatAudio.unlock(); presentation.request(); socket.emit('game:resume', {}, p => { if (p.error) $('pauseReason').textContent = p.error; }); };
 $('combatSoundEnabled').onchange = e => { combatAudio.setEnabled(e.target.checked); draw?.weaponAudio.setEnabled(e.target.checked); };
 $('combatSoundVolume').oninput = e => { combatAudio.setVolume(+e.target.value); draw?.weaponAudio.setVolume(+e.target.value); };
@@ -213,7 +231,8 @@ function frame(now) {
     if (phase === 'playing' && !introUntil && finishAge === null && !document.hidden) {
       const inputs = mapPreview ? {} : debug ? { red: keyboard('red'), blue: $('bot').checked ? bot(sim) : keyboard('blue') } : Object.fromEntries(sim.fighters.map(f => [f.team, phone(f.team, now)]));
       for (const id of sim.step(inputs)) { socket.emit('player:hit', { team: id }); draw?.hit(sim.fighters.find(f => f.team === id), sim.motionEvents.find(e => e.type === 'hit' && e.team === id)); }
-      for (const event of sim.motionEvents) combatAudio.event(event);
+      playCombatEvents(sim.motionEvents);
+      for(const event of sim.motionEvents)if(event.type==='weapon_drop'){draw?.weaponDrop?.(event);announceItem(event);}
       const ringouts = sim.motionEvents.filter(e => e.type === 'ringout'); if (ringouts.length) draw?.startKO(ringouts);
       for (const event of sim.motionEvents) if (event.type === 'respawn') { const i = sim.fighters.findIndex(f => f.team === event.team); resetMotion(motions[i], sim.fighters[i]); }
       if (debug || match?.mode === 'teams') {

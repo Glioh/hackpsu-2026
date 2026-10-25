@@ -1,4 +1,4 @@
-# Two-Body Brawl
+# Limb-Possible
 
 **One crew. Shared bodies. Zero coordination.**
 
@@ -14,6 +14,8 @@ npm start
 ```
 
 Open **http://localhost:3000** on the laptop/projector. `npm run dev` restarts after edits (invalidating existing rooms). `npm test` runs simulation and Socket.IO integration checks. No build step or external asset service is required for gameplay; optional Google Fonts fall back to installed fonts.
+
+The live Kahoot-style room lobby is always the default for both `npm start` and `npm run dev`. You can also open **http://localhost:3000/lobby** directly. Host pages are served without caching so reopening the lobby loads the current version. `/host/prototypes/lobby/` is a separate design mockup with sample players; use `/` or `/lobby` to host a real room.
 
 The starting screen is a QR-first lobby with a live nickname grid. At least four phones and an even player count are required. The host presses **Everybody in? Start** to randomly pair players and assign Legs / Arm roles. Each pair votes for a character on its phones; matching picks flash white and lock, while different picks enter a synchronized, slowing roulette. Missing votes resolve after 25 seconds.
 
@@ -53,7 +55,7 @@ Use the collapsible **Controller preview** panel to choose role, team, and scree
 
 1. Run this Node server behind a trusted **HTTPS** origin with Socket.IO support. An ordinary laptop LAN HTTP URL is insufficient for mobile motion sensors. A deployment or secure tunnel must forward all routes and `/socket.io/` to this process.
 2. Open the host through that origin, or paste it into **Phone-accessible origin** and press the arrow to update the QR. This changes the join link; it does not create a tunnel or deploy the application.
-3. Scan with an even number of phones (at least four), enter nicknames, then join the crew. Roles are assigned after the host starts.
+3. Scan with an even number of phones (at least four), enter nicknames, then join Limb-Possible. Roles are assigned after the host starts.
 4. Press **Everybody in? Start**, choose characters on phones, then vote for an arena.
 5. Tap **Enable motion sensors**, allow access, hold the phone comfortably in portrait, then **Recalibrate**. Both orientation and acceleration streams are required. Once every phone is calibrated, the match starts automatically. The arena enters fullscreen (or fills the browser viewport if fullscreen is unavailable). Phone calibration appears in the corner. Legs movement stays relative to the arena view: left/right stays left/right as the Arm teammate turns the fighter. Forward tilt/W/Up moves away from the camera; backward moves toward it.
 6. Results offer **Play again** to return to the lobby without rejoining. Hold phones securely and use small jolts while standing still.

@@ -21,9 +21,9 @@ function hostHarness() {
   const html=readFileSync(new URL('../host/index.html',import.meta.url),'utf8');
   for(const m of html.matchAll(/id="([^"]+)"/g))elements.set(m[1],element());
   const $=id=>elements.get(id)||null;
-  const handlers={},emitted=[],frames=[],beams=[];let frame,clock=0,lastInputs,sim;
+  const handlers={},emitted=[],frames=[],beams=[];let frame,clock=0,lastInputs,sim,configured;
   class TrackedSimulation extends Simulation{constructor(){super();sim=this;}step(inputs,dt){lastInputs=inputs;return super.step(inputs,dt);}}
-  const draw=(...args)=>frames.push(args[4]);draw.configure=draw.clearKO=draw.resetMotion=()=>{};draw.startKO=events=>beams.push(...events);
+  const draw=(...args)=>frames.push(args[4]);draw.configure=fighters=>configured=fighters;draw.clearKO=draw.resetMotion=()=>{};draw.startKO=events=>beams.push(...events);
   const socket={connected:true,on:(name,fn)=>handlers[name]=fn,emit:(event,payload,ack)=>{emitted.push({event,payload});ack?.({});}};
   const context={...motion,Simulation:TrackedSimulation,MAPS,C,CHARACTERS,matchRules,rollFrame,
     document:{getElementById:$,querySelector:()=>null,createElement:element,addEventListener(){},hidden:false},
@@ -34,7 +34,7 @@ function hostHarness() {
     localStorage:{getItem(){return null;},setItem(){}},addEventListener(){},setInterval(){},performance:{now:()=>clock},requestAnimationFrame:fn=>frame=fn};
   const source=readFileSync(new URL('../host/src/main.js',import.meta.url),'utf8').replace(/^\uFEFF?import .*;\r?\n/gm,'');
   vm.runInNewContext(source,context);
-  return {$,handlers,emitted,sim,frames,beams,get lastInputs(){return lastInputs;},advance(to){clock=to;frame(clock);}};
+  return {$,handlers,emitted,sim,frames,beams,get configured(){return configured;},get lastInputs(){return lastInputs;},advance(to){clock=to;frame(clock);}};
 }
 test('lobby needs even count; dev map preview bypasses phone voting and uses idle fighters',()=>{
   const h=hostHarness(),{$,handlers}=h;
@@ -46,6 +46,12 @@ test('lobby needs even count; dev map preview bypasses phone voting and uses idl
   handlers['game:state']({phase:'playing',debug:true});h.advance(40);
   assert.equal(JSON.stringify(h.lastInputs),'{}');assert.equal(h.sim.mapId,'ice');
   $('leaveGame').onclick();assert.equal(h.emitted.at(-1).payload.phase,'lobby');
+});
+test('developer match applies independent player and bot character skins',()=>{
+  const h=hostHarness(),{$,handlers}=h;
+  $('devPlayerCharacter').value='toast';$('devBotCharacter').value='conehead';$('debugStart').onclick();
+  handlers['game:state']({phase:'playing',debug:true});
+  assert.deepEqual(Array.from(h.configured,f=>f.character),['toast','conehead']);
 });
 test('dynamic shared-life HUD follows team pool, hides entirely in FFA',()=>{
   const h=hostHarness(),{$,handlers,sim}=h;

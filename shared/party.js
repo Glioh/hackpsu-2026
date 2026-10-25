@@ -3,7 +3,13 @@ export const CHARACTERS = [
   ['conehead', 'Conehead'], ['bubbles', 'Captain Bubbles'], ['wukong', 'Wukong'], ['lebron', 'LeBron James'],
 ].map(([id, name]) => ({ id, name, portrait: `/host/assets/ui/portraits/${id}_portrait.png` }));
 
-export const FFA_COLORS = ['#ff665b', '#63c7ec', '#ffd447', '#c98cff', '#68e0a5', '#ff94c9', '#ffa94d', '#97b8ff'];
+export const FFA_IDENTITIES = [
+  { name: 'GOLD', color: '#ffd447' }, { name: 'PURPLE', color: '#b58cff' },
+  { name: 'TEAL', color: '#35d6bd' }, { name: 'ORANGE', color: '#ff8a3d' },
+  { name: 'PINK', color: '#ff70b7' }, { name: 'LIME', color: '#a7e85c' },
+  { name: 'CYAN', color: '#39bff2' }, { name: 'CORAL', color: '#ff7163' },
+];
+export const FFA_COLORS = FFA_IDENTITIES.map(identity => identity.color);
 export const SELECTION_MS = 25000;
 export const ROLL_MS = 3400;
 export const AGREE_MS = 900;
@@ -27,8 +33,9 @@ export function makeMatch(playerIds, random = Math.random) {
   const rules = matchRules(playerIds.length), ids = shuffled(playerIds, random);
   const fighters = Array.from({ length: rules.count }, (_, i) => {
     const side = rules.mode === 'ffa' ? `fighter-${i + 1}` : i < rules.count / 2 ? 'red' : 'blue';
-    return { id: `fighter-${i + 1}`, side, label: rules.mode === 'ffa' ? `Duo ${i + 1}` : `${side === 'red' ? 'Red' : 'Blue'} ${i % (rules.count / 2) + 1}`,
-      color: rules.mode === 'ffa' ? FFA_COLORS[i % FFA_COLORS.length] : side === 'red' ? '#ff665b' : '#63c7ec',
+    const identity=FFA_IDENTITIES[i%FFA_IDENTITIES.length];
+    return { id: `fighter-${i + 1}`, side, label: rules.mode === 'ffa' ? identity.name : `${side === 'red' ? 'Red' : 'Blue'} ${i % (rules.count / 2) + 1}`,
+      color: rules.mode === 'ffa' ? identity.color : side === 'red' ? '#ff665b' : '#63c7ec',
       players: ids.slice(i * 2, i * 2 + 2), character: null };
   });
   return { ...rules, fighters, mapId: null };

@@ -11,6 +11,8 @@ test('lobby accepts names beyond four, defers roles and rejects odd start counts
   await emit(sixth, 'room:join', { roomCode:c.roomCode, name:'Sixth' });
   const final = await startMatch(c);
   assert.equal(final.match.mode, 'ffa'); assert.equal(final.match.count, 3); assert.equal(final.phase, 'playing');
+  assert.equal(new Set(final.match.fighters.map(f=>f.color)).size,3);
+  assert.ok(c.phones.every(phone=>phone.assignment.fighterColor===final.match.fighters.find(f=>f.id===phone.assignment.fighterId).color));
   assert.equal(c.room.players.size, 6);
   const late = await c.client(); assert.ok((await emit(late,'room:join',{roomCode:c.roomCode})).error);
 });
@@ -71,6 +73,7 @@ test('selection deadlines resolve missing votes and calibration gates gameplay',
 test('keep playing retains matchup and pauses safely when a phone needs calibration', async t => {
   const c = await lobby(t); await startMatch(c);
   const match = structuredClone(c.room.match);
+  const fighters=structuredClone(match.fighters);let previousMap=match.mapId;
   for (const needsCalibration of [false, true]) {
     const results = event(c.host, 'game:state', s => s.phase === 'results');
     c.host.emit('game:state', { phase: 'results', winner: 'red' }); await results;
@@ -80,7 +83,7 @@ test('keep playing retains matchup and pauses safely when a phone needs calibrat
       c.phones[0].emit('player:ready', false); await roster;
     }
     assert.equal((await emit(c.host, 'game:start')).ok, true);
-    assert.deepEqual(c.room.match, match); assert.equal(c.room.winner, null);
+    assert.deepEqual(c.room.match.fighters,fighters);assert.notEqual(c.room.match.mapId,previousMap);previousMap=c.room.match.mapId;assert.equal(c.room.winner, null);
     assert.equal(c.room.phase, needsCalibration ? 'paused' : 'playing');
     if (needsCalibration) {
       const resumed = event(c.host, 'game:state', s => s.phase === 'playing' && s.resumed);

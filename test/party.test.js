@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeMatch, matchRules, shuffled, voteLeaders, makeRoll, rollFrame } from '../shared/party.js';
+import { FFA_IDENTITIES, makeMatch, matchRules, shuffled, voteLeaders, makeRoll, rollFrame } from '../shared/party.js';
 import { Simulation } from '../host/src/simulation.js';
 import { fallbackCombatRig } from '../host/src/combat-rig.js';
 import { MAPS } from '../shared/maps.js';
@@ -16,6 +16,12 @@ test('4/6/8/10/12 phones produce balanced pairs and expected mode and stock pool
     if (mode === 'teams') assert.equal(m.fighters.filter(f => f.side === 'red').length, phones / 4);
   }
   for (const count of [0, 2, 3, 5, 7, 9]) assert.throws(() => matchRules(count));
+});
+test('FFA pairs use distinct named colors while team fighters keep numbered red and blue labels',()=>{
+  const ffa=match(10);
+  assert.deepEqual(ffa.fighters.map(f=>f.label),FFA_IDENTITIES.slice(0,5).map(identity=>identity.name));
+  assert.equal(new Set(ffa.fighters.map(f=>f.color)).size,5);assert.ok(ffa.fighters.every(f=>!/^Duo /i.test(f.label)));
+  const teams=match(8);assert.deepEqual(teams.fighters.map(f=>f.label),['Red 1','Red 2','Blue 1','Blue 2']);
 });
 test('votes choose only leaders; roulette slows and ends on the authoritative winner', () => {
   assert.deepEqual(voteLeaders({ a:'ice', b:'ice', c:'classic' }, ['ice','classic','lava']), ['ice']);

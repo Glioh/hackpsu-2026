@@ -40,6 +40,42 @@ export function createCombatAudio({ createContext = () => new AudioContext({ lat
     source.onended = () => { active.delete(source); source.disconnect(); filter?.disconnect(); gain.disconnect(); };
     source.start(now); source.stop(now + duration + .01);
   }
+  function tone(frequency, endFrequency, level, duration, type = 'sawtooth', filterFrequency = 1600) {
+    const oscillator=context.createOscillator(),filter=context.createBiquadFilter(),now=context.currentTime;
+    oscillator.type=type;oscillator.frequency.setValueAtTime(frequency,now);
+    if(endFrequency)oscillator.frequency.exponentialRampToValueAtTime(endFrequency,now+duration*.92);
+    filter.type='lowpass';filter.frequency.value=filterFrequency;
+    layer(oscillator,level,duration,filter,true);
+  }
+  function ringout(final) {
+    const duration=final?1.8:.8;
+    tone(final?155:240,final?58:125,final?.32:.2,duration,'sawtooth',final?1200:1800);
+    tone(final?205:320,final?78:165,final?.24:.15,duration,final?'square':'sawtooth',final?950:2100);
+    const impact=context.createOscillator(),now=context.currentTime;
+    impact.type='sine';impact.frequency.setValueAtTime(final?105:145,now);impact.frequency.exponentialRampToValueAtTime(32,now+(final?.55:.3));
+    layer(impact,final?.58:.4,final?.65:.38);
+  }
+  function itemDrop() {
+    tone(260,920,.19,.58,'triangle',2600);
+    tone(110,48,.38,.42,'sine',900);
+    tone(1250,1900,.13,.7,'sine',3200);
+  }
+  function playEvent(event) {
+    const hit = event.type === 'hit' && event.source === 'fighter';
+    if(event.type==='weapon_drop'){itemDrop();return;}
+    if(event.type==='ringout'){ringout(event.lives===0);return;}
+    if (!hit && event.type !== 'punch') return;
+    const weight = Math.max(0, Math.min(1, ((event.strength ?? 5.5) - 5) / 6));
+    const source = context.createBufferSource(), filter = context.createBiquadFilter();
+    source.buffer = noise; filter.type = 'bandpass'; filter.Q.value = .7;
+    filter.frequency.value = hit ? 850 + random() * 300 : 1600;
+    layer(source, hit ? .3 + weight * .15 : .09, hit ? .12 : .09, filter);
+    if (hit) {
+      const thump = context.createOscillator(), now = context.currentTime;
+      thump.type = 'sine';thump.frequency.setValueAtTime(150 - weight * 35, now);
+      thump.frequency.exponentialRampToValueAtTime(45, now + .16);layer(thump, .4 + weight * .15, .18);
+    }
+  }
   return {
     unlock, stop,
     async cheer(duration = 10.35) {
@@ -75,22 +111,15 @@ export function createCombatAudio({ createContext = () => new AudioContext({ lat
     },
     setEnabled(value) { enabled = !!value; if (master) master.gain.value = enabled ? volume : 0; if (!enabled) stop(); },
     setVolume(value) { volume = Math.max(0, Math.min(1, value)); if (master) master.gain.value = enabled ? volume : 0; },
+    events(events) {
+      if (!enabled || !context || context.state !== 'running') return;
+      const ringouts=events.filter(event=>event.type==='ringout');
+      if(ringouts.length)ringout(ringouts.some(event=>event.lives===0));
+      for(const event of events)if(event.type!=='ringout')playEvent(event);
+    },
     event(event) {
-      const hit = event.type === 'hit' && event.source === 'fighter';
-      if ((!hit && event.type !== 'punch') || !enabled || !context || context.state !== 'running') return;
-      // Stronger launch recoil makes the impact deeper and weightier.
-      const weight = Math.max(0, Math.min(1, ((event.strength ?? 5.5) - 5) / 6));
-      const source = context.createBufferSource(), filter = context.createBiquadFilter();
-      source.buffer = noise; filter.type = 'bandpass'; filter.Q.value = .7;
-      filter.frequency.value = hit ? 850 + random() * 300 : 1600;
-      layer(source, hit ? .3 + weight * .15 : .09, hit ? .12 : .09, filter);
-      if (hit) {
-        const thump = context.createOscillator(), now = context.currentTime;
-        thump.type = 'sine';
-        thump.frequency.setValueAtTime(150 - weight * 35, now);
-        thump.frequency.exponentialRampToValueAtTime(45, now + .16);
-        layer(thump, .4 + weight * .15, .18);
-      }
+      if (!enabled || !context || context.state !== 'running') return;
+      playEvent(event);
     },
   };
 }

@@ -1,4 +1,4 @@
-# Two-Body Brawl: commentary research and event proposal
+# Limb-Possible: commentary research and event proposal
 
 Research date: October 25, 2026. Proposal only; gameplay and audio integration are not implemented here. Thresholds below are starting hypotheses to tune from recorded play, not research-established constants.
 

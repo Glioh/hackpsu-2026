@@ -31,6 +31,14 @@ test('weapons drop two or three times a round, spread out, never two at once', (
   assert.ok(sim.arena.floorAt(p.x, p.z) && Math.abs(p.y - sim.arena.floorAt(p.x, p.z).y) < 1e-6, 'resting on solid floor');
 });
 
+test('scheduled weapon drops identify the spawned pickup for presentation effects',()=>{
+  const {sim}=ring();sim.fighters.forEach(f=>f.z=6);const events=[];
+  for(let t=0;t<16;t+=dt){sim.step({});events.push(...sim.motionEvents);}
+  const dropped=events.find(event=>event.type==='weapon_drop'),pickup=sim.weapons.state.pickups[0];
+  assert.ok(dropped);assert.equal(dropped.id,pickup.id);assert.equal(dropped.weapon,pickup.type);
+  assert.deepEqual([dropped.x,dropped.y,dropped.z],[pickup.x,pickup.y,pickup.z]);
+});
+
 test('walking over a weapon picks it up; the other fighter cannot take it too', () => {
   const { sim, red, blue } = ring(1);
   sim.weapons.spawn(sim.arena, 'sword', 0, 0);

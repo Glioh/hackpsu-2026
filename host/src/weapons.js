@@ -85,7 +85,7 @@ export function createWeapons(seed = 1) {
       if (state.drops.length && state.time >= state.drops[0] && !state.pickups.length) {
         const spot = findSpot(arena, fighters);
         state.drops.shift();
-        if (spot) { const p = api.spawn(arena, WEAPON_TYPES[Math.floor(rng() * WEAPON_TYPES.length)], spot.x, spot.z); events.push({ type: 'weapon_drop', weapon: p.type, x: p.x, y: p.y, z: p.z }); }
+        if (spot) { const p = api.spawn(arena, WEAPON_TYPES[Math.floor(rng() * WEAPON_TYPES.length)], spot.x, spot.z); events.push({ type: 'weapon_drop', id: p.id, weapon: p.type, x: p.x, y: p.y, z: p.z }); }
       }
       // Pickups rest on the floor (and fall if it disappears), vanish after a while, and go to whoever walks over them.
       for (const p of state.pickups) {

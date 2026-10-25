@@ -1,0 +1,31 @@
+/* Keep the original surfaces and text; change only the UI accents. */
+:root {
+  --accent: #B4DEA8;
+  --accent-secondary: #F2E2B9;
+  --lime: var(--accent);
+  --gold: var(--accent);
+  --red: var(--accent);
+  --blue: var(--accent-secondary);
+}
+button { box-shadow: 0 3px 0 #7fa873; }
+button.secondary { box-shadow: 0 3px 0 #142039; }
+.join-copy h1 span, .join-copy a { color: var(--accent); }
+.crew #start { background: var(--accent); color: #182020; box-shadow: 0 4px 0 #7fa873; }
+.waiting-dots i { background: var(--accent-secondary); }
+#phoneSelectionStatus { color: var(--accent-secondary) !important; }
+.choice-card.selected { border-color: var(--accent-secondary); }
+.choice-card.partner-pick:after { background: var(--accent-secondary); color: #182020; }
+.party-faceoff #faceoffCountdown { color: var(--accent); }
+.calibration-hud h3, .calibration-row[data-ready=true] span { color: var(--accent-secondary); }
+.controller-joined[data-team=red] { --team-bar: var(--accent); }
+.controller-joined[data-team=blue] { --team-bar: var(--accent-secondary); }
+.preview-tools summary { color: var(--accent-secondary); }
+.preview-tools input[type=range] { accent-color: var(--accent-secondary); }
+
+/* Keep the game name within narrow phone screens. */
+#join h1 { font-size: clamp(32px, 9vw, 48px); }
+/* Two-tone game wordmark. */
+.game-name { text-transform: none; }
+.join-copy .game-name .name-limb, #join .game-name .name-limb { color: var(--accent); }
+.join-copy .game-name .name-dash, #join .game-name .name-dash { color: #fff; }
+.join-copy .game-name .name-possible, #join .game-name .name-possible { color: var(--accent-secondary); }

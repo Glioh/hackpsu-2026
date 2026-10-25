@@ -7,6 +7,7 @@ import { CHARACTERS, rollFrame } from '../../shared/party.js';
 import { MAPS } from '../../shared/maps.js';
 import { choiceCard, updateChoices } from '../../shared/selection-view.js';
 const $=id=>document.getElementById(id);
+const TEAM_COLORS={red:'#ff665b',blue:'#63c7ec'};
 const previewMode=new URLSearchParams(location.search).get('preview')==='1';
 const socket=previewMode?io({autoConnect:false}):connectSocket();
 const feedback=createHitFeedback($('hitOverlay'));
@@ -19,11 +20,9 @@ const sensors=new Sensors(p=>{
   send();
 });
 $('room').value=new URLSearchParams(location.search).get('room')||'';
-$('nickname').value = previewMode ? '' : localStorage.getItem('brawl-name') || '';
 function join(){
   const roomCode=$('room').value.trim().toUpperCase();if(!roomCode)return;
-  localStorage.setItem('brawl-name', $('nickname').value.trim());
-  socket.emit('room:join',{roomCode,name:$('nickname').value.trim(),clientToken:localStorage.getItem('brawl-token-'+roomCode)},p=>{if(p.error)$('error').textContent=p.error;});
+  socket.emit('room:join',{roomCode,clientToken:localStorage.getItem('brawl-token-'+roomCode)},p=>{if(p.error)$('error').textContent=p.error;});
 }
 function applyAssignment(p){
   const samePlayer = assignment && p.playerId && assignment.playerId === p.playerId;
@@ -33,6 +32,8 @@ function applyAssignment(p){
   if(!previewMode)localStorage.setItem('brawl-token-'+p.roomCode,p.clientToken);
   $('join').classList.add('hidden');$('controller').classList.remove('hidden');
   document.body.classList.add('controller-joined');document.body.dataset.team=p.team || 'lobby';
+  const fighterColor=p.fighterColor||TEAM_COLORS[p.team];
+  if(fighterColor)document.body.style.setProperty?.('--team-bar',fighterColor);else document.body.style.removeProperty?.('--team-bar');
   $('team').textContent=p.role ? `${p.fighterLabel?.toUpperCase() || p.team.toUpperCase()} / ${p.role.toUpperCase()}` : 'IN THE CREW / '+(p.name || 'PLAYER');
   $('lobbyName').textContent = p.name || 'YOU ARE IN';
 }

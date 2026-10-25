@@ -20,7 +20,8 @@ export function createApp(options = {}) {
     );
   });
   app.get('/health', (_, res) => res.set('Cache-Control', 'no-store').json({ ok: true, version: CONFIG.version, commit: process.env.APP_COMMIT || null }));
-  app.get('/', (_, res) => res.sendFile(root + 'host/index.html'));
+  app.get(['/', '/lobby', '/host', '/host/', '/host/index.html'], (_, res) =>
+    res.set('Cache-Control', 'no-store').sendFile(root + 'host/index.html'));
   app.get('/controller', (_, res) => res.sendFile(root + 'controller/index.html'));
   for (const dir of ['host', 'controller', 'shared']) app.use('/' + dir, express.static(root + dir));
   app.use('/vendor/three/addons', express.static(root + 'node_modules/three/examples/jsm'));
@@ -36,5 +37,5 @@ export function createApp(options = {}) {
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { http } = createApp();
-  http.listen(Number(process.env.PORT) || 3000, '0.0.0.0', () => console.log('Two-Body Brawl: http://localhost:' + (process.env.PORT || 3000)));
+  http.listen(Number(process.env.PORT) || 3000, '0.0.0.0', () => console.log('Limb-Possible: http://localhost:' + (process.env.PORT || 3000)));
 }

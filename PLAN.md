@@ -1,4 +1,4 @@
-# PLAN.md — Two-Body Brawl
+# PLAN.md — Limb-Possible
 
 > **Status:** Implementation plan for the HackPSU MVP  
 > **Source of truth:** `CONTEXT.md` (game requirements and design decisions)  
@@ -38,7 +38,7 @@ The MVP is **done only if** each item below passes on the intended demo setup:
 ## 2. Architecture and folder layout
 
 ```text
-Two-Body-Brawl/
+Limb-Possible/
 ├── CONTEXT.md
 ├── PLAN.md
 ├── package.json                 # workspace scripts, if using workspaces

@@ -1,4 +1,4 @@
-"""Builds the weapon pickups (Two-Body Brawl) in their own Blender scene. Re-runnable: rebuilds from scratch.
+"""Builds the weapon pickups (Limb-Possible) in their own Blender scene. Re-runnable: rebuilds from scratch.
 
 Run from Blender's Python console / MCP:
     exec(open(p).read(), {"__name__": "__main__", "__file__": p})                    # build only

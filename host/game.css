@@ -12,6 +12,7 @@
 @media(max-width:700px){.pause-overlay{justify-content:flex-start;padding-top:70px}.arena-top{font-size:8px;gap:8px}.arena-top .match-control{font-size:8px;padding:6px}}
 
 .commentary-controls{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:10px 0}.commentary-controls label{display:flex;align-items:center;gap:6px}.commentary-controls input[type=range]{width:100px}.commentary-caption{position:absolute;bottom:24px;left:10%;right:10%;z-index:8;text-align:center;background:#111d;color:white;border-radius:8px;padding:10px;pointer-events:none}.commentary-caption:empty{display:none}
+.item-spawn-banner{position:absolute;top:128px;left:50%;z-index:9;min-width:min(78vw,420px);transform:translate(-50%,-16px) scale(.82);padding:10px 26px;border:2px solid currentColor;border-radius:7px;background:#07101ee8;color:#fff;text-align:center;font-size:clamp(18px,2.6vw,34px);font-weight:900;letter-spacing:.11em;text-shadow:0 2px 0 #000;box-shadow:0 0 28px currentColor;opacity:0;pointer-events:none}.item-spawn-banner.show{animation:item-spawn-banner 1.5s cubic-bezier(.2,.9,.25,1) both}@keyframes item-spawn-banner{0%{opacity:0;transform:translate(-50%,-18px) scale(.7)}12%,68%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,-8px) scale(1.06)}}
 
 .game-settings summary{cursor:pointer;font-weight:700;letter-spacing:.12em;font-size:12px}
 .game-settings h3{font-size:22px;margin:24px 0 12px}.game-settings .commentary-controls{font-size:13px;gap:20px}.commentary-controls input[type=checkbox]{width:auto;accent-color:var(--lime)}.commentary-controls input[type=range]{padding:0;accent-color:var(--lime)}.commentary-controls small{flex-basis:100%}
@@ -27,7 +28,8 @@
 .winner-portrait{max-width:50%;max-height:100%;object-fit:contain;animation:victory-bounce 1s ease-in-out infinite}
 @keyframes victory-bounce{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-12px) rotate(3deg)}}
 @media(max-width:500px){.result{padding:16px;gap:8px}.result .actions button{min-width:0;padding:14px 18px;font-size:12px}}
-@media(prefers-reduced-motion:reduce){.winner-portrait{animation:none}}
+@media(prefers-reduced-motion:reduce){.winner-portrait{animation:none}.item-spawn-banner.show{animation:item-spawn-banner-reduced 1.5s ease both}@keyframes item-spawn-banner-reduced{0%,100%{opacity:0}10%,75%{opacity:1}}}
 
 .lives-hud{position:absolute;top:66px;left:50%;transform:translateX(-50%);display:flex;gap:32px;padding:10px 18px;background:#0d1118e8;border:1px solid #2b3444;border-radius:8px;z-index:5;pointer-events:none;white-space:nowrap;font-size:11px;font-weight:700}.lives-hud>span{display:flex;align-items:center;gap:10px}.lives-hud [role=status]{font-size:28px;letter-spacing:5px;line-height:1}
+.match-active .lives-hud .red{color:#ff5c5c}.match-active .lives-hud .blue{color:#31c8ff}
 @media(max-width:700px){.lives-hud{top:58px;gap:18px;padding:8px 12px}.lives-hud [role=status]{font-size:23px;letter-spacing:3px}}

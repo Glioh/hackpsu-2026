@@ -4,7 +4,7 @@ import { tiltAxis } from './sensors.js';
 // Uses production screen state and feedback without connecting to a live room.
 export function setupControllerPreview({applyAssignment,applyGameState,applyRoster,setCalibration,hit,jolt}) {
   document.body.classList.add('controller-preview');
-  document.title='Controller preview - Two-Body Brawl';
+  document.title='Controller preview - Limb-Possible';
   document.getElementById('connection').textContent='LOCAL PREVIEW';
   const panel=document.createElement('details');panel.className='preview-tools';panel.open=true;
   panel.innerHTML=`<summary>Controller preview</summary><p>No room or other phones required.</p>

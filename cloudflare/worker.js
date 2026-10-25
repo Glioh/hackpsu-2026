@@ -18,6 +18,6 @@ export default {
   fetch(request, env) {
     // Rooms live in one Node process. Every page, polling request, and WebSocket
     // must reach the same named container. Return upgrades without rewrapping.
-    return getContainer(env.GAME_SERVER, 'two-body-brawl').fetch(request);
+    return getContainer(env.GAME_SERVER, 'limbpossible').fetch(request);
   },
 };

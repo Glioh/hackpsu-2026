@@ -1,4 +1,4 @@
-"""Builds Toast Malone (Two-Body Brawl) in its own Blender scene. Re-runnable: rebuilds from scratch.
+"""Builds Toast Malone (Limb-Possible) in its own Blender scene. Re-runnable: rebuilds from scratch.
 
 Run from Blender's Python console / MCP:
     exec(open(p).read(), {"__name__": "__main__", "__file__": p})                    # build only

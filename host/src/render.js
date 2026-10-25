@@ -190,6 +190,8 @@ export function createRenderer(container, onCombatRig = () => {}) {
     models.forEach((m, i) => { if (i >= fighters.length) { m.group.visible = false; if (m.marker) m.marker.visible = m.label.visible = false; } });
   };
   draw.weaponAudio = weaponView.audio;                                    // grenade sounds (weapon-audio.js)
+  draw.weaponDrop = event => weaponView.weaponDrop(event);
+  draw.clearDropEffects = () => weaponView.clearDropEffects();
   draw.dispose = () => { resizeObserver.disconnect(); ko.clear(); contactShadows.dispose(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, geometries:renderer.info.memory.geometries, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
   draw.hit = (body, impact) => {

@@ -4,7 +4,7 @@ import { CALIBRATION, validCalibration } from '../shared/calibration.js';
 import { CHARACTERS, makeMatch, shuffled, voteLeaders, makeRoll, SELECTION_MS } from '../shared/party.js';
 import { MAPS } from '../shared/maps.js';
 
-export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIntervalMs = 500, selectionMs = SELECTION_MS, rollScale = 1 } = {}) {
+export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIntervalMs = 500, selectionMs = SELECTION_MS, rollScale = 1, random = Math.random } = {}) {
   const timers = new Map();
   const schedule = (room, callback, ms) => {
     const timer = setTimeout(() => { timers.get(room.code)?.delete(timer); if (rooms.has(room.code)) callback(); }, ms);
@@ -16,6 +16,10 @@ export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIn
   const allReady = room => room.match?.fighters.every(f => f.players.every(id => {
     const p = room.players.get(id); return p?.socketId && p.ready;
   }));
+  const differentMap = current => {
+    const choices=MAPS.filter(map=>map.id!==current);
+    return choices[Math.floor(random()*choices.length)]?.id??current;
+  };
   function publicState(room) {
     return { phase: room.phase, winner: room.winner, debug: room.debug, interruption: room.interruption,
       match: room.match, selection: room.selection, serverTime: Date.now() };
@@ -29,8 +33,9 @@ export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIn
     })) });
   }
   function assignment(room, p) {
+    const fighter=room.match?.fighters.find(f => f.id === p.fighterId);
     return { playerId: p.id, name: p.name, team: p.side ?? null, role: p.role ?? null,
-      fighterLabel: room.match?.fighters.find(f => f.id === p.fighterId)?.label,
+      fighterLabel: fighter?.label, fighterColor: fighter?.color,
       fighterId: p.fighterId ?? null, key: p.fighterId ? `${p.fighterId}:${p.role}` : p.id,
       partner: room.match?.fighters.find(f => f.id === p.fighterId)?.players.filter(id => id !== p.id).map(id => room.players.get(id)?.name).join(', '),
       clientToken: p.token, roomCode: room.code };
@@ -156,6 +161,7 @@ export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIn
       if (!['lobby', 'results'].includes(room.phase)) return reply(ack, { error: 'Return to the lobby before starting again.' });
       if (room.phase === 'results' && room.match && payload?.debug !== true) {
         clearTimers(room); room.winner = null;
+        room.match.mapId=differentMap(room.match.mapId);
         const ready = allReady(room);
         phase(room, 'playing');
         if (!ready) phase(room, 'paused', { status: 'calibration-required', message: 'Reconnect and recalibrate every phone to continue.' });

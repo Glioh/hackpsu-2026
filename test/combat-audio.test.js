@@ -38,6 +38,23 @@ test('audio unavailable is harmless to combat',()=>{
   assert.doesNotThrow(()=>{audio.unlock();audio.event({type:'punch'});audio.stop();});
 });
 
+test('ring-outs use one siren per tick and final elimination has the major cue',()=>{
+  const {context,sources}=audioHarness();const audio=createCombatAudio({createContext:()=>context});audio.unlock();
+  audio.events([{type:'ringout',team:'red',lives:1},{type:'ringout',team:'blue',lives:1}]);
+  assert.equal(sources.length,3,'simultaneous life losses share one layered siren');
+  assert.ok(sources.every(source=>source.stopAt<=context.currentTime+.82),'ordinary siren stays short');
+  audio.events([{type:'ringout',team:'red',lives:1},{type:'ringout',team:'blue',lives:0}]);
+  assert.equal(sources.length,6,'final ring-out adds one cue, not one per fighter');
+  assert.ok(sources.slice(3).some(source=>source.stopAt>=context.currentTime+1.8),'final siren is substantially longer');
+});
+
+test('weapon drops have a layered arrival sound and obey mute',()=>{
+  const {context,sources}=audioHarness();const audio=createCombatAudio({createContext:()=>context});audio.unlock();
+  audio.events([{type:'weapon_drop',id:3,weapon:'sword'}]);assert.equal(sources.length,3);
+  assert.deepEqual(sources.map(source=>source.type),['triangle','sine','sine']);
+  audio.setEnabled(false);audio.events([{type:'weapon_drop',id:4,weapon:'spring'}]);assert.equal(sources.length,3);
+});
+
 test('crowd plays recorded buffer, shares cancellation and mute with countdown',async()=>{
  const {context,sources,crowd}=audioHarness();let requests=0;
  const audio=createCombatAudio({createContext:()=>context,fetcher:async url=>{requests++;assert.equal(url,'/host/audio/crowd-cheer.mp3');return {ok:true,arrayBuffer:async()=>new ArrayBuffer(4)};}});

@@ -20,7 +20,7 @@ export function createWeaponView(scene) {
       err => console.warn(type + ' weapon model unavailable', err));
   const root = new T.Group(); scene.add(root);
   let lastState = null;
-  const pickups = new Map(), grenades = new Map(), blasts = new Map(), scorches = new Map(), held = [null, null], swooshes = [null, null];
+  const pickups = new Map(), arrivals = new Map(), grenades = new Map(), blasts = new Map(), scorches = new Map(), held = [null, null], swooshes = [null, null];
   const audio = createWeaponAudio();
   let shake = 0;
 
@@ -38,6 +38,23 @@ export function createWeaponView(scene) {
     beam.position.y = 1.2;
     group.add(spin, ring, beam); root.add(group);
     return { group, spin, ring, beam };
+  }
+  function makeArrival(event) {
+    const color=new T.Color(COLORS[event.weapon]||'#ffffff'),group=new T.Group();
+    group.position.set(event.x,event.y+.03,event.z);
+    const beam=new T.Mesh(new T.CylinderGeometry(.18,.55,8,24,1,true),new T.MeshBasicMaterial({color,transparent:true,opacity:.65,depthWrite:false,side:T.DoubleSide,blending:T.AdditiveBlending}));
+    beam.position.y=4;
+    const ring=new T.Mesh(new T.RingGeometry(.5,.72,48),new T.MeshBasicMaterial({color,transparent:true,depthWrite:false,side:T.DoubleSide,blending:T.AdditiveBlending}));
+    ring.rotation.x=-Math.PI/2;
+    const core=new T.Mesh(new T.SphereGeometry(.34,16,10),new T.MeshBasicMaterial({color:'#ffffff',transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
+    core.position.y=.35;
+    const sparks=Array.from({length:20},(_,i)=>{
+      const spark=new T.Mesh(new T.SphereGeometry(.045,5,4),new T.MeshBasicMaterial({color:i%4?'#ffffff':color,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
+      const angle=i/20*Math.PI*2+(i%3)*.13,speed=2.2+(i%5)*.45;
+      spark.userData={x:Math.cos(angle)*speed,z:Math.sin(angle)*speed,lift:2.5+(i%4)*.65};return spark;
+    });
+    group.add(beam,ring,core,...sparks);root.add(group);
+    return {group,beam,ring,core,sparks,age:0};
   }
   function makeHeld(type) {
     const obj = templates[type].clone(true); obj.scale.setScalar(SCALE); root.add(obj);
@@ -78,7 +95,7 @@ export function createWeaponView(scene) {
   const drop = (map, id) => { const v = map.get(id); (v.group ?? v.obj ?? v).removeFromParent(); map.delete(id); };
   const clear = () => {
     audio.stopAll(); shake = 0;
-    for (const map of [pickups, grenades, blasts]) for (const id of [...map.keys()]) drop(map, id);
+    for (const map of [pickups, arrivals, grenades, blasts]) for (const id of [...map.keys()]) drop(map, id);
     for (const [id, v] of scorches) { v.mesh.removeFromParent(); scorches.delete(id); }
     held.forEach((h, i) => { h?.obj.removeFromParent(); held[i] = null; });
   };
@@ -111,6 +128,11 @@ export function createWeaponView(scene) {
 
   return {
     audio,
+    weaponDrop(event) {
+      if(arrivals.has(event.id))return;
+      arrivals.set(event.id,makeArrival(event));
+    },
+    clearDropEffects() { for(const id of [...arrivals.keys()])drop(arrivals,id); },
     clear() { clear(); pows.forEach(k => { k.age = Infinity; k.pow.visible = k.ring.visible = false; }); },
     // Camera shake owed to the renderer since the last call (grenade blasts rattle the screen).
     takeShake() { const s = shake; shake = 0; return s; },
@@ -135,6 +157,15 @@ export function createWeaponView(scene) {
         v.group.visible = k.age < PICKUP_LIFE - 3 || Math.sin(k.age * 18) > 0;
         const pulse = .5 + .5 * Math.sin(time * 5);
         v.ring.material.opacity = .45 + .4 * pulse; v.ring.scale.setScalar(1 + .12 * pulse);
+      }
+      // The arrival spectacle is event-driven, so it appears immediately even while the weapon model loads.
+      for(const [id,v] of arrivals){
+        v.age+=dt;const u=Math.min(1,v.age/1.05),flash=Math.max(0,1-u);
+        v.beam.scale.set(1+u*.8,1,1+u*.8);v.beam.material.opacity=.65*flash;
+        v.ring.scale.setScalar(.7+5*Math.sqrt(u));v.ring.material.opacity=.9*flash;
+        v.core.scale.setScalar(.3+2.4*Math.sin(Math.min(1,u*1.8)*Math.PI));v.core.material.opacity=flash;
+        for(const spark of v.sparks){const velocity=spark.userData,t=v.age;spark.position.set(velocity.x*t,velocity.lift*t-4.5*t*t,velocity.z*t);spark.scale.setScalar(1+u);spark.material.opacity=flash;}
+        if(u===1)drop(arrivals,id);
       }
 
       // Held weapons ride the punching hand; the spring glove fires level, the sword sweeps across the front.
