@@ -1,6 +1,8 @@
 import { Sensors } from './sensors.js';
+import { createNeutralGuide } from './neutral-guide.js';
 import { connectSocket } from '../../shared/connection.js';
 const $=id=>document.getElementById(id),socket=connectSocket();
+const updateNeutralGuide=createNeutralGuide($('neutralGuide'));
 let assignment=null,seq=0,action=0,power=0,ready=false,phase='lobby',wasReady=false;
 const sensors=new Sensors(p=>{if(phase!=='playing'||!ready)return;action++;power=p;navigator.vibrate?.(30);send();});
 $('room').value=new URLSearchParams(location.search).get('room')||'';
@@ -24,3 +26,10 @@ function send(){if(!assignment||!socket.connected)return;const s=sensors.sample(
   $('x').value=x;$('z').value=z;$('jolt').textContent=sensors.magnitude.toFixed(1);$('diagnostics').textContent=JSON.stringify({secure:isSecureContext,portrait:screen.orientation?.angle??window.orientation??0,orientation:sensors.raw,calibrated:!!sensors.neutral,streamHealthy:s.valid,sequence:seq,joltId:action,acceleration:sensors.magnitude.toFixed(2)},null,2);
 }
 setInterval(send,1000/30);
+function animateGuide(){
+  const valid=ready&&sensors.sample().valid;
+  updateNeutralGuide(sensors.raw,sensors.neutral,valid);
+  document.body.classList.toggle('motion-playing',!!assignment&&phase==='playing'&&valid);
+  requestAnimationFrame(animateGuide);
+}
+requestAnimationFrame(animateGuide);
