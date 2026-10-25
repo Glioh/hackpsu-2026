@@ -14,6 +14,7 @@ export const FIGHTERS = {
   tung: { name: 'Tung Tung Sahur', url: '/host/assets/characters/tung_tung_sahur.glb', prefix: 'TS_' },
   // impactFx: extra hit effect for this fighter (crumbs.js).
   toast: { name: 'Toast Malone', url: '/host/assets/characters/toast_malone.glb', prefix: 'TM_', teamMaterial: 'TM_Gloves', impactFx: 'crumbs' },
+  conehead: { name: 'Conehead', url: '/host/assets/characters/conehead.glb', prefix: 'CH_', teamMaterial: 'CH_Gloves' },
 };
 export const TEAM_FIGHTERS = ['crank', 'squish']; // default picks: red, blue
 const gltfs = new Map();
@@ -40,7 +41,8 @@ export async function loadFighter(id) {
     // Gear: maxTilt caps the extra tilt (radians); lift = rim radius (m), so a tilted pot rides up on the head
     // instead of its rim swinging down through it.
     // butter: soft gear that jiggles (jiggle.js).
-    const WOBBLY = { head: { kind: 'head' }, helmet: { kind: 'gear', maxTilt: .18, lift: .35 }, shell: { kind: 'gear', maxTilt: .6, lift: 0 }, butter: { kind: 'jiggle' } };
+    // cone: a top-heavy hat that hops and rocks on the jiggle spring and lags loose enough to flop over.
+    const WOBBLY = { head: { kind: 'head' }, helmet: { kind: 'gear', maxTilt: .18, lift: .35 }, shell: { kind: 'gear', maxTilt: .6, lift: 0 }, butter: { kind: 'jiggle' }, cone: { kind: 'bounce', maxTilt: .55 } };
     root.traverse(o => { const w = WOBBLY[o.userData.ragdoll_part]; if (w) wobbly.push({ node: o, ...w, rest: o.rotation.clone(), restY: o.position.y, restScale: o.scale.clone() }); });
     const legs = [node('Leg_R'), node('Leg_L')]; legs.forEach(leg => root.attach(leg));
     const torso = new T.Group(); root.add(torso); torso.attach(node('Torso'));

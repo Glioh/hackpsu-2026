@@ -103,9 +103,14 @@ export function createRenderer(container, onCombatRig = () => {}) {
         if (was && !was.grounded && body.grounded && was.vy < -9) crumbs.burst(body, 14, .7);
         landings[i] = { grounded: body.grounded, vy: body.vy };
       }
-      const j = body && m.wobbly?.some(w => w.kind === 'jiggle') ? jiggles[i](body, active ? dt : 0, motionEnabled) : null;
+      const j = body && m.wobbly?.some(w => w.kind === 'jiggle' || w.kind === 'bounce') ? jiggles[i](body, active ? dt : 0, motionEnabled) : null;
       m.wobbly?.forEach(({ node, kind, rest, restY, restScale, maxTilt, lift }) => {
         if (kind === 'jiggle') { if (j) { node.scale.set(restScale.x * j.xz, restScale.y * j.y, restScale.z * j.xz); node.rotation.set(rest.x, rest.y, rest.z + j.tilt); } }
+        else if (kind === 'bounce') {                                           // cone hops off the head and rocks
+          const b = j ? 1 - j.y : 0, x = Math.max(-maxTilt, Math.min(maxTilt, k.gear.x * 1.6 + b * .7)), z = Math.max(-maxTilt, Math.min(maxTilt, k.gear.z * 1.6 + b * .35));
+          node.rotation.set(rest.x + x, rest.y, rest.z + z);
+          node.position.y = restY + Math.abs(b) * .3 + .25 * (Math.abs(Math.sin(x)) + Math.abs(Math.sin(z)));
+        }
         else if (kind === 'head') node.rotation.set(rest.x + pose.headPitch + k.head.x, rest.y + pose.headYaw, rest.z + pose.headRoll + k.head.z);
         else {
           const x = Math.max(-maxTilt, Math.min(maxTilt, k.gear.x)), z = Math.max(-maxTilt, Math.min(maxTilt, k.gear.z));

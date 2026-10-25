@@ -30,6 +30,8 @@ FIGHTERS = {
     "nik": dict(slug="nik", pfx="NK_", root="Nik", hand="Hand"),
     # No head part: the face is on the slice, so the head icon frames everything above face_z - 0.3.
     "toast": dict(slug="toast_malone", pfx="TM_", root="ToastMalone", hand="Hand", face="Slice", face_z=0.95),
+    # The cone is taller than he is: the head icon crops it at head_clip so his face still reads.
+    "conehead": dict(slug="conehead", pfx="CH_", root="Conehead", hand="Hand", head_clip=1.75),
 }
 # Poses. Arm targets are world directions the shoulder->wrist segment points along (+X = the fighter's left,
 # the big punching side; -Y = forward). torso/head: extra (x, y, z) rotation in radians; lift raises the whole body.
@@ -49,6 +51,9 @@ POSES = {
     "toast": {
         "portrait": dict(arms={"L": (0.55, -0.35, 0.8), "R": (-0.45, -0.85, 0.3)}, torso=(0.05, 0.05, 0.12)),
     },
+    "conehead": {
+        "portrait": dict(arms={"L": (0.6, -0.5, 0.7), "R": (-0.4, -0.85, 0.3)}, torso=(0.06, 0.04, 0.1), head=(-0.06, 0.06, 0.1)),
+    },
 }
 # Shots: camera view direction (from subject towards the camera), which parts to frame, lens fill and size.
 SHOTS = {
@@ -56,6 +61,8 @@ SHOTS = {
     "head": dict(size=512, view=(0.45, -1.0, 0.12), frame="head", fill=0.86),
 }
 VIEW_OVERRIDE = {("crank", "portrait"): (-0.75, -1.0, 0.22)}           # asymmetric: claw in profile, shell behind
+VIEW_OVERRIDE[("conehead", "portrait")] = (0.55, -1.0, -0.12)          # from a little below, so his eyes peek out
+VIEW_OVERRIDE[("conehead", "head")] = (0.35, -1.0, -0.2)                #   from under the brim
 
 # ---------- scene ----------
 sc = bpy.data.scenes.get("Portraits") or bpy.data.scenes.new("Portraits")
@@ -176,6 +183,7 @@ def frame_points(ch, what):
     if what == "head":                                               # head plus a little shoulder, not raised hands
         c = head.matrix_world.translation
         pts += [p for p in frame_points(ch, "all") if p.z > c.z - 0.12 and math.hypot(p.x - c.x, p.y - c.y) < 0.45]
+        if "head_clip" in ch["spec"]: pts = [p for p in pts if p.z < ch["spec"]["head_clip"]]
     return pts
 
 def place_camera(points, view, fill, size):
