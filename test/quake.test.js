@@ -6,6 +6,29 @@ import {createQuakeView} from '../host/src/quake-view.js';
 import {Simulation} from '../host/src/simulation.js';
 
 const tick=1/60;
+test('successive quakes increase shove, bounce and camera shake, resetting for a new arena',()=>{
+  const sample=arena=>{
+    const strengths=[];
+    for(let i=0;i<3600&&strengths.length<4;i++){
+      const fighter={team:'red',x:4,y:0,z:3,vx:0,vy:0,vz:0,grounded:true,hit:0},events=[];
+      arena.step(tick,[fighter],events);
+      if(!events.length)continue;
+      const strength=events[0].strength;
+      if(strengths.at(-1)===strength)continue;
+      const intensity=strength/6;
+      assert.equal(arena.shake,intensity);
+      assert.ok(Math.hypot(fighter.vx,fighter.vz)>=3*intensity);
+      assert.ok(Math.hypot(fighter.vx,fighter.vz)<=6*intensity);
+      assert.ok(fighter.vy>=2.5*intensity&&fighter.vy<=4*intensity);
+      strengths.push(strength);
+    }
+    return strengths;
+  };
+  const expected=[0,1,2,3].map(i=>6*(1+.15*i));
+  assert.deepEqual(sample(createArena('quake',1)),expected);
+  assert.deepEqual(sample(createArena('quake',1)),expected);
+});
+
 test('earthquake warns before opening real faults, carries shelves and closes again',()=>{
   const arena=createArena('quake',1);let warned=false,opened=false,closed=false;
   for(let i=0;i<900;i++){

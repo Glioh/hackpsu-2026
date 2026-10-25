@@ -93,13 +93,17 @@ export function createArena(id = 'classic', seed = 1) {
       arena.pieces = [-1,1].flatMap(sx=>[-1,1].map(sz=>piece(sx*C.arenaX/2,sz*C.arenaZ/2,C.arenaX/2,C.arenaZ/2,{kind:'quake',sx,sz,y:sz<0?.24:0})));
       arena.spawn=[[-3,3],[3,3]];
       let opening=0;
-      let wait = 3 + rng() * 2, quake = 0, jolt = 0;
+      let wait = 3 + rng() * 2, quake = 0, jolt = 0, quakeCount = 0, intensity = 1;
       arena.update = (dt, fighters, events) => {
         if (quake > 0) {
           quake -= dt;
-          if ((jolt -= dt) <= 0) { jolt = .3; for (const f of fighters) if (f.grounded) shove(f, rng() * 2 * Math.PI, 3 + rng() * 3, 2.5 + rng() * 1.5, events, 6); }
+          if ((jolt -= dt) <= 0) { jolt = .3; for (const f of fighters) if (f.grounded) shove(f, rng() * 2 * Math.PI, (3 + rng() * 3) * intensity, (2.5 + rng() * 1.5) * intensity, events, 6 * intensity); }
           if (quake <= 0) wait = 4 + rng() * 3;
-        } else if ((wait -= dt) <= 0) { quake = 1.8; jolt = 0; }
+        } else if ((wait -= dt) <= 0) {
+          quake = 1.8; jolt = 0;
+          // Each new quake adds 15% of the original force; rematches start fresh.
+          intensity = 1 + .15 * quakeCount++;
+        }
         const target=quake>0?1.8:0,previous=opening;
         opening+=Math.max(-dt*.8,Math.min(dt*1.8,target-opening));
         for(const p of arena.pieces){
@@ -108,7 +112,7 @@ export function createArena(id = 'classic', seed = 1) {
         }
         arena.fracture=opening/1.8;
         arena.warning = quake <= 0 && wait < 1;
-        arena.shake = quake > 0 ? 1 : arena.warning ? .25 : Math.max(0, arena.shake - dt * 4);
+        arena.shake = quake > 0 ? intensity : arena.warning ? .25 : Math.max(0, arena.shake - dt * 4);
       };
       break;
     }
