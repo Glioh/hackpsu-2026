@@ -34,7 +34,7 @@ function harness({ live = false, stream, dialogue } = {}) {
   return { api, nodes, advance, elements, callbacks, spoken, get context() { return context; } };
 }
 
-test('failed live announcer keeps captions instead of substituting a browser voice',async t=>{
+test('failed live speech skips the caption instead of showing an unspoken line',async t=>{
   let calls=0;
   const h=harness({live:true,stream:async()=>{
     if(++calls===2)return {ok:false,status:502,json:async()=>({error:'Announcer A custom voice unavailable.'})};
@@ -44,7 +44,7 @@ test('failed live announcer keeps captions instead of substituting a browser voi
   await flush();h.api.phase('playing');h.api.tick();await flush();
   h.nodes[0].end();await flush();
   h.advance(3,[{type:'hit',source:'fighter',attacker:'red',team:'blue',damage:16}]);h.api.tick();await flush();
-  assert.equal(calls,2);assert.ok(h.elements.get('commentaryCaption').textContent);
+  assert.equal(calls,2);assert.equal(h.elements.get('commentaryCaption').textContent,'');
   assert.ok(!h.elements.get('commentaryCaption').textContent.includes('Vera:'));
   assert.equal(h.spoken.length,0);assert.match(h.elements.get('commentaryStatus').textContent,/Announcer A custom voice unavailable/);
 });
@@ -53,6 +53,7 @@ test('local voices wait for actual audio ending, even when audio clock stalls pa
   const h = harness(); t.after(() => h.api.phase('paused'));
   await flush(); h.api.phase('playing'); h.api.tick(); await flush();
   assert.equal(h.nodes.length, 1);
+  assert.equal(h.elements.get('commentaryCaption').textContent,SCRIPTS.find(s=>s.id===h.api.metrics.at(-1).script).text);
   h.context.state = 'suspended';
   await new Promise(resolve => setTimeout(resolve, 20));
   h.context.state = 'running';
@@ -65,6 +66,25 @@ test('local voices wait for actual audio ending, even when audio clock stalls pa
   assert.equal(h.nodes.length, 2);
   h.api.phase('paused');
   assert.equal(h.nodes[1].stopped, true);
+});
+
+test('a live caption waits for playable PCM and clears when the matching audio ends',async t=>{
+ let release;const h=harness({live:true,stream:async()=>{
+  let read=0;return {ok:true,body:{getReader:()=>({read:async()=>read++===0?new Promise(resolve=>{release=resolve;}):{done:true}})}};
+ }});t.after(()=>h.api.phase('paused'));
+ await flush();h.api.phase('playing');h.api.tick();await flush();
+ assert.equal(h.elements.get('commentaryCaption').textContent,'');assert.equal(h.nodes.length,0);
+ release({done:false,value:Uint8Array.of(0,0)});await flush();
+ assert.equal(h.nodes.length,1);assert.equal(h.elements.get('commentaryCaption').textContent,SCRIPTS.find(s=>s.id===h.api.metrics.at(-1).script).text);
+ h.nodes[0].end();await flush();assert.equal(h.elements.get('commentaryCaption').textContent,'');
+});
+
+test('empty speech never displays an unspoken caption',async t=>{
+ const h=harness({live:true,stream:async()=>({ok:true,body:{getReader:()=>({read:async()=>({done:true})})}})});
+ t.after(()=>h.api.phase('paused'));
+ await flush();h.api.phase('playing');h.api.tick();await flush();
+ assert.equal(h.nodes.length,0);assert.equal(h.elements.get('commentaryCaption').textContent,'');
+ assert.match(h.elements.get('commentaryStatus').textContent,/Empty speech/);
 });
 
 test('announcer countdown uses ready voice clips on each beat, interrupts dialogue, and stops on pause or mute', async t => {

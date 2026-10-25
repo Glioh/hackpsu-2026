@@ -13,24 +13,27 @@ export function createCommentary(socket){
   try{catalogPromise=fetch('/api/commentary/catalog').then(r=>r.json());catalog=await catalogPromise;
    const ctx=audioContext();const entries=Object.entries(catalog.clips).filter(([id])=>announcerScripts.some(script=>script.id===id));let cursor=0;
    await Promise.all(Array.from({length:Math.min(3,entries.length)},async()=>{while(cursor<entries.length){const [id,clip]=entries[cursor++];try{const response=await fetch(clip.url);if(response.ok)buffers.set(id,await ctx.decodeAudioData(await response.arrayBuffer()));}catch{}}}));
-   status.textContent=`${buffers.size} voice clips ready${catalog.dialogue?' · Gemini live commentary':' · scripted commentary'}${catalog.live?' · live voice':buffers.size?'':' · captions only'}`;
-  }catch{status.textContent='Captions only · voice bank unavailable';}
+   status.textContent=`${buffers.size} voice clips ready${catalog.dialogue?' · Gemini live commentary':' · scripted commentary'}${catalog.live?' · live voice':buffers.size?'':' · speech unavailable'}`;
+  }catch{status.textContent='Voice bank unavailable';}
  }
- function track(buffer,when,offset,signal,nodes){
+ function track(buffer,when,offset,signal,nodes,onStart=()=>{}){
   return new Promise(resolve=>{
    if(signal.aborted)return resolve(false);
    const node=context.createBufferSource();node.buffer=buffer;node.connect(gain);active.add(node);nodes.add(node);
    let finished=false;
    const done=()=>{if(finished)return;finished=true;active.delete(node);nodes.delete(node);signal.removeEventListener('abort',cancel);node.disconnect();resolve(!signal.aborted);};
    const cancel=()=>{try{node.stop();}catch{}done();};
-   node.onended=done;signal.addEventListener('abort',cancel,{once:true});node.start(when,offset);
+   node.onended=done;signal.addEventListener('abort',cancel,{once:true});node.start(when,offset);onStart();
   });
  }
  function wait(ms,signal){return new Promise(resolve=>{const timer=setTimeout(done,ms);function done(){clearTimeout(timer);signal.removeEventListener('abort',done);resolve();}signal.addEventListener('abort',done,{once:true});if(signal.aborted)done();});}
- async function play(script,event,signal){
-  if(!enabled||signal.aborted)return false;const nodes=new Set(),ended=[],started=performance.now();const deadline=script.generated?started+5000:started+Math.max(0,event.expires-detector.time)*1000;
+ async function play(script,event,signal,onStart){
+  if(!enabled||signal.aborted||muted)return false;
+  if(catalogPromise)await catalogPromise;
+  if(signal.aborted)return false;
+  const nodes=new Set(),ended=[],started=performance.now();const deadline=script.generated?started+5000:started+Math.max(0,event.expires-detector.time)*1000;
   const buffer=buffers.get(script.id);
-  if(buffer&&context?.state==='running'&&!muted){const ended=track(buffer,context.currentTime,catalog.clips[script.id]?.offset||0,signal,nodes);metrics.push({path:'local',script:script.id,scheduleMs:performance.now()-event.observedAt,baseLatency:context.baseLatency,outputLatency:context.outputLatency});return ended;}
+  if(buffer&&context?.state==='running'){const ended=track(buffer,context.currentTime,catalog.clips[script.id]?.offset||0,signal,nodes,onStart);metrics.push({path:'local',script:script.id,scheduleMs:performance.now()-event.observedAt,baseLatency:context.baseLatency,outputLatency:context.outputLatency});return ended;}
   if(catalog.live&&token&&!muted&&context?.state==='running'){
    const request=new AbortController();const cancel=()=>request.abort();signal.addEventListener('abort',cancel,{once:true});const timer=setTimeout(cancel,Math.min(7000,deadline-started));
    try{
@@ -46,16 +49,18 @@ export function createCommentary(socket){
       if(signal.aborted)throw Error('Cancelled');
       const count=Math.min(2400,length-offset),audio=context.createBuffer(1,count,24000),samples=audio.getChannelData(0);
       for(let i=0;i<count;i++)samples[i]=view.getInt16((offset+i)*2,true)/32768;
+      const firstChunk=first;
       if(first){next=context.currentTime+.08;if(performance.now()>deadline)throw Error('Stale');metrics.push({path:'live',script:script.id,firstScheduleMs:performance.now()-event.observedAt});clearTimeout(timer);first=false;}
-      next=Math.max(next,context.currentTime+.01);ended.push(track(audio,next,0,signal,nodes));next+=audio.duration;
+      next=Math.max(next,context.currentTime+.01);ended.push(track(audio,next,0,signal,nodes,firstChunk?onStart:undefined));next+=audio.duration;
       // Slice large provider chunks and bound the scheduled queue, propagating fetch backpressure.
       if(next-context.currentTime>.9)await wait((next-context.currentTime-.5)*1000,signal);
      }
     }
     if(carry!==null)throw Error('Truncated PCM sample');if(first)throw Error('Empty speech');await Promise.all(ended);return !signal.aborted;
-   }catch(error){for(const node of nodes){try{node.stop();}catch{}}await Promise.all(ended);if(!signal.aborted)status.textContent=`${error.message||'Custom voice unavailable.'} Captions only; keeping your selected voice.`;}finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);request.abort();}
+   }catch(error){for(const node of nodes){try{node.stop();}catch{}}await Promise.all(ended);if(!signal.aborted)status.textContent=`${error.message||'Custom voice unavailable.'} Commentary skipped because speech could not play.`;return false;}finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);request.abort();}
   }
-  await wait(Math.max(1800,script.text.split(/\s+/).length*280),signal);return !signal.aborted;
+  status.textContent='Commentary speech unavailable. Check the configured voice and live speech settings.';
+  return false;
  }
  async function prepare(event,history,firstSpeaker,signal){
   if(catalogPromise)await catalogPromise;
@@ -85,7 +90,7 @@ export function createCommentary(socket){
  socket.on('disconnect',()=>{token=null;director.cancel();});
  loadPromise=preload();
  return {
-  unlock(){try{const ctx=audioContext();ctx.resume().catch(()=>{status.textContent='Audio blocked · captions available';});loadPromise??=preload();socket.emit('commentary:authorize',{},result=>{token=result.token;});}catch{status.textContent='Captions only · Web Audio unavailable';}},
+  unlock(){try{const ctx=audioContext();ctx.resume().catch(()=>{status.textContent='Audio blocked · commentary speech unavailable';});loadPromise??=preload();socket.emit('commentary:authorize',{},result=>{token=result.token;});}catch{status.textContent='Web Audio unavailable · commentary speech unavailable';}},
   phase(phase,resumed,details={}){if(phase==='playing'){if(!resumed){match=details;game={map:details.map||'classic',winner:null,fighters:['red','blue'].map(team=>({team,character:details.fighters?.[team],damage:0,grounded:true}))};detector.reset(++round);director.reset(round,details);if(enabled)offer(detector.event('round_start',null));}director.paused=false;}else if(phase!=='results'){director.cancel();director.paused=true;}},
   fight(){director.cancel();director.nextAt=0;},
   countdown(index){

@@ -57,8 +57,9 @@ export class CommentaryDirector {
       if(signal.aborted||generation!==this.generation||event.expires<this.clock())return;
       for(const turn of turns){
         if(signal.aborted||generation!==this.generation)return;
-        this.caption(turn.text,turn.speaker);
-        const completed=await this.play(turn,event,signal);
+        const completed=await this.play(turn,event,signal,()=>{
+          if(!signal.aborted&&generation===this.generation)this.caption(turn.text,turn.speaker);
+        });
         if(signal.aborted||generation!==this.generation)return;
         if(completed!==false){this.history.push({speaker:turn.speaker,text:turn.text});this.history=this.history.slice(-12);this.lastSpeaker=turn.speaker;}
         this.recent.push(turn.id);this.recent=this.recent.slice(-128);

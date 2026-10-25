@@ -96,6 +96,21 @@ test('speech failures preserve safe provider codes and hints without returning p
   assert.equal(error.providerCode,'unknown_provider_error');assert.ok(!JSON.stringify(error).includes('private-key'));return true;
  });
 });
+
+test('caption callbacks follow speech readiness and cannot display a canceled round',async()=>{
+ const captions=[];let start,finish;
+ const director=new CommentaryDirector({caption:text=>captions.push(text),play:(turn,event,signal,onStart)=>{
+  start=onStart;return new Promise(resolve=>{finish=resolve;});
+ }});
+ director.reset(1);captions.length=0;
+ director.offer({round:1,type:'round_start',team:null,time:0,priority:30,expires:5});
+ const playing=director.tick(SCRIPTS);assert.deepEqual(captions,[]);
+ start();assert.ok(captions[0]);finish(true);await playing;assert.equal(captions.at(-1),'');
+ director.reset(2);director.offer({round:2,type:'round_start',team:null,time:0,priority:30,expires:5});
+ const old=director.tick(SCRIPTS),oldStart=start;
+ director.reset(3);const count=captions.length;oldStart();finish(false);await old;
+ assert.equal(captions.length,count);assert.equal(director.history.length,0);
+});
 test('backend denies non-host, unknown scripts and missing live config without provider calls',async()=>{
  const app=express(),io=new EventEmitter();installCommentary(app,io,{config:{},fetcher:()=>{throw Error('must not call');}});
  const server=app.listen(0);await new Promise(r=>server.once('listening',r));const base=`http://127.0.0.1:${server.address().port}`;

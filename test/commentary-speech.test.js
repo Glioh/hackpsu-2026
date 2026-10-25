@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCommentary} from '../host/src/commentary-audio.js';
 
-test('missing voice clips use captions only and never substitute a browser voice',async t=>{
+test('missing speech skips captions and never substitutes a browser voice',async t=>{
  const elements=new Map(),spoken=[];let cancelled=0;
  const element=id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id);};
  const globals={
@@ -17,11 +17,11 @@ test('missing voice clips use captions only and never substitute a browser voice
  try{
  commentary.unlock();await new Promise(resolve=>setImmediate(resolve));
  commentary.phase('playing',false,{map:'piano',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();await new Promise(resolve=>setImmediate(resolve));
- assert.match(element('commentaryCaption').textContent,/piano|keys/i);assert.equal(spoken.length,0);
+ assert.equal(element('commentaryCaption').textContent,'');assert.match(element('commentaryStatus').textContent,/speech unavailable/);assert.equal(spoken.length,0);
  commentary.fight();assert.equal(cancelled,0);assert.equal(element('commentaryCaption').textContent,'');
  await new Promise(resolve=>setImmediate(resolve));
  commentary.phase('playing',false,{map:'station',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();await new Promise(resolve=>setImmediate(resolve));
- assert.match(element('commentaryCaption').textContent,/Station|trains|tracks/i);assert.equal(spoken.length,0);
+ assert.equal(element('commentaryCaption').textContent,'');assert.equal(spoken.length,0);
  element('commentaryEnabled').onchange({target:{checked:false}});assert.equal(element('commentaryCaption').textContent,'');
  }finally{commentary.phase('paused');}
 });
