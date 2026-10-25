@@ -33,23 +33,24 @@ test('uppercuts respect cooldown and reset cleanly for a rematch',()=>{
   s.reset();assert.equal(s.fighters[0].attack,0);assert.equal(s.fighters[0].damage,0);
 });
 test('input validator rejects malformed and non-finite values',()=>{assert.equal(validInput('legs',{seq:0,moveX:NaN,moveZ:0}),false);assert.equal(validInput('arm',{seq:1,turn:0,power:-1}),false);assert.equal(validInput('legs',{seq:0,moveX:1,moveZ:-1,jumpId:1}),true);});
-test('tilt increases continuously through the wider range with symmetric signs',()=>{
-  assert.equal(tiltAxis(5),0);assert.equal(tiltAxis(55),1);assert.equal(tiltAxis(-55),-1);assert.equal(tiltAxis(100),1);
-  for(const angle of [10,20,30,40,50]){assert.ok(tiltAxis(angle)<tiltAxis(angle+5));assert.equal(tiltAxis(-angle),-tiltAxis(angle));}
+test('small wrist tilts give continuous symmetric input with a stable neutral zone',()=>{
+  for(const angle of [0,1,2,3])assert.equal(tiltAxis(angle),0);
+  assert.equal(tiltAxis(20),1);assert.equal(tiltAxis(-20),-1);assert.equal(tiltAxis(100),1);
+  assert.ok(tiltAxis(10)>.3,'a small wrist tilt provides useful input');
+  for(const angle of [4,7,10,13,16]){assert.ok(tiltAxis(angle)<tiltAxis(angle+3));assert.equal(tiltAxis(-angle),-tiltAxis(angle));}
 });
 test('stronger tilt produces faster movement and turning',()=>{
   const run=angle=>{const s=new Simulation();for(let i=0;i<20;i++)s.step({red:{legs:{moveZ:tiltAxis(angle)},arm:{turn:tiltAxis(angle)}}});return s.fighters[0];};
   const gentle=run(15),hard=run(45);assert.ok(Math.hypot(hard.vx,hard.vz)>Math.hypot(gentle.vx,gentle.vz));assert.ok(hard.heading>gentle.heading);
 });
 
-test('forward and backward tilt reach full speed at a comfortable smaller angle',()=>{
-  assert.equal(tiltAxis(5,C.forwardSaturation),0);
-  assert.equal(tiltAxis(25,C.forwardSaturation),1);
-  assert.equal(tiltAxis(-25,C.forwardSaturation),-1);
+test('forward and backward tilt reach full speed at fifteen degrees',()=>{
+  assert.equal(tiltAxis(3,C.forwardSaturation),0);
+  assert.equal(tiltAxis(15,C.forwardSaturation),1);
+  assert.equal(tiltAxis(-15,C.forwardSaturation),-1);
   assert.equal(tiltAxis(55,C.forwardSaturation),1);
-  for(const angle of [10,15,20]){
+  for(const angle of [5,8,12]){
     assert.ok(tiltAxis(angle,C.forwardSaturation)>tiltAxis(angle));
     assert.equal(tiltAxis(-angle,C.forwardSaturation),-tiltAxis(angle,C.forwardSaturation));
   }
-  assert.ok(tiltAxis(25)<1,'horizontal tilt keeps its existing range');
 });

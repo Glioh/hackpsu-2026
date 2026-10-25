@@ -89,7 +89,7 @@ $('recalibrate').onclick=()=>{
 addEventListener('orientationchange',()=>invalidate('Return to portrait, then recalibrate.','orientation-error'));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate('This phone was backgrounded. Recalibrate to rejoin.','backgrounded');});
 function inputSample(){
-  const horizontalSign=(assignment?.role==='legs'?-1:1)*($('flip').checked?-1:1);
+  const horizontalSign=$('flip').checked?-1:1;
   const simulated=preview?.sample();
   if(simulated)return {...simulated,x:simulated.x*horizontalSign};
   const s=sensors.sample();return {valid:ready&&s.valid,x:s.x*horizontalSign,z:s.z};

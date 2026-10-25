@@ -5,7 +5,7 @@ export const CONFIG = Object.freeze({
   punchCooldown: 0.65, knockback: 5.5, maxKnockback: 11,
   knockbackSoftCap: 180, knockbackGrowth: .7, uppercutLift: 4.2, launchDamping: 1.8,
   punchDamage: 9, momentumDamage: 1.2, maxPunchDamage: 18,
-  deadZone: 5, saturation: 55, forwardSaturation: 25, joltThreshold: 12, joltCooldown: 350,
+  deadZone: 3, saturation: 20, forwardSaturation: 15, joltThreshold: 12, joltCooldown: 350,
 });
 export const SLOTS = ['red:legs', 'red:arm', 'blue:legs', 'blue:arm'];
 export function validInput(role, p) {
