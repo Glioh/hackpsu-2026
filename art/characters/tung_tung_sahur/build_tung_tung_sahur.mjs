@@ -72,10 +72,17 @@ for (const s of [-1, 1]) {
   for (let finger = 0; finger < 3; finger++)
     oval(hand, [.035, .09, .06], 'Endgrain', [s * .02 + (finger - 1) * .037, -.067, .07]);
   if (s === -1) {
-    // Compact prop follows the fist; no separate weapon animation or reach multiplier.
-    mesh(hand, new T.CylinderGeometry(.032, .032, .17, 12), 'Grain', [0, .07, .025]);
-    mesh(hand, new T.CylinderGeometry(.066, .039, .28, 16), 'Endgrain', [0, .285, .025]);
-    oval(hand, [.132, .07, .132], 'Endgrain', [0, .425, .025]);
+    // Long bat (longer than the sword pickup), with no separate weapon animation or reach multiplier. The hand
+    // keeps only the handle and lower barrel, spanning exactly the old compact bat's extent, so the fist's hit
+    // sphere (combat-rig.js sizes it from the hand) is unchanged; the rest of the bat rides on the arm at the wrist.
+    oval(hand, [.075, .04, .075], 'Grain', [0, -.02, .025]);                                  // knob
+    mesh(hand, new T.CylinderGeometry(.032, .032, .17, 12), 'Grain', [0, .07, .025]);          // handle
+    mesh(hand, new T.CylinderGeometry(.066, .034, .305, 16), 'Endgrain', [0, .3075, .025]);    // lower barrel, top .46 as wide as the old cap
+    const wrist = new T.Vector3(...direction.toArray()).add(new T.Vector3(0, 0, .025));
+    mesh(arm, new T.CylinderGeometry(.09, .066, .84, 18), 'Endgrain', wrist.clone().add(new T.Vector3(0, .88, 0)).toArray());  // upper barrel .46-1.3
+    oval(arm, [.18, .09, .18], 'Endgrain', wrist.clone().add(new T.Vector3(0, 1.3, 0)).toArray());                         // rounded end
+    for (const y of [.62, .86, 1.1])                                                                                         // grain bands
+      mesh(arm, new T.CylinderGeometry(.073 + y * .015, .073 + y * .015, .012, 18), 'Grain', wrist.clone().add(new T.Vector3(0, y, 0)).toArray());
   }
   const leg = part(`Leg_${s === 1 ? 'L' : 'R'}`, torso, [s * .135, -.015, 0], 'leg');
   mesh(leg, new T.CylinderGeometry(.055, .048, .22, 14), 'Wood', [0, -.11, 0]);

@@ -131,6 +131,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
       });
     });
     for (const target of weaponView.update(weapons, bodies, models, time, active ? dt : 0)) { hitEffects.hit(target); punchShake = .3; }
+    punchShake = Math.max(punchShake, weaponView.takeShake());               // grenade blasts too
     if (punchShake > 0) { camera.position.add(new T.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(1.6 * punchShake)); punchShake = Math.max(0, punchShake - dt); }
     environment.apply(arena, camera);
     if(materialArena!==arena){enrichMaterials(scene);materialArena=arena;}
@@ -138,6 +139,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
   };
   draw.resetMotion = () => { hitEffects.clear(); weaponView.clear(); crumbs.clear(); landings.fill(null); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); jiggles = models.map(() => createJiggle()); bowls = models.map(() => createFishbowl()); };
   draw.setFighter = setFighter;
+  draw.weaponAudio = weaponView.audio;                                    // grenade sounds (weapon-audio.js)
   draw.dispose = () => { resizeObserver.disconnect(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
   draw.hit = (body, impact) => {

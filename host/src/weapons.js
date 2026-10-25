@@ -129,7 +129,7 @@ export function createWeapons(seed = 1) {
         if (g.fuse > 0) continue;
         g.done = true;
         const spec = WEAPONS.grenade;
-        state.blasts.push({ id: g.id, x: g.x, y: g.y, z: g.z, radius: spec.radius, age: 0 });
+        state.blasts.push({ id: g.id, x: g.x, y: g.y, z: g.z, radius: spec.radius, age: 0, floor: floorY(arena, g.x, g.z, g.y + .4) ?? null });
         events.push({ type: 'explosion', x: g.x, y: g.y, z: g.z, radius: spec.radius, owner: g.owner });
         for (const target of fighters) {
           const dx = target.x - g.x, dz = target.z - g.z, d = Math.hypot(dx, dz, target.y + .6 - g.y);
