@@ -1,21 +1,21 @@
 .game-focus{overflow:hidden}
-.game-focus #gameScreen,#gameScreen:fullscreen{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;border:0;border-radius:0;z-index:100;background:#d8dfb2}
+.game-focus #gameScreen,#gameScreen:fullscreen{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;border:0;border-radius:0;z-index:100;background:#0d1118}
 #gameScreen.match-active #arena,#gameScreen:fullscreen #arena{height:100dvh;width:100%}
 .arena-top{align-items:center;gap:16px;pointer-events:none}
 .arena-top .match-control{display:none;pointer-events:auto;padding:8px 12px;font-size:10px;white-space:nowrap}
 .match-active .arena-top .match-control{display:block}
-.calibration-hud{display:none;position:absolute;right:20px;top:70px;width:270px;padding:14px;background:#151b19e8;border:1px solid #63705f;border-radius:10px;z-index:8;pointer-events:none}
+.calibration-hud{display:none;position:absolute;right:20px;top:70px;width:270px;padding:14px;background:#0d1118e8;border:1px solid #2b3444;border-radius:6px;z-index:8;pointer-events:none}
 .match-active .calibration-hud{display:block}
-.calibration-hud h3{font:700 10px 'DM Sans',sans-serif;letter-spacing:.12em;color:#d5ef78;margin:0 0 8px}
+.calibration-hud h3{font:700 10px 'DM Sans',sans-serif;letter-spacing:.12em;color:var(--lime);margin:0 0 8px}
 .calibration-row{display:flex;flex-direction:column;gap:3px;padding:6px 0;border-top:1px solid #ffffff1a}
 .calibration-row b{font-size:10px;letter-spacing:.07em;color:#f5f1e8}
 .calibration-row span{font-size:10px;color:#ffb28e}
-.calibration-row[data-ready=true] span{color:#d5ef78}
+.calibration-row[data-ready=true] span{color:var(--lime)}
 .calibration-hud .kick-player{pointer-events:auto;align-self:flex-start;padding:4px 9px}
 .calibration-row{position:relative;padding-right:42px}
 .calibration-row .kick-player{position:absolute;right:0;top:7px}
-.pause-overlay{position:absolute;inset:0;z-index:6;background:#151b19e8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
-.pause-overlay h2{font-size:clamp(38px,5vw,72px);color:#d5ef78}
+.pause-overlay{position:absolute;inset:0;z-index:6;background:#0a0e14e8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
+.pause-overlay h2{font-size:clamp(38px,5vw,72px);color:var(--lime)}
 .pause-overlay p{margin:0;max-width:480px;font-size:14px}
 .pause-overlay #pauseReason{color:#ffb28e}
 .pause-overlay button{min-width:190px}

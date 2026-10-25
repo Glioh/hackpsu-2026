@@ -55,8 +55,14 @@ $('chooseSprites').onclick = () => { if (connectedCount === 4) showSetupStep(1);
 $('chooseMap').onclick = () => showSetupStep(2);
 $('backToPlayers').onclick = () => showSetupStep(0);
 $('backToSprites').onclick = () => showSetupStep(1);
+let faceoffActive = false;
+const faceoffTimers=[];
+function clearFaceoff(){
+  faceoffTimers.splice(0).forEach(id=>clearTimeout(id));
+  faceoffActive=false;$('faceoff').classList.add('hidden');combatAudio.stop();
+}
 function syncScreen() {
-  const inSetup = phase === 'lobby';
+  const inSetup = phase === 'lobby' && !faceoffActive;
   $('setup').classList.toggle('hidden', !inSetup);
   $('gameScreen').classList.toggle('hidden', inSetup);
   if (inSetup) showSetupStep(mapPreview ? 2 : 0, false);
@@ -78,7 +84,7 @@ addEventListener('keydown', e => { if (['INPUT','TEXTAREA'].includes(e.target.ta
 addEventListener('keyup', e => keys.delete(e.code)); addEventListener('blur',()=>{keys.clear();edges.clear();});
 function createRoom() { socket.emit('room:create', {}, p => { if (p.error) return $('error').textContent = p.error; roomCode = p.roomCode; $('code').textContent = roomCode; updateURL(); }); }
 socket.on('connect', createRoom);
-socket.on('disconnect',()=>{phase='lobby';clearFinish();ready=false;connectedCount=0;syncScreen();$('chooseSprites').disabled=true;snapshots.clear();presentation.setPhase(phase);$('pauseOverlay').classList.add('hidden');$('phase').textContent='HOST DISCONNECTED · RECONNECTING';$('start').disabled=true;$('error').textContent='Connection lost. Reconnecting creates a new room; phones must rejoin.';});
+socket.on('disconnect',()=>{phase='lobby';clearFaceoff();clearFinish();ready=false;connectedCount=0;syncScreen();$('chooseSprites').disabled=true;snapshots.clear();presentation.setPhase(phase);$('pauseOverlay').classList.add('hidden');$('phase').textContent='HOST DISCONNECTED · RECONNECTING';$('start').disabled=true;$('error').textContent='Connection lost. Reconnecting creates a new room; phones must rejoin.';});
 function updateURL() {
   let origin = $('origin').value.trim() || location.origin;
   try { const url=new URL(origin); if (!['http:','https:'].includes(url.protocol)) throw Error(); origin=url.origin; } catch { $('error').textContent='Enter a valid HTTP(S) origin.';return; }
@@ -90,7 +96,40 @@ $('origin').value = localStorage.getItem('brawl-origin') || location.origin;
 $('setOrigin').onclick=()=>{localStorage.setItem('brawl-origin',$('origin').value);updateURL();};
 // Character select: one pick per team, remembered per browser, locked while a round is live.
 const TEAMS=['red','blue'], picks=TEAMS.map((team,i)=>{const saved=localStorage.getItem('brawl-fighter-'+team);return FIGHTERS[saved]?saved:TEAM_FIGHTERS[i];});
-function renderPicks(){$('fighterPicks').replaceChildren(...TEAMS.map((team,i)=>{const row=document.createElement('div');row.className='pick';const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' TEAM';const choices=document.createElement('div');choices.append(...Object.entries(FIGHTERS).map(([id,f])=>{const b=document.createElement('button');b.className='secondary';b.textContent=f.name;b.setAttribute('aria-pressed',picks[i]===id);b.disabled=phase==='playing'||phase==='paused';b.onclick=()=>pickFighter(i,id);return b;}));row.append(name,choices);return row;}));}
+const UI_ASSETS='/host/assets/ui/';
+// Short tags for the champ-select grid; no portrait yet for 'tung' so its card falls back to a lettermark.
+const FIGHTER_TAGS={squish:'SOFT BODY. HARD FEELINGS.',crank:'A LITTLE SHELL. A LOT OF ATTITUDE.',bonk:'BUILT DIFFERENT. MOSTLY BOLTS.',nik:'ALL GLOVES. NO PLAN.',tung:'KNOCKS ONCE. KNOCKS HARD.',toast:'WELL DONE UNDER PRESSURE.',conehead:'POINTY. UNBOTHERED. UNSTOPPABLE.',bubbles:'FOAMS AT THE MOUTH. ON PURPOSE.'};
+const HAS_PORTRAIT=new Set(['squish','crank','bonk','nik','toast','conehead','bubbles']);
+let pickingTeam=0;
+function portraitUrl(id,kind){return HAS_PORTRAIT.has(id)?UI_ASSETS+'portraits/'+id+'_'+kind+'.png':'';}
+function renderPicks(){
+  const locked=phase==='playing'||phase==='paused';
+  TEAMS.forEach((team,i)=>{
+    const f=FIGHTERS[picks[i]], slot=$(team+'Slot'), img=$(team+'Portrait'), fallback=$(team+'Fallback'), name=$(team+'Name');
+    const url=portraitUrl(picks[i],'portrait');
+    img.src=url;img.alt=url?f.name:'';img.classList.toggle('hidden',!url);
+    fallback.textContent=url?'':f.name[0];fallback.classList.toggle('hidden',!!url);
+    name.textContent=f.name;
+    slot.classList.toggle('active-pick',pickingTeam===i);
+  });
+  document.querySelectorAll('[data-pick-team]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.pickTeam===pickingTeam)));
+  $('fighterGrid').replaceChildren(...Object.entries(FIGHTERS).map(([id,f])=>{
+    const selected=picks[pickingTeam]===id, b=document.createElement('button');
+    b.className='champ-card';b.setAttribute('role','listitem');b.setAttribute('aria-pressed',selected);
+    b.disabled=locked;b.onclick=()=>pickFighter(pickingTeam,id);
+    const frame=document.createElement('img');frame.className='card-frame';frame.alt='';
+    frame.src=UI_ASSETS+'frames/character_frame_'+(selected?'selected':'normal')+'.svg';
+    const headUrl=portraitUrl(id,'head');
+    const strong=document.createElement('strong');strong.textContent=f.name;
+    const small=document.createElement('small');small.textContent=FIGHTER_TAGS[id]||'';
+    b.append(frame);
+    if(headUrl){const head=document.createElement('img');head.className='card-head';head.alt='';head.src=headUrl;b.append(head);}
+    else{const head=document.createElement('div');head.className='card-head-fallback';head.setAttribute('aria-hidden','true');head.textContent=f.name[0];b.append(head);}
+    b.append(strong,small);
+    return b;
+  }));
+}
+document.querySelectorAll('[data-pick-team]').forEach(b=>b.onclick=()=>{pickingTeam=+b.dataset.pickTeam;renderPicks();});
 function pickFighter(i,id){picks[i]=id;localStorage.setItem('brawl-fighter-'+TEAMS[i],id);draw?.setFighter(i,id);renderPicks();}
 picks.forEach((id,i)=>draw?.setFighter(i,id));renderPicks();
 // Arena select: grouped Early / Mid / Late, remembered per browser, locked while a round is live.
@@ -126,8 +165,9 @@ for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
 });
 socket.on('game:state',p=>{
   phase=p.phase; debug=p.debug;
-  commentary.phase(phase,p.resumed);
-  if (phase !== 'playing') combatAudio.stop();
+  commentary.phase(phase,p.resumed,{map:mapId,fighters:Object.fromEntries(TEAMS.map((team,i)=>[team,picks[i]]))});
+  if (phase !== 'playing') clearFaceoff();
+  else if (!p.resumed) showFaceoff();
   syncScreen();
   if (phase === 'lobby') clearFinish();
   presentation.setPhase(phase);
@@ -149,6 +189,39 @@ socket.on('game:state',p=>{
   $('phase').textContent=phase==='playing'?(mapPreview?'MAP PREVIEW / IDLE BOTS':debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
 });
 function start(isDebug){commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:start',{debug:isDebug},p=>{if(p.error){$('error').textContent=p.error;presentation.setPhase(phase);}});}
+// Hold simulation during the introduction so no fighter loses behind the overlay.
+const FACEOFF_BEATS=[{at:6200,text:'3'},{at:7400,text:'2'},{at:8600,text:'1'},{at:9800,text:'FIGHT',fight:true}];
+const FACEOFF_DURATION=10350;
+function showFaceoff(){
+  clearFaceoff();
+  if(mapPreview||typeof setTimeout!=='function')return;
+  TEAMS.forEach(team=>{
+    const f=FIGHTERS[picks[TEAMS.indexOf(team)]], url=portraitUrl(picks[TEAMS.indexOf(team)],'portrait');
+    const img=$('faceoff'+cap(team)+'Portrait'), fallback=$('faceoff'+cap(team)+'Fallback');
+    img.src=url;img.alt=url?f.name:'';img.classList.toggle('hidden',!url);
+    fallback.textContent=url?'':f.name[0];fallback.classList.toggle('hidden',!!url);
+    $('faceoff'+cap(team)+'Name').textContent=f.name;
+  });
+  $('faceoffMap').textContent=MAPS.find(m=>m.id===mapId).name.toUpperCase();
+  const countdown=$('faceoffCountdown');
+  countdown.textContent='';countdown.className='faceoff-countdown hidden';
+  faceoffActive=true;syncScreen();
+  $('faceoff').className='faceoff';
+  combatAudio.cheer(FACEOFF_DURATION/1000);
+  for(const beat of FACEOFF_BEATS)faceoffTimers.push(setTimeout(()=>{
+    countdown.textContent=beat.text;
+    countdown.classList.remove('hidden','pop','fight');
+    void countdown.offsetWidth; // restart the pop animation even though the class is reapplied
+    countdown.classList.add(beat.fight?'fight':'pop');
+    combatAudio.countdown(beat.fight);
+    if(beat.fight){
+      faceoffActive=false;commentary.fight();$('faceoff').classList.add('reveal');
+      snapshots.clear();keys.clear();edges.clear();accumulator=0;previous=performance.now();syncScreen();
+    }
+  },beat.at));
+  faceoffTimers.push(setTimeout(()=>{$('faceoff').classList.add('hidden');faceoffTimers.length=0;},FACEOFF_DURATION));
+}
+function cap(s){return s[0].toUpperCase()+s.slice(1);}
 $('start').onclick=()=>start(mapPreview);$('debugStart').onclick=()=>{mapPreview=false;syncPreviewControls();start(true);};$('rematch').onclick=()=>start(debug);$('nextMap').onclick=()=>{pickMap(nextMapId());start(debug);};
 $('resumeGame').onclick=()=>{commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
 
@@ -166,7 +239,7 @@ function frame(now) {
   const frameDt = Math.max(0, Math.min((now - previous) / 1000, .1)); previous = now;
   const finishing = finishAge !== null;
   const timeScale = finishing ? FINISH_TIME_SCALE : 1;
-  if (phase === 'playing') visualTime += frameDt * timeScale;
+  if (phase === 'playing' && !faceoffActive) visualTime += frameDt * timeScale;
   if (phase === 'playing' && finishing && !document.hidden) {
     finishAge += frameDt;
     stepFinish(sim, frameDt * timeScale);
@@ -175,7 +248,7 @@ function frame(now) {
   }
   accumulator += frameDt;
   while (accumulator >= C.tick) {
-    if (phase === 'playing' && finishAge === null && !document.hidden) {
+    if (phase === 'playing' && !faceoffActive && finishAge === null && !document.hidden) {
       const inputs = mapPreview ? {} : debug ? {red:keyboard('red'),blue:$('bot').checked?bot(sim):keyboard('blue')} : {red:phone('red',now),blue:phone('blue',now)};
       for (const team of sim.step(inputs)) {
         socket.emit('player:hit', {team});
@@ -197,4 +270,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 // HTTP activity also keeps the cloud container awake during long matches.
 setInterval(() => { if (['playing','paused'].includes(phase) && !document.hidden) fetch('/health', {cache:'no-store'}).catch(() => {}); }, 60000);
-document.addEventListener('visibilitychange',()=>{previous=performance.now();accumulator=0;if(document.hidden&&['playing','paused'].includes(phase)){commentary.phase('paused');combatAudio.stop();phase='paused';socket.emit('game:pause',{});snapshots.clear();keys.clear();edges.clear();}});
+document.addEventListener('visibilitychange',()=>{previous=performance.now();accumulator=0;if(document.hidden&&['playing','paused'].includes(phase)){commentary.phase('paused');clearFaceoff();phase='paused';socket.emit('game:pause',{});snapshots.clear();keys.clear();edges.clear();}});
