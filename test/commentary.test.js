@@ -78,6 +78,19 @@ test('provider sends finite script and supported format; cache excludes secrets 
  const second=SCRIPTS.find(script=>script.speaker==='b');
  await synthesize(second,{...config,b:'zGedNEybz7PeBgPNR4L7'},{fetcher:async(url)=>{assert.match(url,/text-to-speech\/zGedNEybz7PeBgPNR4L7\/stream/);return {ok:true};}});
 });
+
+test('speech failures preserve safe provider codes and hints without returning provider messages or credentials',async()=>{
+ const script=SCRIPTS.find(s=>s.speaker==='a'),config={key:'private-key',a:'configured-voice',model:'configured-model'};
+ for(const field of ['code','status']){
+  await assert.rejects(synthesize(script,config,{fetcher:async()=>({ok:false,status:400,json:async()=>({detail:{[field]:'invalid_output_format',message:'private-key private account information'}})})}),error=>{
+   assert.equal(error.providerStatus,400);assert.equal(error.providerCode,'invalid_output_format');assert.match(error.providerHint,/PCM/);
+   assert.ok(!JSON.stringify(error).includes('private-key'));return true;
+  });
+ }
+ await assert.rejects(synthesize(script,config,{fetcher:async()=>({ok:false,status:400,json:async()=>({detail:{code:'private-key',message:'private-key'}})})}),error=>{
+  assert.equal(error.providerCode,'unknown_provider_error');assert.ok(!JSON.stringify(error).includes('private-key'));return true;
+ });
+});
 test('backend denies non-host, unknown scripts and missing live config without provider calls',async()=>{
  const app=express(),io=new EventEmitter();installCommentary(app,io,{config:{},fetcher:()=>{throw Error('must not call');}});
  const server=app.listen(0);await new Promise(r=>server.once('listening',r));const base=`http://127.0.0.1:${server.address().port}`;
