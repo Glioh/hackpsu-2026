@@ -5,7 +5,7 @@ export function victoryPose(time, reduced = false, index = 0) {
   if(reduced)return {hop:0,side:0,yaw:0,sway:0,lean:0,twist:0,arms:[-2.55,-2.55],armRoll:[-.4,.4],legs:[0,0],legRoll:[0,0]};
   const t=time+index*.35, beat=t*Math.PI*3;
   const step=Math.sin(beat), groove=Math.sin(beat*.5);
-  // Alternate arm pumps and a disco wave, then finish the eight-second phrase
+  // Victory dance: alternate arm pumps and a disco wave, then finish the eight-second phrase
   // with a smooth full turn. The next phrase starts at the same orientation.
   const wave=(1-Math.cos(t*Math.PI/2))/2;
   const turn=Math.max(0,Math.min(1,((t%8)-6.5)/1.5));
