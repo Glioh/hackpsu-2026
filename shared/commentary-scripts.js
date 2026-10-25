@@ -1,4 +1,4 @@
-export const VOICES = { a: 'Rex · veteran showman', b: 'Vera · composed, witty anchor' };
+export const VOICES = { a: 'Jacks Dad', b: 'Jacks Dad' };
 export const SCRIPTS = [];
 function add(event, team, variants) {
   variants.forEach(([speaker,text],i) => SCRIPTS.push({id:`${event}-${team || 'any'}-${i}`,event,team,speaker,text,intensity:event==='ring_out'?5:3,offset:0,version:1}));
