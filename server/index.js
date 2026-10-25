@@ -47,6 +47,8 @@ export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500
     roster(room);
     if (!player.ready && room.phase === 'playing' && !room.debug) {
       state(room, 'paused', null, { key, status, message: CALIBRATION[status] });
+    } else if (room.phase === 'paused' && room.interruption?.key && allReady(room)) {
+      state(room, 'playing', null, null, true);
     }
   }
   const watchdog = setInterval(() => {
@@ -111,7 +113,7 @@ export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500
     });
     socket.on('game:pause', (_, ack) => {
       const room = rooms.get(socket.data.room);
-      if (room?.host !== socket.id || room.phase !== 'playing') return reply(ack, {error:'No active host match.'});
+      if (room?.host !== socket.id || !['playing','paused'].includes(room.phase)) return reply(ack, {error:'No active host match.'});
       state(room, 'paused', null, {status:'host-paused',message:'The host paused the match.'}); reply(ack, {ok:true});
     });
     socket.on('game:resume', (_, ack) => {
@@ -128,7 +130,7 @@ export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500
     });
     socket.on('player:hit', p => {
       const room = rooms.get(socket.data.room);
-      if (room?.host === socket.id && ['red', 'blue'].includes(p?.team)) for (const [key, player] of room.players) if (key.startsWith(p.team + ':') && player.socketId) io.to(player.socketId).emit('player:hit', { strength: 1 });
+      if (room?.host === socket.id && room.phase === 'playing' && ['red', 'blue'].includes(p?.team)) for (const [key, player] of room.players) if (key.startsWith(p.team + ':') && player.socketId) io.to(player.socketId).emit('player:hit', { strength: 1 });
     });
     socket.on('disconnect', () => {
       const room = rooms.get(socket.data.room);

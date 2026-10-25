@@ -25,6 +25,12 @@ Combat uses each selected GLB model's part bounds and swept hand volumes along t
 
 Pick each team's character (Sir Squish, Crank or Bonk-3000) under **03 / Choose your fighters** on the host page. Picks swap live, are remembered per browser, and lock while a round is live. Character art and build scripts live in `art/characters/`; the browser models are `host/assets/characters/*.glb`, listed in `host/src/fighter-model.js`.
 
+## Preview the mobile controller
+
+Open `/controller?preview=1` on the local server or deployed HTTPS origin, or select **Preview mobile controller** on the phone join page. No room, host, or other phones are required. The preview uses the real controller UI with a disconnected socket, so it never joins or sends inputs to a match.
+
+Use the collapsible **Controller preview** panel to choose role, team, and screen state. Simulated tilt sliders work on desktop without sensor permissions; **Idle** centers the inputs. Preview calibration failures, recover all phones, and simulate jolts and hits. Select **Phone sensors**, then enable motion and calibrate using the recovery controls to try it on one phone. Close the panel to inspect the screen unobstructed.
+
 ## Play with phones
 
 1. Run this Node server behind a trusted **HTTPS** origin with Socket.IO support. An ordinary laptop LAN HTTP URL is insufficient for mobile motion sensors. A deployment or secure tunnel must forward all routes and `/socket.io/` to this process.
@@ -34,7 +40,7 @@ Pick each team's character (Sir Squish, Crank or Bonk-3000) under **03 / Choose 
 5. Once all four slots show ready, press **Start the brawl**. The arena enters fullscreen (or fills the browser viewport if fullscreen is unavailable). Phone calibration appears in the corner. Legs movement follows the fighter's facing, controlled by the Arm teammate.
 6. Knockout and ring-out results offer **Run it back** without rejoining. Hold phones securely and use small jolts while standing still.
 
-The steering flip checkbox reverses left/right; recalibration resets neutral. Rotating, backgrounding, losing sensors, or reconnecting requires recalibration. Calibration errors and controller disconnects pause normal matches in place. The corner status identifies the affected role; recalibrate on the phone, then press **Resume match** on the host once all four phones are ready. Silent controllers are marked stale after 2.5 seconds. The original controller can reclaim its role using its stored token for 30 seconds. Occupied slots cannot be replaced. After host disconnect/reload, the room expires; phones must join the new code. Results or **Return to lobby** exit fullscreen.
+The steering flip checkbox reverses left/right; recalibration resets neutral. Rotating, backgrounding, losing sensors, or reconnecting requires recalibration. Calibration errors and controller disconnects pause normal matches in place. The corner status identifies the affected role; recalibrate on the phone and the same round resumes automatically once all four phones are ready. Explicit host pauses still require **Resume match**. Silent controllers are marked stale after 2.5 seconds. The original controller can reclaim its role using its stored token for 30 seconds. Occupied slots cannot be replaced. After host disconnect/reload, the room expires; phones must join the new code. Results or **Return to lobby** exit fullscreen.
 
 ## Deploy
 
@@ -76,3 +82,7 @@ Slot identity comes from the socket's server assignment. Client-supplied team/ke
 Desktop WebGL rendering, normal/debug native fullscreen, the corner calibration HUD, round-end fullscreen exit, and a visible calibration-error pause were inspected in Brave through the temporary HTTPS tunnel. The pause check used four simulated Socket.IO controllers. The tunnel also passed automated role assignment, input relay, and room QR checks. Real iPhone/Android motion, four-human matches, and Cloudflare container deployment remain **not tested**. See [QA.md](QA.md) for release gates.
 
 API references: [Socket.IO](https://socket.io/docs/v4/server-initialization/), [Three.js](https://threejs.org/manual/en/installation.html), [motion permissions](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent/requestPermission_static).
+
+### Mobile action and recovery screens
+
+Joined phones show live movement, steering, jump, and uppercut commands on black. Only a phone needing calibration shows recovery controls; other phones identify affected team/body slots and show their own control tips. Calibration pauses resume the same round automatically once all four phones are connected and calibrated. Host pauses still require host resume. Hits flash red on both phones belonging to the hit fighter and request vibration where supported.

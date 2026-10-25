@@ -37,9 +37,8 @@ test('calibration errors pause the same room and resume only after recalibration
     assert.ok((await emit(host,'game:start')).error);
     assert.ok((await emit(phones[0],'game:resume')).error);
     const ready=event(host,'room:roster',p=>p.slots.every(slot=>slot.ready));
-    phones[1].emit('player:calibration',{status:'calibrated'});await ready;
     const resumed=event(host,'game:state',p=>p.phase==='playing');
-    assert.equal((await emit(host,'game:resume')).ok,true);
+    phones[1].emit('player:calibration',{status:'calibrated'});await ready;
     assert.equal((await resumed).resumed,true);
     assert.equal(rooms.get(roomCode),room);assert.deepEqual([...room.players.values()].map(player=>player.token),tokens);
   }
@@ -66,4 +65,67 @@ test('host pause supports debug matches and cannot be triggered by controllers',
   phones[0].emit('player:calibration',{status:'backgrounded'});
   const resumed=event(host,'game:state',p=>p.phase==='playing');
   assert.equal((await emit(host,'game:resume')).ok,true);assert.equal((await resumed).debug,true);
+});
+
+test('calibration resume waits for all phones, emits once, and never starts lobby or host pauses',async t=>{
+  const {host,phones,rooms,roomCode}=await setup(t);
+  const room=rooms.get(roomCode);let resumes=0;
+  host.on('game:state',p=>{if(p.phase==='playing'&&p.resumed)resumes++;});
+  let roster=event(host,'room:roster',p=>!p.slots[0].ready);
+  phones[0].emit('player:calibration',{status:'sensor-stale'});await roster;
+  roster=event(host,'room:roster',p=>!p.slots[1].ready);
+  phones[1].emit('player:calibration',{status:'backgrounded'});await roster;
+  roster=event(host,'room:roster',p=>p.slots[0].ready);
+  phones[0].emit('player:calibration',{status:'calibrated'});await roster;
+  assert.equal(room.phase,'paused');assert.equal(resumes,0);
+  const resumed=event(host,'game:state',p=>p.resumed);
+  phones[1].emit('player:calibration',{status:'calibrated'});await resumed;
+  roster=event(host,'room:roster');phones[1].emit('player:calibration',{status:'calibrated'});await roster;
+  assert.equal(resumes,1);
+  await emit(host,'game:pause');
+  roster=event(host,'room:roster');phones[0].emit('player:calibration',{status:'calibrated'});await roster;
+  assert.equal(room.phase,'paused');assert.equal(resumes,1);
+  const lobby=event(host,'game:state',p=>p.phase==='lobby');host.emit('game:state',{phase:'lobby'});await lobby;
+  roster=event(host,'room:roster');phones[0].emit('player:calibration',{status:'calibrated'});await roster;
+  assert.equal(room.phase,'lobby');assert.equal(resumes,1);
+});
+
+test('host taking over a calibration pause prevents automatic resume',async t=>{
+  const {host,phones,rooms,roomCode}=await setup(t);
+  const paused=event(host,'game:state',p=>p.phase==='paused');
+  phones[0].emit('player:calibration',{status:'backgrounded'});await paused;
+  assert.equal((await emit(host,'game:pause')).ok,true);
+  const roster=event(host,'room:roster',p=>p.slots.every(s=>s.ready));
+  phones[0].emit('player:calibration',{status:'calibrated'});await roster;
+  assert.equal(rooms.get(roomCode).phase,'paused');
+  assert.equal((await emit(host,'game:resume')).ok,true);
+});
+
+test('hit feedback targets both teammates only and rejects spoofing and paused hits',async t=>{
+  const {host,phones}=await setup(t);const counts=[0,0,0,0];
+  phones.forEach((phone,i)=>phone.on('player:hit',()=>counts[i]++));
+  const red=phones.slice(0,2).map(phone=>event(phone,'player:hit'));
+  host.emit('player:hit',{team:'red'});await Promise.all(red);
+  assert.deepEqual(counts,[1,1,0,0]);
+  phones[0].emit('player:hit',{team:'blue'});
+  await emit(host,'game:pause');host.emit('player:hit',{team:'red'});
+  await new Promise(resolve=>setTimeout(resolve,40));
+  assert.deepEqual(counts,[1,1,0,0]);
+  await emit(host,'game:resume');
+  const blue=phones.slice(2).map(phone=>event(phone,'player:hit'));
+  host.emit('player:hit',{team:'blue'});await Promise.all(blue);
+  assert.deepEqual(counts,[1,1,1,1]);
+});
+
+test('disconnected phone rejoins its slot and calibration resumes the same match',async t=>{
+  const {host,phones,rooms,roomCode}=await setup(t);
+  const room=rooms.get(roomCode),token=room.players.get('red:legs').token;
+  const paused=event(host,'game:state',p=>p.phase==='paused');
+  phones[0].disconnect();await paused;assert.equal(room.phase,'paused');
+  const connected=event(phones[0],'connect');phones[0].connect();await connected;
+  const assignment=await emit(phones[0],'room:join',{roomCode,clientToken:token});
+  assert.equal(assignment.role,'legs');assert.equal(assignment.team,'red');assert.equal(room.phase,'paused');
+  const resumed=event(host,'game:state',p=>p.resumed);
+  phones[0].emit('player:calibration',{status:'calibrated'});await resumed;
+  assert.equal(rooms.get(roomCode),room);assert.equal(room.phase,'playing');
 });

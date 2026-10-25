@@ -116,4 +116,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 // HTTP activity also keeps the cloud container awake during long matches.
 setInterval(() => { if (['playing','paused'].includes(phase) && !document.hidden) fetch('/health', {cache:'no-store'}).catch(() => {}); }, 60000);
-document.addEventListener('visibilitychange',()=>{previous=performance.now();accumulator=0;if(document.hidden&&phase==='playing'){phase='paused';socket.emit('game:pause',{});snapshots.clear();keys.clear();edges.clear();}});
+document.addEventListener('visibilitychange',()=>{previous=performance.now();accumulator=0;if(document.hidden&&['playing','paused'].includes(phase)){phase='paused';socket.emit('game:pause',{});snapshots.clear();keys.clear();edges.clear();}});
