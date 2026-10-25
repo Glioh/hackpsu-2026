@@ -41,11 +41,12 @@ export function createRenderer(container, onCombatRig = () => {}) {
     ko.update(finishAge ?? 0);
     hitEffects.update(bodies, active ? dt : 0);
     const piano=arena.id==='piano';
+    const factory=arena.id==='conveyor';
     const twinspire=arena.id==='twinspire';
     const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain', elevated = rooftop || mountain;
     ground.position.y = twinspire ? -39 : piano ? -24 : mountain ? -40 : rooftop ? -24 : -6;
-    ground.material.color.set(piano ? '#292830' : mountain ? '#93afa0' : rooftop ? '#455e61' : '#bac797');
-    scene.background.set(piano ? '#34343d' : mountain ? '#b6cbbb' : rooftop ? '#526f72' : '#d8dfb2');
+    ground.material.color.set(factory ? '#435459' : piano ? '#292830' : mountain ? '#93afa0' : rooftop ? '#455e61' : '#bac797');
+    scene.background.set(factory ? '#263c42' : piano ? '#34343d' : mountain ? '#b6cbbb' : rooftop ? '#526f72' : '#d8dfb2');
     scene.fog.color.copy(scene.background);scene.fog.near=piano?160:mountain?38:rooftop?60:30;scene.fog.far=piano?400:mountain?130:rooftop?160:65;
     cameraDirection.fromArray(elevated ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION);
     const framingOptions=piano?{minDistance:7,padding:1.08}:undefined;
