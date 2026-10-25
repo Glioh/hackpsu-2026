@@ -42,13 +42,14 @@ export function createRenderer(container, onCombatRig = () => {}) {
     hitEffects.update(bodies, active ? dt : 0);
     const piano=arena.id==='piano';
     const twinspire=arena.id==='twinspire';
-    const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain', elevated = rooftop || mountain;
+    const sumo = arena.id === 'sumo';
+    const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain', elevated = rooftop || mountain || sumo;
     ground.position.y = twinspire ? -39 : piano ? -24 : mountain ? -40 : rooftop ? -24 : -6;
     ground.material.color.set(piano ? '#292830' : mountain ? '#93afa0' : rooftop ? '#455e61' : '#bac797');
     scene.background.set(piano ? '#34343d' : mountain ? '#b6cbbb' : rooftop ? '#526f72' : '#d8dfb2');
-    scene.fog.color.copy(scene.background);scene.fog.near=piano?160:mountain?38:rooftop?60:30;scene.fog.far=piano?400:mountain?130:rooftop?160:65;
+    scene.fog.color.copy(scene.background);scene.fog.near=sumo?100:piano?160:mountain?38:rooftop?60:30;scene.fog.far=sumo?250:piano?400:mountain?130:rooftop?160:65;
     cameraDirection.fromArray(elevated ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION);
-    const framingOptions=piano?{minDistance:7,padding:1.08}:undefined;
+    const framingOptions=sumo?{minDistance:Math.max(32, 40 / camera.aspect),padding:1.25}:piano?{minDistance:7,padding:1.08}:undefined;
     const framing = frameFighters(fighters, camera.aspect, undefined, elevated, framingOptions);
     const desiredFocus = new T.Vector3(...framing.target);
     if (previousTime === null) cameraFocus.copy(desiredFocus);

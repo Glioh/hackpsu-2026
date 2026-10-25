@@ -10,6 +10,7 @@ import {configurePiano} from './piano-map.js';
 import { configureMountain } from './mountain-map.js';
 import {configureStation} from './station-map.js';
 import {configureTwinspire} from './twinspire-map.js';
+import { configureSumo } from './sumo-map.js';
 
 export const MAPS = [
   { id: 'classic', name: 'Classic Ring', tier: 'Early', blurb: 'Solid floor. Learn to shove.' },
@@ -20,6 +21,7 @@ export const MAPS = [
   { id: 'mountain', name: 'Cloudpeak Dojo', tier: 'Mid', blurb: 'Kung fu above the clouds. Climb stone terraces, weave through training obstacles, and send rivals over the cliffs.' },
   {id:'twinspire',name:'Twinspire',tier:'Mid',blurb:'Spawn on opposite skyscrapers. Cross two narrow skybridges and knock your rival into the city below.'},
   {id:'piano',name:'Forte Grand Piano',tier:'Mid',blurb:'88 playable keys on a giant concert grand. Jump onto the sharps, play notes with your feet, and knock rivals off the case.'},
+  { id: 'sumo', name: 'Sumo Laser Arena', tier: 'Mid', blurb: 'Three giant champions aim at the open sumo stage. Dodge the marked spots before their lasers strike.' },
   { id: 'tiles', name: 'Disappearing Tiles', tier: 'Mid', blurb: 'Blinking tiles drop out, then come back.' },
   { id: 'split', name: 'Splitting Floor', tier: 'Mid', blurb: 'The floor splits in half, then slams shut.' },
   { id: 'platforms', name: 'Moving Platforms', tier: 'Mid', blurb: 'A small island and platforms that drift past.' },
@@ -69,6 +71,9 @@ export function createArena(id = 'classic', seed = 1) {
   const tick = (p, dt, next) => { if ((p.t -= dt) <= 0) Object.assign(p, next(p)); };
 
   switch (id) {
+    case 'sumo':
+      configureSumo(arena, rng);
+      break;
     case 'station':
       configureStation(arena,rng);
       break;

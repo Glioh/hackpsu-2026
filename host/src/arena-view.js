@@ -5,6 +5,7 @@ import { createRooftopView } from './rooftop-view.js';
 import { createMountainView } from './mountain-view.js';
 import {createStationView} from './station-view.js';
 import {createTwinspireView} from './twinspire-view.js';
+import { createSumoView } from './sumo-view.js';
 
 // Draws the current arena (maps.js) from its live state: each floor piece is a dark base plus a coloured top,
 // moved/hidden/recoloured every frame (blinking warnings, glowing lava, scrolling belts, falling tiles).
@@ -31,11 +32,13 @@ export function createArenaView(scene) {
   const mountain = createMountainView(scene);
   const twinspire=createTwinspireView(scene);
   const piano=createPianoView(scene);
+  const sumo = createSumoView(scene);
   let current = null, items = [], last = 0;
 
   function build(arena) {
     for (const o of root.children) o.traverse(m => m.material?.map !== belt && m.material?.map?.dispose?.());
     root.clear();
+    if (arena.id === 'sumo') { items = []; current = arena; return; }
     if (arena.id === 'skyline' || arena.id === 'mountain' || arena.id === 'piano' || arena.id === 'twinspire' || arena.id === 'station') { items = []; current = arena; return; }
     items = arena.pieces.map(p => {
       const base = new T.Mesh(box, new T.MeshStandardMaterial({ color: BASE[p.kind] ?? '#737e59', roughness: .85 }));
@@ -58,6 +61,7 @@ export function createArenaView(scene) {
   }
 
   return (arena, time, fighters = [], camera) => {
+    sumo(arena);
     rooftop(arena.id === 'skyline', fighters, camera);
     station(arena,fighters,camera);
     piano(arena,fighters,camera);
