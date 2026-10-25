@@ -23,11 +23,7 @@ export const MAPS = [
   {id:'twinspire',name:'Twinspire',tier:'Mid',blurb:'Spawn on opposite skyscrapers. Cross two wide, fenced skybridges and battle across both rooftops.'},
   {id:'piano',name:'Forte Grand Piano',tier:'Mid',blurb:'88 playable keys on a giant concert grand. Jump onto the sharps, play notes with your feet, and knock rivals off the case.'},
   { id: 'archery', name: 'Bullseye Brawl', tier: 'Mid', blurb: 'Brawl on a giant target! Dodge the marked circles before sky-high arrows land. Open edges mean ring-outs.' },
-  { id: 'tiles', name: 'Disappearing Tiles', tier: 'Mid', blurb: 'Blinking tiles drop out, then come back.' },
-  { id: 'split', name: 'Splitting Floor', tier: 'Mid', blurb: 'The floor splits in half, then slams shut.' },
-  { id: 'platforms', name: 'Moving Platforms', tier: 'Mid', blurb: 'A small island and platforms that drift past.' },
   { id: 'lava', name: 'Volcano Crucible', tier: 'Late', blurb: 'Magma crust breaks apart and falls into lava. Escape glowing cracks, vents, and falling volcanic bombs.' },
-  { id: 'falling', name: 'Falling Platform Arena', tier: 'Late', blurb: 'Tiles crumble under your feet and never return.' },
   { id: 'conveyor', name: 'Factory / Conveyor Chaos', tier: 'Late', blurb: 'Belts drag you to the edge, then reverse.' },
 ];
 
