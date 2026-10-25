@@ -19,8 +19,6 @@ main{max-width:1600px;margin:auto;padding:35px 36px 0}.intro{display:flex;align-
 .champ-top h2{font-size:clamp(30px,3.4vw,44px);margin:10px 0 0}
 .champ-top p{font-size:12px;max-width:320px;text-align:right;margin:0}
 .champ-board{position:relative;max-width:1500px;margin:0 auto;display:grid;grid-template-columns:220px minmax(0,1fr) 220px;gap:20px;align-items:start}
-.champ-board::after{content:'';position:absolute;left:220px;right:220px;top:0;height:140px;background:url('/host/assets/ui/logos/vs_logo.svg') center/contain no-repeat;pointer-events:none;opacity:.9;filter:drop-shadow(0 6px 10px #00000080)}
-@media(max-width:1100px){.champ-board::after{display:none}}
 .champ-slot{position:relative;border-radius:6px;padding:18px;min-height:360px;display:flex;flex-direction:column;align-items:center;text-align:center;overflow:hidden;border:1px solid #232b38;transition:border-color .2s}
 .champ-slot.red{background:linear-gradient(160deg,#2a1319,#0f141c 70%),url('/host/assets/ui/backgrounds/vs_red.svg') center/cover}
 .champ-slot.blue{background:linear-gradient(200deg,#122733,#0f141c 70%),url('/host/assets/ui/backgrounds/vs_blue.svg') center/cover}

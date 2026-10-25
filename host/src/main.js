@@ -99,7 +99,7 @@ const TEAMS=['red','blue'], picks=TEAMS.map((team,i)=>{const saved=localStorage.
 const UI_ASSETS='/host/assets/ui/';
 // Short tags for the champ-select grid; no portrait yet for 'tung' so its card falls back to a lettermark.
 const FIGHTER_TAGS={squish:'SOFT BODY. HARD FEELINGS.',crank:'A LITTLE SHELL. A LOT OF ATTITUDE.',bonk:'BUILT DIFFERENT. MOSTLY BOLTS.',nik:'ALL GLOVES. NO PLAN.',tung:'KNOCKS ONCE. KNOCKS HARD.',toast:'WELL DONE UNDER PRESSURE.',conehead:'POINTY. UNBOTHERED. UNSTOPPABLE.',bubbles:'FOAMS AT THE MOUTH. ON PURPOSE.'};
-const HAS_PORTRAIT=new Set(['squish','crank','bonk','nik','toast','conehead','bubbles']);
+const HAS_PORTRAIT=new Set(['squish','crank','bonk','nik','toast','conehead','bubbles','wukong','lebron']);
 let pickingTeam=0;
 function portraitUrl(id,kind){return HAS_PORTRAIT.has(id)?UI_ASSETS+'portraits/'+id+'_'+kind+'.png':'';}
 function renderPicks(){
