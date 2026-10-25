@@ -9,7 +9,7 @@ export function createPresentation(screen, doc = document) {
       } catch { /* The viewport-filling CSS remains available. */ }
     },
     setPhase(phase) {
-      const active = phase === 'playing' || phase === 'paused';
+      const active = phase === 'playing' || phase === 'paused' || phase === 'results';
       doc.body.classList.toggle('game-focus', active);
       screen.classList.toggle('match-active', active);
       if (!active && doc.fullscreenElement === screen) {
