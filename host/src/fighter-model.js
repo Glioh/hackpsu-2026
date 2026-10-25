@@ -16,9 +16,6 @@ export const FIGHTERS = {
   toast: { name: 'Toast Malone', url: '/host/assets/characters/toast_malone.glb', prefix: 'TM_', teamMaterial: 'TM_Gloves', impactFx: 'crumbs' },
   conehead: { name: 'Conehead', url: '/host/assets/characters/conehead.glb', prefix: 'CH_', teamMaterial: 'CH_Gloves' },
   bubbles: { name: 'Captain Bubbles', url: '/host/assets/characters/captain_bubbles.glb', prefix: 'CB_', teamMaterial: 'CB_Gloves' },
-  // traits: gameplay quirks the simulation reads from the combat rig (staffMomentum: wukong-gags.js).
-  wukong: { name: 'Wukong', url: '/host/assets/characters/wukong.glb', prefix: 'WK_', teamMaterial: 'WK_Sash', traits: { staffMomentum: true } },
-  lebron: { name: 'LeBron James', url: '/host/assets/characters/lebron.glb', prefix: 'LB_', teamMaterial: 'LB_Wristband' },
 };
 export const TEAM_FIGHTERS = ['crank', 'squish']; // default picks: red, blue
 const gltfs = new Map();
@@ -49,9 +46,8 @@ export async function loadFighter(id) {
     // butter: soft gear that jiggles (jiggle.js).
     // cone: a top-heavy hat that hops and rocks on the jiggle spring and lags loose enough to flop over.
     // water / fish / fishtail: the fishbowl head's sloshing water and swimming goldfish (fishbowl.js).
-    // staff / crown: Wukong's momentum staff and slipping headband (wukong-gags.js).
     const WOBBLY = { head: { kind: 'head' }, helmet: { kind: 'gear', maxTilt: .18, lift: .35 }, shell: { kind: 'gear', maxTilt: .6, lift: 0 }, butter: { kind: 'jiggle' }, cone: { kind: 'bounce', maxTilt: .55 },
-      water: { kind: 'water' }, fish: { kind: 'fish' }, fishtail: { kind: 'fishtail' }, staff: { kind: 'staff' }, crown: { kind: 'crown' } };
+      water: { kind: 'water' }, fish: { kind: 'fish' }, fishtail: { kind: 'fishtail' } };
     root.traverse(o => { const w = WOBBLY[o.userData.ragdoll_part]; if (w) wobbly.push({ node: o, ...w, rest: o.rotation.clone(), restY: o.position.y, restScale: o.scale.clone() }); });
     const legs = [node('Leg_R'), node('Leg_L')]; legs.forEach(leg => root.attach(leg));
     const torso = new T.Group(); root.add(torso); torso.attach(node('Torso'));
@@ -64,7 +60,6 @@ export async function loadFighter(id) {
     const combatRig = createCombatRig(collisionRoot,
       [collisionNode('Arm_R'), collisionNode('Arm_L')],
       [collisionNode('Hand_R') || collisionNode('Glove_R'), collisionNode('Hand_L') || collisionNode('Glove_L')], SCALE, collisionNode('Torso'));
-    combatRig.traits = spec.traits;
     return { combatRig, root, torso, arms: [node('Arm_R'), node('Arm_L')], legs, wobbly, impactFx: spec.impactFx };
   };
 }

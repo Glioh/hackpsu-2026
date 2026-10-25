@@ -1,53 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import { createKOEffects, KO_LIFETIME } from '../host/src/ko-effects.js';
+import { createKOEffects } from '../host/src/ko-effects.js';
 import { createContactShadows } from '../host/src/contact-shadows.js';
 import { Simulation } from '../host/src/simulation.js';
 import { MAPS, createArena } from '../host/src/maps.js';
 import { enrichMaterials, surfaceGrain } from '../host/src/surface-materials.js';
 
-test('world KOs snapshot simultaneous deaths, reject duplicates and clean up independently',()=>{
-  const scene=new T.Scene(),fx=createKOEffects(scene),sim=new Simulation();
-  sim.fighters.forEach((f,i)=>Object.assign(f,{x:i?12:-12,y:-5.1,z:i?-8:8}));
-  sim.step({});assert.equal(sim.winner,'draw');
-  const bodies=structuredClone(sim.fighters);
-  fx.trigger(sim.fighters);fx.trigger(sim.fighters);assert.equal(fx.count,2);
-  const groups=scene.children.slice(),materials=new Set(),geometries=new Set();
-  groups.forEach((group,i)=>{
-    assert.deepEqual(group.position.toArray(),[bodies[i].x,bodies[i].y+.9,bodies[i].z]);
-    group.children.forEach(mesh=>{assert.ok(mesh.isMesh);assert.equal(mesh.material.depthTest,true);materials.add(mesh.material);geometries.add(mesh.geometry);});
-  });
-  assert.deepEqual(sim.fighters,bodies);
-  sim.reset();fx.update(.7);
-  groups.forEach((group,i)=>{
-    assert.equal(group.position.x,bodies[i].x);
-    assert.ok(group.children.some(m=>m.getWorldPosition(new T.Vector3()).y>0));
-  });
-  let disposed=0;materials.forEach(m=>m.addEventListener('dispose',()=>disposed++));
-  fx.update(KO_LIFETIME);assert.equal(fx.count,0);assert.equal(scene.children.length,0);assert.equal(disposed,materials.size);
-  fx.trigger(bodies);assert.equal(fx.count,0,'expired deaths cannot replay until reset');
-  fx.clear();fx.trigger(bodies);assert.equal(fx.count,2);
-  let geometryDisposals=0;geometries.forEach(g=>g.addEventListener('dispose',()=>geometryDisposals++));
-  fx.dispose();assert.equal(geometryDisposals,3);assert.equal(scene.children.length,0);
-});
+// Supply textures without browser image loading for the original sprite effect.
+function knockout(scene) {
+  const load=T.TextureLoader.prototype.load;
+  T.TextureLoader.prototype.load=()=>new T.Texture();
+  try{return createKOEffects(scene);}finally{T.TextureLoader.prototype.load=load;}
+}
 
-test('seeded arenas support world effects on every edge over repeated rounds',()=>{
-  const scene=new T.Scene(),fx=createKOEffects(scene);
-  for(const {id} of MAPS)for(const seed of [1,42]) {
-    const sim=new Simulation(id,seed);
-    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-      sim.reset();
-      const axis=dx?'x':'z',half=dx?'hw':'hd',sign=dx||dz;
-      const edge=sim.arena.pieces.reduce((best,p)=>sign*p[axis]+p[half]>sign*best[axis]+best[half]?p:best);
-      const f=sim.fighters[0];Object.assign(f,{x:edge.x+dx*(edge.hw+.8),z:edge.z+dz*(edge.hd+.8),y:-5.01,grounded:false});
-      sim.step({});assert.equal(sim.winner,'blue');
-      fx.trigger(sim.fighters.filter(b=>b.y < -5));assert.equal(fx.count,1,id);
-      assert.deepEqual(scene.children[0].position.toArray(),[f.x,f.y+.9,f.z]);
-      fx.update(.3);fx.clear();assert.equal(scene.children.length,0);
-    }
-  }
-  fx.dispose();
+test('original knockout uses billboard beams for both deaths and clears on reset',()=>{
+  const scene=new T.Scene(),fx=knockout(scene);
+  const bodies=[{team:'red',x:-12,y:-5.1,z:8},{team:'blue',x:12,y:-5.1,z:-8}];
+  fx.trigger(bodies);assert.equal(scene.children.length,2);
+  const materials=new Set();
+  scene.children.forEach((group,i)=>{
+    assert.deepEqual(group.position.toArray(),[bodies[i].x,-4.5,bodies[i].z]);
+    assert.equal(group.children.length,22);
+    group.children.forEach(sprite=>{assert.ok(sprite.isSprite);assert.equal(sprite.material.depthTest,false);materials.add(sprite.material);});
+  });
+  fx.update(.15);assert.ok(scene.children.every(g=>g.children[0].scale.y>20));
+  fx.update(1.8);assert.ok(scene.children.every(g=>g.children.every(s=>s.material.opacity===0)));
+  let disposed=0;materials.forEach(m=>m.addEventListener('dispose',()=>disposed++));
+  fx.clear();assert.equal(scene.children.length,0);assert.equal(disposed,materials.size);
 });
 
 test('contact shadows follow live support, fade during jumps and vanish over voids', () => {
