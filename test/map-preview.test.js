@@ -23,6 +23,7 @@ test('dev button skips crew, survives roster updates, previews idle teams and re
   const draw=()=>{};draw.setFighter=draw.clearKO=draw.resetMotion=()=>{};
   const context={...motion,Simulation:TrackedSimulation,MAPS,C,SLOTS:[],
     document:{getElementById:$,querySelectorAll:()=>steps,createElement:element,addEventListener(){},hidden:false},
+    createCommentary:()=>({unlock(){},phase(){},tick(){},step(){}}),
     connectSocket:()=>socket,createRenderer:()=>draw,createPresentation:()=>({request(){},setPhase(){}}),
     FIGHTERS:{dummy:{name:'Dummy'}},TEAM_FIGHTERS:['dummy','dummy'],createBotController:()=>()=>{assert.fail('Active bot used in preview');},
     FINISH_DURATION:2,FINISH_TIME_SCALE:.2,stepFinish(){},URL,location:{origin:'http://localhost:3001'},
