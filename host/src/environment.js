@@ -1,16 +1,17 @@
 import * as T from 'three';
+import { Sky } from 'three/addons/objects/Sky.js';
 
 // Shared families keep the PMREM cache bounded even when cycling all hazard maps.
-const yard = { zenith:'#668eac', horizon:'#e5dec0', lower:'#717d68', fog:'#d4d8bc', fogRange:[36,100], sun:[-18,28,16], key:'#fff0cd', power:2.4, fill:'#b9d5ea', bounce:'#787b54', ambient:.65, exposure:1.05, environment:.65 };
-const city = { ...yard, zenith:'#527f9d', horizon:'#edc8a0', lower:'#435c68', fog:'#91a6a8', fogRange:[65,185], sun:[-24,23,-18], key:'#ffe0ad', power:2.8, fill:'#afcfe8', bounce:'#526777', ambient:.65, exposure:1.05, environment:.75 };
+const yard = { zenith:'#668eac', horizon:'#e5dec0', lower:'#717d68', fog:'#c3d3e4', fogRange:[36,100], sun:[-18,28,16], key:'#fff0cd', power:2.4, fill:'#b9d5ea', bounce:'#737d88', ambient:.65, exposure:1.05, environment:.65 };
+const city = { ...yard, zenith:'#527f9d', horizon:'#edc8a0', lower:'#435c68', fog:'#bdcbdc', fogRange:[65,185], sun:[-24,23,-18], key:'#ffe0ad', power:2.8, fill:'#afcfe8', bounce:'#526777', ambient:.65, exposure:1.05, environment:.75 };
 export const ENVIRONMENTS = {
   yard,
   skyline:city,
-  twinspire:{...city, horizon:'#f0cfb6', fog:'#9eafb9', sun:[-28,25,-12]},
-  station:{...city, zenith:'#658da8', horizon:'#d8dfd6', key:'#fff1db', sun:[-16,32,18], power:2.3},
-  mountain:{...yard, zenith:'#6faaa9', horizon:'#d7e3cd', lower:'#718e88', fog:'#bfd2c6', fogRange:[40,140], sun:[-18,30,-14], key:'#fff0cb', power:2.1, bounce:'#648376', environment:.7},
+  twinspire:{...city, horizon:'#f0cfb6', fog:'#c7d2e2', sun:[-28,25,-12]},
+  station:{...city, zenith:'#658da8', horizon:'#e2e8f0', key:'#fff1db', sun:[-16,32,18], power:2.3},
+  mountain:{...yard, zenith:'#779fc6', horizon:'#e0e8ef', lower:'#7f94ac', fog:'#cbd9e7', fogRange:[40,140], sun:[-18,30,-14], key:'#fff0cb', power:2.1, bounce:'#798b91', environment:.7},
   ice:{...yard, zenith:'#709fc5', horizon:'#e3eff3', fog:'#d3e6ed', key:'#f1f7ff', bounce:'#7a9aa9', environment:.85},
-  industrial:{...yard, zenith:'#627d95', horizon:'#d8c9b0', fog:'#b8bcb4', bounce:'#666c71', environment:.7},
+  industrial:{...yard, zenith:'#627d95', horizon:'#d8c9b0', fog:'#c6ceda', bounce:'#666c71', environment:.7},
   piano:{...yard, zenith:'#111725', horizon:'#252633', lower:'#14131c', fog:'#20212c', fogRange:[160,400], sun:[-22,40,24], key:'#ffe2b0', power:2.8, fill:'#a0b8ec', bounce:'#49405a', ambient:.5, exposure:1, environment:.65, indoor:true},
 };
 export const QUALITY = { low:{pixelRatio:1,shadowSize:1024}, medium:{pixelRatio:1.5,shadowSize:2048}, high:{pixelRatio:2,shadowSize:2048} };
@@ -18,9 +19,9 @@ export function environmentKey(id) {
   return ENVIRONMENTS[id] ? id : ['lava','conveyor'].includes(id) ? 'industrial' : 'yard';
 }
 
-// Art-directed HDR gradient: a broad key lobe makes readable reflections, while the
-// small disc shares the directional light's direction. No full-screen postprocessing.
-function skyMaterial(p, visible = false) {
+// Piano keeps a dark studio backdrop; outdoor maps use r180's analytic
+// Rayleigh/Mie scattering sky, shared by the visible dome and cached PMREM.
+function indoorMaterial(p, visible = false) {
   return new T.ShaderMaterial({ side:T.BackSide, depthWrite:false, fog:false,
     uniforms:{displayHaze:{value:visible?1:0},zenith:{value:new T.Color(p.zenith)},horizon:{value:new T.Color(p.horizon)},haze:{value:new T.Color(p.fog)},lower:{value:new T.Color(p.lower)},sunColor:{value:new T.Color(p.key)},sunDirection:{value:new T.Vector3(...p.sun).normalize()},indoor:{value:p.indoor?1:0}},
     vertexShader:'varying vec3 direction; void main(){direction=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
@@ -37,6 +38,42 @@ function skyMaterial(p, visible = false) {
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }` });
+}
+
+function skyMaterial(p, visible = false) {
+  if(p.indoor)return indoorMaterial(p,visible);
+  const shader=Sky.SkyShader,uniforms=T.UniformsUtils.clone(shader.uniforms);
+  uniforms.turbidity.value=p===ENVIRONMENTS.mountain?3:2;
+  uniforms.rayleigh.value=2.2;
+  uniforms.mieCoefficient.value=.003;
+  uniforms.mieDirectionalG.value=.78;
+  uniforms.sunPosition.value=new T.Vector3(...p.sun).normalize().multiplyScalar(450000);
+  uniforms.radianceScale={value:visible?1:.35};
+  uniforms.horizonColor={value:new T.Color(p.fog)};
+  uniforms.groundColor={value:new T.Color(visible?p.fog:'#68798d')};
+  const fragmentShader=shader.fragmentShader
+    .replace('uniform float mieDirectionalG;', `uniform float mieDirectionalG;
+      uniform vec3 horizonColor,groundColor; uniform float radianceScale;
+      float cloudNoise(vec2 p){
+        vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+        vec2 k=vec2(127.1,311.7);
+        float a=fract(sin(dot(i,k))*43758.5453);
+        float b=fract(sin(dot(i+vec2(1,0),k))*43758.5453);
+        float c=fract(sin(dot(i+vec2(0,1),k))*43758.5453);
+        float d=fract(sin(dot(i+vec2(1,1),k))*43758.5453);
+        return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+      }`)
+    .replace('gl_FragColor = vec4( retColor, 1.0 );', `
+      // Thin, broken high clouds: three noise octaves, no raymarch or extra pass.
+      vec2 cloudUV=direction.xz/max(direction.y+.22,.08)*2.4;
+      float cloud=cloudNoise(cloudUV)*.57+cloudNoise(cloudUV*2.03)*.29+cloudNoise(cloudUV*4.07)*.14;
+      cloud=smoothstep(.57,.79,cloud)*smoothstep(.015,.18,direction.y)*.38;
+      retColor=mix(retColor,vec3(.88,.92,.98),cloud);
+      // Match distant fog below the horizon, without the old olive lower dome.
+      retColor=mix(horizonColor,retColor,smoothstep(-.035,.14,direction.y));
+      retColor=mix(retColor,groundColor,smoothstep(.08,.65,-direction.y));
+      gl_FragColor=vec4(retColor*radianceScale,1.);`);
+  return new T.ShaderMaterial({uniforms,vertexShader:shader.vertexShader,fragmentShader,side:T.BackSide,depthWrite:false,fog:false});
 }
 
 // Fit in light space, once per arena identity. Include full piano case, moving

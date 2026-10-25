@@ -4,8 +4,8 @@ Implemented on `Glioh/visual-environment-upgrade`, in the separate worktree. The
 
 ## Rendering changes
 
-- Eight coherent atmosphere families cover all fourteen maps. Skyline establishes warm directional light against cool fill and layered city haze; Twinspire and Station have related but distinct lighting. Cloudpeak has jade atmosphere and low valley mist. Piano uses a dark auditorium, warm stage key, cool fill and indoor reflection softboxes. Ice and industrial arenas have their own palettes.
-- A camera-centered, 220m gradient dome stays inside the existing 500m far plane. The sun lobe and primary light share a direction. Horizon haze blends into fog; the distant ground extends beyond the visible horizon.
+- Eight coherent atmosphere families cover all fourteen maps. Skyline establishes warm directional light against cool fill and layered city haze; Twinspire and Station have related but distinct lighting. Cloudpeak has cool alpine atmosphere and low valley mist. Piano uses a dark auditorium, warm stage key, cool fill and indoor reflection softboxes. Ice and industrial arenas have their own palettes.
+- A camera-centered, 220m dome uses the installed r180 Sky addon's Rayleigh/Mie atmospheric scattering shader outdoors, with thin procedural high clouds and a physical sun halo aligned to the primary light. Horizon haze and distant ground use blue-gray tones rather than olive green. The dome stays inside the existing 500m far plane. Piano retains its separate dark indoor gradient.
 - A dedicated lighting scene supplies one lazy, cached 128px PMREM capture per family. It contains no fighters, gameplay geometry or animated mist. Piano gets warm/cool emissive reflection cards, without extra runtime lights. Cached targets and generator have an explicit disposal path through `draw.dispose()`.
 - Explicit ACES filmic tone mapping and sRGB output, with exposure calibrated alongside reduced hemisphere illumination. One PCFSoft shadow light remains. Its orthographic camera fits layout corners in light space, allowing jump clearance, moving platform travel, Piano's full case and both Twinspire roofs. Projection stays fixed during play, avoiding camera-follow shimmer; bias and normal bias are tuned conservatively.
 - Fighter metalness and roughness retain their authored values. A shared 64px linear data texture adds restrained roughness variation to suitable matte surfaces; authored textures, lacquer, alpha and sightline materials remain intact. Ice, conveyor steel and bronze gong materials have distinct responses. Station signals now emit their existing warning colors.
@@ -28,7 +28,7 @@ Headless installed Chrome, 1280 x 720, DPR 1, default quality:
 | Cloudpeak | 225 | 242 | 50,268 | 51,504 |
 | Piano | 238 | 243 | 54,245 | 55,253 |
 | Station | 389 | 392 | 51,114 | 52,098 |
-| Twinspire | 831 | 836 | 56,586 | 57,594 |
+| Twinspire | 831 | 832 | 56,586 | 57,546 |
 
 These are `renderer.info.render` counts for the sampled screen render, not GPU timings or totals including all shadow passes. Counts can vary slightly as the smoothed camera settles and sightline materials fade. The visible sky adds one draw; Cloudpeak's soft mist replaces cheaper opaque banks. Skyline's additional triangles are batched windows and roof detail, not additional scenery draws.
 
@@ -74,4 +74,8 @@ npm test
 
 Captures and reports are written to ignored `.visual-validation/before` and `.visual-validation/after`. The harness fails on browser errors, missing host canvas, or growth in warmed environment/texture counts. The baseline source interception applies to the isolated rendering harness; the separate real-host startup smoke uses current code.
 
-Implementation uses installed Three.js **0.180.0**. `Sky.js` and `PMREMGenerator.js` were inspected locally; the custom art-directed dome avoids newer Sky uniform assumptions, and PMREM uses r180's `fromScene(scene, sigma, near, far, { size })` API. No Three.js upgrade or new production dependency is required.
+Implementation uses installed Three.js **0.180.0**. `Sky.js` and `PMREMGenerator.js` were inspected locally; the outdoor shader extends the installed Sky shader and uses its actual r180 uniforms, and PMREM uses r180's `fromScene(scene, sigma, near, far, { size })` API. No Three.js upgrade or new production dependency is required.
+
+## Sky revision
+
+Replaced the original green/olive gradient outdoors with analytic atmospheric scattering, blue-gray horizon fog and neutral distant ground. Thin clouds use three noise octaves in the same sky draw. PMREM uses the same sky, with separately calibrated radiance to preserve warm direct-light contrast. Piano remains indoors. `npm test` still passes all 119 tests; the all-map browser harness was rerun with refreshed captures and bounded cache checks.

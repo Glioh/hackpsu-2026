@@ -33,11 +33,11 @@
     "environments": 4,
     "exposure": 1.05,
     "frameMedian": 16.69999999999891,
-    "frameP95": 16.799999999999272
+    "frameP95": 16.80000000000109
   },
   "twinspire": {
-    "calls": 836,
-    "triangles": 57594,
+    "calls": 832,
+    "triangles": 57546,
     "textures": 9,
     "environments": 5,
     "exposure": 1.05,
@@ -59,7 +59,7 @@
     "textures": 11,
     "environments": 7,
     "exposure": 1.05,
-    "frameMedian": 16.69999999999891,
+    "frameMedian": 16.700000000000728,
     "frameP95": 16.80000000000291
   },
   "lava": {
@@ -78,7 +78,7 @@
     "environments": 8,
     "exposure": 1.05,
     "frameMedian": 16.700000000000728,
-    "frameP95": 16.80000000000291
+    "frameP95": 16.899999999997817
   },
   "tiles": {
     "calls": 216,
@@ -87,7 +87,7 @@
     "environments": 8,
     "exposure": 1.05,
     "frameMedian": 16.700000000000728,
-    "frameP95": 16.80000000000291
+    "frameP95": 16.799999999999272
   },
   "split": {
     "calls": 56,
@@ -95,8 +95,8 @@
     "textures": 12,
     "environments": 8,
     "exposure": 1.05,
-    "frameMedian": 16.69999999999709,
-    "frameP95": 16.80000000000291
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.799999999999272
   },
   "platforms": {
     "calls": 62,
@@ -114,7 +114,7 @@
     "environments": 8,
     "exposure": 1.05,
     "frameMedian": 16.700000000000728,
-    "frameP95": 16.80000000000291
+    "frameP95": 16.900000000001455
   },
   "quake": {
     "calls": 60,

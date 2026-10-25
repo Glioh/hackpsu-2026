@@ -54,7 +54,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
     const twinspire=arena.id==='twinspire';
     const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain', elevated = rooftop || mountain;
     ground.position.y = twinspire ? -39 : piano ? -24 : mountain ? -40 : rooftop ? -24 : -6;
-    ground.material.color.set(piano ? '#292830' : mountain ? '#93afa0' : rooftop ? '#455e61' : '#bac797');
+    ground.material.color.set(piano ? '#292830' : mountain ? '#879bb1' : rooftop ? '#66798d' : '#96a7ba');
     cameraDirection.fromArray(elevated ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION);
     const framingOptions=piano?{minDistance:7,padding:1.08}:undefined;
     const framing = frameFighters(fighters, camera.aspect, undefined, elevated, framingOptions);
