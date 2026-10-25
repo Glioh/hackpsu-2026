@@ -1,4 +1,6 @@
 import * as T from 'three';
+import { createEnvironment, QUALITY } from './environment.js';
+import { enrichMaterials } from './surface-materials.js';
 import { CAMERA_DIRECTION, ROOFTOP_CAMERA_DIRECTION, CAMERA_FOV, CAMERA_MIN_DISTANCE, frameFighters } from './camera.js';
 import { createCharacter } from './characters.js';
 import { loadFighter } from './fighter-model.js';
@@ -8,17 +10,25 @@ import { createArena } from './maps.js';
 import { createKOEffects } from './ko-effects.js';
 import { createHitEffects, createHitFlash } from './hit-effects.js';
 export function createRenderer(container, onCombatRig = () => {}) {
-  const scene = new T.Scene(); scene.background = new T.Color('#d8dfb2'); scene.fog = new T.Fog('#d8dfb2', 30, 65);
+  const scene = new T.Scene();
+  const quality = QUALITY[new URLSearchParams(location.search).get('quality')] ?? QUALITY.medium;
   const ko = createKOEffects(scene), hitEffects = createHitEffects(scene);
   const hitAges = [Infinity, Infinity];
   const camera = new T.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 500);
   const cameraFocus = new T.Vector3(), cameraDirection = new T.Vector3(...CAMERA_DIRECTION);
-  let cameraDistance = CAMERA_MIN_DISTANCE, previousTime = null;
-  const renderer = new T.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; container.appendChild(renderer.domElement);
-  scene.add(new T.HemisphereLight('#fffbea', '#6d8060', 2.5)); const sun = new T.DirectionalLight('#fff4d5', 3); sun.position.set(-8, 22, 8); sun.castShadow = true; sun.shadow.mapSize.set(2048,2048); Object.assign(sun.shadow.camera,{left:-20,right:20,top:20,bottom:-20,far:70}); scene.add(sun);
+  let cameraDistance = CAMERA_MIN_DISTANCE, previousTime = null, materialArena = null;
+  const renderer = new T.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, quality.pixelRatio)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; container.appendChild(renderer.domElement);
+  renderer.outputColorSpace = T.SRGBColorSpace;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  const hemisphere = new T.HemisphereLight();
+  const sun = new T.DirectionalLight();sun.castShadow = true;
+  sun.shadow.mapSize.set(quality.shadowSize, quality.shadowSize);
+  sun.shadow.bias = -.00015;sun.shadow.normalBias = .035;
+  scene.add(hemisphere, sun, sun.target);
+  const environment = createEnvironment(scene, renderer, sun, hemisphere);
   function mesh(geometry, color, parent = scene) { const m = new T.Mesh(geometry, new T.MeshStandardMaterial({ color, roughness: 0.85 })); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; }
   const drawArena = createArenaView(scene), fallbackArena = createArena('classic');
-  const ground = mesh(new T.PlaneGeometry(200,200),'#bac797'); ground.rotation.x=-Math.PI/2; ground.position.y=-6;
+  const ground = mesh(new T.PlaneGeometry(1000,1000),'#bac797'); ground.rotation.x=-Math.PI/2; ground.position.y=-6; ground.castShadow=false;
   // torsoY: rest height of the torso group (capsule fallback sits at .9, loaded characters at their feet).
   const models = ['#ff665b','#63c7ec'].map(color => { const model = createCharacter(color, mesh); scene.add(model.group); return { ...model, torsoY: model.torso.position.y }; });
   let flashes = models.map(m => createHitFlash(m.group));
@@ -31,8 +41,8 @@ export function createRenderer(container, onCombatRig = () => {}) {
   };
   // Swaps team i's body to character id. The current body (capsule fallback at first) stays if loading fails,
   // and a slower earlier pick never overwrites a newer one.
-  const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);m.group.clear();m.group.add(s.root);Object.assign(m,s,{head:null,torsoY:0});flashes[i]=createHitFlash(m.group);onCombatRig(i,s.combatRig);},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
-  const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
+  const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);enrichMaterials(s.root);m.group.clear();m.group.add(s.root);Object.assign(m,s,{head:null,torsoY:0});flashes[i]=createHitFlash(m.group);onCombatRig(i,s.combatRig);},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
+  const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(container); resize();
   // fighters: interpolated motion poses from motion.js; bodies: raw simulation fighters (velocity, landings, hits);
   // arena: the simulation's current map (maps.js).
   const draw = (fighters, time, bodies = [], arena = fallbackArena, { active = true, motionEnabled = true, finishAge = null } = {}) => {
@@ -45,8 +55,6 @@ export function createRenderer(container, onCombatRig = () => {}) {
     const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain', elevated = rooftop || mountain;
     ground.position.y = twinspire ? -39 : piano ? -24 : mountain ? -40 : rooftop ? -24 : -6;
     ground.material.color.set(piano ? '#292830' : mountain ? '#93afa0' : rooftop ? '#455e61' : '#bac797');
-    scene.background.set(piano ? '#34343d' : mountain ? '#b6cbbb' : rooftop ? '#526f72' : '#d8dfb2');
-    scene.fog.color.copy(scene.background);scene.fog.near=piano?160:mountain?38:rooftop?60:30;scene.fog.far=piano?400:mountain?130:rooftop?160:65;
     cameraDirection.fromArray(elevated ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION);
     const framingOptions=piano?{minDistance:7,padding:1.08}:undefined;
     const framing = frameFighters(fighters, camera.aspect, undefined, elevated, framingOptions);
@@ -91,10 +99,14 @@ export function createRenderer(container, onCombatRig = () => {}) {
         }
       });
     });
+    environment.apply(arena, camera);
+    if(materialArena!==arena){enrichMaterials(scene);materialArena=arena;}
     renderer.render(scene, camera);
   };
   draw.resetMotion = () => { hitEffects.clear(); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); };
   draw.setFighter = setFighter;
+  draw.dispose = () => { resizeObserver.disconnect(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+  draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
   draw.hit = body => { const index = body.team === 'red' ? 0 : 1; hitAges[index] = 0; hitEffects.hit(body); };
   draw.startKO = fighters => ko.trigger(fighters);
   draw.clearKO = () => { ko.clear(); renderer.domElement.style.filter = ''; };

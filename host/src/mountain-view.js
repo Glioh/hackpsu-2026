@@ -4,6 +4,7 @@ import {createRooftopVisibility} from './rooftop-visibility.js';
 
 export function createMountainView(scene) {
   const root=new T.Group();root.name='Cloudpeak / mountain kung fu arena';root.visible=false;scene.add(root);
+  const clouds=[];
   const terrain=new T.Group();root.add(terrain);const materials=new Map(),flags=[];
   const mat=color=>{if(!materials.has(color))materials.set(color,new T.MeshStandardMaterial({color,roughness:.88}));return materials.get(color);};
   function mesh(name,g,color,x,y,z,parent=terrain) {
@@ -61,6 +62,8 @@ export function createMountainView(scene) {
   box('Gate plaque',0,4.65,-8.77,1.8,.55,.09,'#cfab60');
   // Bronze gong; frame poles already have solid collision hulls.
   box('Gong frame',5.25,4.3,-6,2.8,.22,.3,'#913f35');
+  mat('#c69d51').metalness=.78;mat('#c69d51').roughness=.32;
+  mat('#e2be70').metalness=.8;mat('#e2be70').roughness=.26;
   const gong=cylinder('Bronze gong',5.25,3.2,-6,.85,.12,'#c69d51');gong.rotation.x=Math.PI/2;
   const boss=cylinder('Gong boss',5.25,3.2,-5.9,.23,.14,'#e2be70');boss.rotation.x=Math.PI/2;
   for(const x of [4.8,5.7])box('Gong suspension',x,3.98,-6,.035,.55,.035,'#6a5541');
@@ -88,17 +91,34 @@ export function createMountainView(scene) {
   // Distant karst peaks and low cloud banks are presentation only.
   for(let i=0;i<24;i++) {
     const angle=i*2.399,dist=42+(i%4)*12,height=24+(i*13%28);
-    const peak=mesh('Distant mountain',new T.ConeGeometry(9+i%5,height,5),'#6f958d',Math.cos(angle)*dist,-26+height/2,Math.sin(angle)*dist,root);
-    peak.scale.z=.65;peak.rotation.y=i;
-    const snow=mesh('Mountain mist cap',new T.ConeGeometry((9+i%5)*.27,height*.27,5),'#a7bfb0',peak.position.x,-26+height*.865,peak.position.z,root);snow.scale.z=.65;snow.rotation.y=i;
+    const radius=9+i%5;
+    const profile=[[.85,0],[1,.12],[.72,.38],[.52,.65],[.3,.88],[.06,1]].map(([r,y])=>new T.Vector2(radius*r,height*y-height/2));
+    const peak=mesh('Distant mountain',new T.LatheGeometry(profile,7),'#6f958d',Math.cos(angle)*dist,-26+height/2,Math.sin(angle)*dist,root);
+    peak.scale.z=.65;peak.rotation.y=i;peak.castShadow=peak.receiveShadow=false;
   }
-  for(let i=0;i<12;i++) {
-    const cloud=mesh('Valley mist',new T.IcosahedronGeometry(8,1),'#c3cfc0',Math.sin(i*5)*46,-12-i%3,Math.cos(i*5)*46,root);
-    cloud.scale.set(2.6,.12,1.15);cloud.castShadow=false;
+  // Soft radial alpha banks, below the court. No depth writes or shadow work;
+  // horizontal cards avoid billboard rotation and never veil the fighting lanes.
+  const size=64,data=new Uint8Array(size*size*4);
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++) {
+    const r=Math.hypot((x+ .5-size/2)/(size/2),(y+.5-size/2)/(size/2));
+    const alpha=Math.pow(Math.max(0,1-r*r),2)*.3;
+    data.set([220,232,218,Math.round(alpha*255)],(y*size+x)*4);
   }
+  const mist=new T.DataTexture(data,size,size);mist.colorSpace=T.SRGBColorSpace;mist.magFilter=T.LinearFilter;mist.needsUpdate=true;
+  const mistMaterial=new T.MeshBasicMaterial({map:mist,transparent:true,depthWrite:false,side:T.DoubleSide,fog:true});
+  const mistGeometry=new T.PlaneGeometry(1,1);
+  for(let i=0;i<16;i++) {
+    const cloud=new T.Mesh(mistGeometry,mistMaterial);cloud.name='Valley mist';
+    const x=Math.sin(i*5)*46,z=Math.cos(i*5)*46;
+    cloud.position.set(x,-10-i%3*2,z);cloud.rotation.x=-Math.PI/2;cloud.scale.set(38+i%3*9,18+i%4*3,1);
+    clouds.push({cloud,x,z});root.add(cloud);
+  }
+  // Tiny overlay details should not spend a shadow draw or cause court acne.
+  terrain.traverse(m=>{if(m.isMesh&&/joint|moss|Taiji|circle|nosing/i.test(m.name))m.castShadow=false;});
   const visibility=createRooftopVisibility(terrain);
   return (active,time,fighters,camera)=>{
     root.visible=active;if(!active)return;
+    clouds.forEach(({cloud,x,z},i)=>{cloud.position.x=x+Math.sin(time*.035+i)*3;cloud.position.z=z+Math.cos(time*.025+i)*2;});
     flags.forEach((f,i)=>{f.rotation.y=Math.sin(time*1.5+i)*.08;});
     if(camera)visibility(fighters,camera);
   };

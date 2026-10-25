@@ -1,0 +1,137 @@
+{
+  "skyline": {
+    "calls": 664,
+    "triangles": 80926,
+    "textures": 4,
+    "environments": 1,
+    "exposure": 1.05,
+    "frameMedian": 16.699999999999818,
+    "frameP95": 16.800000000000182
+  },
+  "mountain": {
+    "calls": 242,
+    "triangles": 51504,
+    "textures": 6,
+    "environments": 2,
+    "exposure": 1.05,
+    "frameMedian": 16.699999999999818,
+    "frameP95": 16.899999999999636
+  },
+  "piano": {
+    "calls": 243,
+    "triangles": 55253,
+    "textures": 7,
+    "environments": 3,
+    "exposure": 1,
+    "frameMedian": 16.69999999999891,
+    "frameP95": 16.899999999999636
+  },
+  "station": {
+    "calls": 392,
+    "triangles": 52098,
+    "textures": 8,
+    "environments": 4,
+    "exposure": 1.05,
+    "frameMedian": 16.69999999999891,
+    "frameP95": 16.799999999999272
+  },
+  "twinspire": {
+    "calls": 836,
+    "triangles": 57594,
+    "textures": 9,
+    "environments": 5,
+    "exposure": 1.05,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 33.399999999999636
+  },
+  "classic": {
+    "calls": 60,
+    "triangles": 48218,
+    "textures": 10,
+    "environments": 6,
+    "exposure": 1.05,
+    "frameMedian": 16.69999999999891,
+    "frameP95": 16.80000000000109
+  },
+  "ice": {
+    "calls": 58,
+    "triangles": 48090,
+    "textures": 11,
+    "environments": 7,
+    "exposure": 1.05,
+    "frameMedian": 16.69999999999891,
+    "frameP95": 16.80000000000291
+  },
+  "lava": {
+    "calls": 216,
+    "triangles": 49986,
+    "textures": 12,
+    "environments": 8,
+    "exposure": 1.05,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.80000000000291
+  },
+  "conveyor": {
+    "calls": 60,
+    "triangles": 48114,
+    "textures": 13,
+    "environments": 8,
+    "exposure": 1.05,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.80000000000291
+  },
+  "tiles": {
+    "calls": 216,
+    "triangles": 49986,
+    "textures": 12,
+    "environments": 8,
+    "exposure": 1.05,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.80000000000291
+  },
+  "split": {
+    "calls": 56,
+    "triangles": 48066,
+    "textures": 12,
+    "environments": 8,
+    "exposure": 1.05,
+    "frameMedian": 16.69999999999709,
+    "frameP95": 16.80000000000291
+  },
+  "platforms": {
+    "calls": 62,
+    "triangles": 48138,
+    "textures": 12,
+    "environments": 8,
+    "exposure": 1.05,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.80000000000291
+  },
+  "falling": {
+    "calls": 216,
+    "triangles": 49986,
+    "textures": 12,
+    "environments": 8,
+    "exposure": 1.05,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.80000000000291
+  },
+  "quake": {
+    "calls": 60,
+    "triangles": 48218,
+    "textures": 12,
+    "environments": 8,
+    "exposure": 1.05,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.80000000000291
+  },
+  "afterCycles": {
+    "calls": 228,
+    "triangles": 50130,
+    "textures": 12,
+    "environments": 8,
+    "exposure": 1.05
+  },
+  "hostCanvas": 1,
+  "errors": []
+}

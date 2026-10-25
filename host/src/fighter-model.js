@@ -31,8 +31,7 @@ export async function loadFighter(id) {
     });
     // Optional team colour on one kit material, kept pastel.
     if (spec.teamMaterial) materials.get(spec.teamMaterial)?.color.set(teamColor).lerp(new T.Color('#ffffff'), 0.3);
-    // The arena has no environment map, so full metal (Sir Squish's pot) would render near-black.
-    for (const m of materials.values()) if (m.metalness > 0.5) Object.assign(m, { metalness: 0.3, roughness: 0.4 });
+    // Preserve authored metals now that every arena supplies environment illumination.
     // Heads and loose gear (pot helmet, shell) lag behind the body on top of their rest pose; see clumsy.js.
     const wobbly = [];
     // Gear: maxTilt caps the extra tilt (radians); lift = rim radius (m), so a tilted pot rides up on the head

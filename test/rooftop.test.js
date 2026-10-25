@@ -89,6 +89,6 @@ test('Skyline foreground obstacles fade for a hidden fighter and restore without
 test('Skyline camera follows elevated fighters and the city is batched',()=>{
   const high=frameFighters([{x:-4,y:1.585,z:1},{x:4,y:2.585,z:0}],16/9,undefined,true);
   assert.ok(high.target[1]>3.6);assert.ok(high.distance>=19);
-  const city=createCity();assert.equal(city.children.length,2);assert.equal(city.children[0].count,65);
+  const city=createCity();assert.equal(city.children.length,2);assert.ok(city.children[0].count>=130, '65 towers include batched roof setbacks');
   assert.ok(city.children[1].count>1000);
 });

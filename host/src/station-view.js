@@ -1,3 +1,4 @@
+import {enrichMaterials} from './surface-materials.js';
 import * as T from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createRooftopVisibility} from './rooftop-visibility.js';
@@ -15,14 +16,14 @@ export function createStationView(scene){
           if(Number.isInteger(node.userData.stationTrain))trains[node.userData.stationTrain]=node;
           if(Number.isInteger(node.userData.stationSignal)){node.material=node.material.clone();signals[node.userData.stationSignal]=node;signalMaterials[node.userData.stationSignal]=node.material;}
         });
-        root.add(gltf.scene);visibility=createRooftopVisibility(gltf.scene);
+        enrichMaterials(gltf.scene);root.add(gltf.scene);visibility=createRooftopVisibility(gltf.scene);
       },undefined,error=>{console.error('Station model failed to load',error);started=false;});
     }
     arena.trains.forEach((state,i)=>{
       if(trains[i]){trains[i].visible=state.passing;trains[i].position.x=state.x;}
       if(signals[i]){
         const color=state.warning?'#ffb64d':state.passing?'#ee6452':'#75d9b4';
-        signals[i].material.color.set(color);signalMaterials[i].color.set(color);
+        for(const material of new Set([signals[i].material,signalMaterials[i]])){material.color.set(color);material.emissive.set(color);material.emissiveIntensity=state.warning?1.1:.65;}
       }
     });
     if(visibility&&camera)visibility(fighters,camera);

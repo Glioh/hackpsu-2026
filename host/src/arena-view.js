@@ -34,12 +34,15 @@ export function createArenaView(scene) {
   let current = null, items = [], last = 0;
 
   function build(arena) {
-    for (const o of root.children) o.traverse(m => m.material?.map !== belt && m.material?.map?.dispose?.());
+    const oldMaterials = new Set(), oldGeometry = new Set();
+    root.traverse(m => { if (m.material) oldMaterials.add(m.material); if (m.geometry && m.geometry !== box) oldGeometry.add(m.geometry); });
+    for (const material of oldMaterials) { if (material.map && material.map !== belt) material.map.dispose(); material.dispose(); }
+    for (const geometry of oldGeometry) geometry.dispose();
     root.clear();
     if (arena.id === 'skyline' || arena.id === 'mountain' || arena.id === 'piano' || arena.id === 'twinspire' || arena.id === 'station') { items = []; current = arena; return; }
     items = arena.pieces.map(p => {
       const base = new T.Mesh(box, new T.MeshStandardMaterial({ color: BASE[p.kind] ?? '#737e59', roughness: .85 }));
-      const top = new T.Mesh(box, new T.MeshStandardMaterial({ color: TOP[p.kind] ?? TOP.floor, roughness: p.kind === 'ice' ? .12 : .85 }));
+      const top = new T.Mesh(box, new T.MeshStandardMaterial({ color: TOP[p.kind] ?? TOP.floor, roughness: p.kind === 'ice' ? .18 : p.kind === 'belt' ? .55 : .85, metalness: p.kind === 'ice' ? .12 : p.kind === 'belt' ? .35 : 0 }));
       if (p.kind === 'belt') top.material.map = Object.assign(belt.clone(), { needsUpdate: true });
       for (const m of [base, top]) { m.castShadow = m.receiveShadow = true; root.add(m); }
       return { p, base, top, scroll: 0 };

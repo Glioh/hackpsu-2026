@@ -1,3 +1,4 @@
+import {enrichMaterials} from './surface-materials.js';
 import * as T from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createCity} from './rooftop-city.js';
@@ -13,7 +14,7 @@ export function createRooftopView(scene) {
     started=true;
     root.add(createCity());
     new GLTFLoader().load('/host/assets/maps/skyline.glb',gltf=>{
-      gltf.scene.traverse(m=>{if(m.isMesh)m.castShadow=m.receiveShadow=true;});root.add(gltf.scene);
+      gltf.scene.traverse(m=>{if(m.isMesh)m.castShadow=m.receiveShadow=true;});enrichMaterials(gltf.scene);root.add(gltf.scene);
       visibility=createRooftopVisibility(gltf.scene);
     },undefined,error=>{console.error('Skyline model failed to load',error);started=false;});
   };

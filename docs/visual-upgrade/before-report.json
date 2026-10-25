@@ -1,0 +1,107 @@
+{
+  "skyline": {
+    "calls": 663,
+    "triangles": 62518,
+    "textures": 1,
+    "frameMedian": 16.699999999999818,
+    "frameP95": 16.800000000000182
+  },
+  "mountain": {
+    "calls": 225,
+    "triangles": 50268,
+    "textures": 1,
+    "frameMedian": 16.699999999999818,
+    "frameP95": 16.899999999999636
+  },
+  "piano": {
+    "calls": 238,
+    "triangles": 54245,
+    "textures": 1,
+    "frameMedian": 16.69999999999891,
+    "frameP95": 16.899999999999636
+  },
+  "station": {
+    "calls": 389,
+    "triangles": 51114,
+    "textures": 1,
+    "frameMedian": 16.69999999999891,
+    "frameP95": 16.80000000000109
+  },
+  "twinspire": {
+    "calls": 831,
+    "triangles": 56586,
+    "textures": 1,
+    "frameMedian": 16.799999999999272,
+    "frameP95": 33.400000000001455
+  },
+  "classic": {
+    "calls": 59,
+    "triangles": 47258,
+    "textures": 1,
+    "frameMedian": 16.69999999999891,
+    "frameP95": 16.899999999999636
+  },
+  "ice": {
+    "calls": 57,
+    "triangles": 47130,
+    "textures": 1,
+    "frameMedian": 16.69999999999891,
+    "frameP95": 16.80000000000109
+  },
+  "lava": {
+    "calls": 215,
+    "triangles": 49026,
+    "textures": 1,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.900000000001455
+  },
+  "conveyor": {
+    "calls": 59,
+    "triangles": 47154,
+    "textures": 2,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.80000000000291
+  },
+  "tiles": {
+    "calls": 215,
+    "triangles": 49026,
+    "textures": 1,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.799999999999272
+  },
+  "split": {
+    "calls": 55,
+    "triangles": 47106,
+    "textures": 1,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.80000000000291
+  },
+  "platforms": {
+    "calls": 61,
+    "triangles": 47178,
+    "textures": 1,
+    "frameMedian": 16.69999999999709,
+    "frameP95": 16.900000000001455
+  },
+  "falling": {
+    "calls": 215,
+    "triangles": 49026,
+    "textures": 1,
+    "frameMedian": 16.700000000000728,
+    "frameP95": 16.80000000000291
+  },
+  "quake": {
+    "calls": 59,
+    "triangles": 47258,
+    "textures": 1,
+    "frameMedian": 16.69999999999709,
+    "frameP95": 17.399999999997817
+  },
+  "afterCycles": {
+    "calls": 227,
+    "triangles": 49170,
+    "textures": 1
+  },
+  "hostCanvas": 1,
+  "errors": []
+}
