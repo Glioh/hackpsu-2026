@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Twinspire — opposing rooftop prototype</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#526f79;color:#f4eedc;font:14px system-ui,sans-serif}canvas{display:block}header{position:absolute;top:30px;left:32px;pointer-events:none}small{letter-spacing:.18em;color:#c6d9d5}h1{font-size:48px;letter-spacing:-.05em;font-weight:500;margin:6px 0}p{line-height:1.65;max-width:270px;color:#dae2da}aside{position:absolute;right:30px;top:35px;text-align:right;line-height:2;font-size:12px}nav{position:absolute;bottom:28px;left:32px;right:20px;display:flex;gap:8px;flex-wrap:wrap}button,a{font:inherit;background:#294b50;color:#f4eedc;border:1px solid #8ba59c;border-radius:4px;padding:10px 14px;text-decoration:none;cursor:pointer}button:hover,a:hover{background:#426b66}button[aria-pressed=true]{background:#ece2c4;color:#294b50}#hint{position:absolute;right:30px;bottom:85px;font-size:12px;color:#d0dcd6}@media(max-width:750px){header{left:16px;top:16px}h1{font-size:32px}header p{font-size:12px;max-width:210px}aside{top:185px;right:16px}nav{left:16px;bottom:16px}button,a{padding:8px;font-size:12px}#hint{display:none}}
+</style><script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script></head>
+<body><header><small>TWO-BODY BRAWL / ENVIRONMENT STUDY</small><h1>TWINSPIRE</h1><p>Two towers. Opposite starts.<br>Cross the skybridges to meet your rival.<br>Every open edge is a long way down.</p><small>3D PROTOTYPE / 03</small></header><aside><div style="color:#f0a28b">01 / WEST TOWER · RED SPAWN</div><div style="color:#9fdfed">02 / EAST TOWER · BLUE SPAWN</div><div>6 m gap · Two 2.3 m crossings</div><small>VISUAL REVIEW · NOT IN GAME</small></aside>
+<nav><button data-view="hero" aria-pressed="true">Perspective</button><button data-view="top">Map view</button><button data-view="combat">Player height</button><button data-view="red">Red spawn</button><button data-view="blue">Blue spawn</button><a href="twinspire.glb" download>Download 3D model</a></nav><div id="hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
+<script type="module">
+import * as T from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {createTwinspire} from './scene.mjs';
+const scene=new T.Scene();scene.background=new T.Color('#526f79');scene.fog=new T.Fog('#526f79',85,210);
+const camera=new T.PerspectiveCamera(43,innerWidth/innerHeight,.1,350);
+const renderer=new T.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.toneMapping=T.ACESFilmicToneMapping;document.body.prepend(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.minDistance=3;controls.maxDistance=150;controls.maxPolarAngle=Math.PI*.66;
+scene.add(new T.HemisphereLight('#ffe9c9','#567681',2.7));const sun=new T.DirectionalLight('#ffdbaf',3.2);sun.position.set(-25,40,25);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-38,right:38,top:32,bottom:-32,near:1,far:130});sun.shadow.normalBias=.035;scene.add(sun);
+const model=createTwinspire();scene.add(model.root);
+// Deterministic city context stays out of the exported arena model.
+const city=new T.Group();scene.add(city);
+for(let i=0;i<42;i++){
+ const a=i*2.39996,r=48+(i%5)*13,h=10+(i*17%32),w=7+(i%4)*2;
+ const m=new T.Mesh(new T.BoxGeometry(w,h,w),new T.MeshStandardMaterial({color:i%2?'#49636e':'#607c82',roughness:1}));m.position.set(Math.cos(a)*r,-39+h/2,Math.sin(a)*r);city.add(m);
+}
+const ground=new T.Mesh(new T.PlaneGeometry(800,800),new T.MeshStandardMaterial({color:'#3d5965'}));ground.rotation.x=-Math.PI/2;ground.position.y=-39;scene.add(ground);
+const views={hero:[[46,34,49],[0,-2,0]],top:[[0,68,.01],[0,0,0]],combat:[[34,10,36],[0,0,0]],red:[[-16,2.8,3],[-1,1,0]],blue:[[16,2.8,3],[1,1,0]]};
+function view(id){const [position,target]=views[id];camera.position.set(...position);controls.target.set(...target);controls.update();document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===id)));}view('hero');
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>view(b.dataset.view));
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
+window.twinspirePrototype={scene,camera,renderer,model,view};
+</script></body></html>

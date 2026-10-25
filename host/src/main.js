@@ -6,6 +6,7 @@ import { createMotion, resetMotion, stepMotion, interpolateMotion } from './moti
 import { createPresentation } from './presentation.js';
 import { FIGHTERS, TEAM_FIGHTERS } from './fighter-model.js';
 import { MAPS } from './maps.js';
+import { createBotController } from './bot.js';
 import { FINISH_DURATION, FINISH_TIME_SCALE, stepFinish } from './ko-finish.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
 const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
@@ -91,7 +92,7 @@ $('showStats').onchange=()=> $('stats').classList.toggle('hidden',!$('showStats'
 $('motionEnabled').onchange = resetPoses;
 $('motionPreset').onchange = resetPoses;
 function keyboard(team){const red=team==='red', has=k=>keys.has(k)?1:0, edge=k=>{const hit=edges.has(k);edges.delete(k);return hit;};return{legs:{moveX:red?has('KeyD')-has('KeyA'):has('ArrowRight')-has('ArrowLeft'),moveZ:red?has('KeyW')-has('KeyS'):has('ArrowUp')-has('ArrowDown'),jump:edge(red?'Space':'KeyI')},arm:{turn:red?has('KeyE')-has('KeyQ'):has('KeyL')-has('KeyJ'),punch:edge(red?'KeyF':'KeyK'),power:1}};}
-function bot(){const [target,f]=sim.fighters,dx=target.x-f.x,dz=target.z-f.z,desired=Math.atan2(dx,dz),diff=Math.atan2(Math.sin(desired-f.heading),Math.cos(desired-f.heading));return{legs:{moveX:0,moveZ:Math.hypot(dx,dz)>1.5?.75:0,jump:!f.grounded?false:Math.abs(f.x)>C.arenaX-1||Math.abs(f.z)>C.arenaZ-1},arm:{turn:Math.max(-1,Math.min(1,diff*2)),punch:Math.hypot(dx,dz)<2.1&&Math.abs(diff)<.5,power:.8}};}
+const bot = createBotController();
 function phone(team,now){const result={};for(const role of ['legs','arm']){const s=snapshots.get(team+':'+role);if(!s||now-s.at>C.staleMs){if(s)s.actions=[];result[role]={};continue;}const action=s.actions.shift();result[role]={...s.p,jump:role==='legs'&&action!==undefined,punch:role==='arm'&&action!==undefined};if(action!==undefined)result[role].power=action;}return result;}
 let previous=performance.now(),accumulator=0;
 function frame(now) {
@@ -108,7 +109,7 @@ function frame(now) {
   accumulator += frameDt;
   while (accumulator >= C.tick) {
     if (phase === 'playing' && finishAge === null && !document.hidden) {
-      const inputs = debug ? {red:keyboard('red'),blue:$('bot').checked?bot():keyboard('blue')} : {red:phone('red',now),blue:phone('blue',now)};
+      const inputs = debug ? {red:keyboard('red'),blue:$('bot').checked?bot(sim):keyboard('blue')} : {red:phone('red',now),blue:phone('blue',now)};
       for (const team of sim.step(inputs)) {
         socket.emit('player:hit', {team});
         draw?.hit(sim.fighters.find(f => f.team === team));

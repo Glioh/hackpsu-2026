@@ -27,7 +27,15 @@ Pick each team's character (Sir Squish, Crank or Bonk-3000) under **03 / Choose 
 
 ## Skyline rooftop map
 
-Choose **Skyline Rooftop** in the host map picker under **Mid**. The compact rooftop has ramps, stairs, raised terraces, collidable rooftop utilities, and open edges for ring-outs. The approved prototype is saved separately in `art/prototypes/rooftop/approved-v1/`. See [Skyline map notes](docs/skyline-rooftop.md) for assets, rebuilding, and checks.
+Choose **Skyline Rooftop** in the host map picker under **Mid**. The rooftop has ramps, stairs, raised terraces, collidable rooftop utilities, and open edges for ring-outs. Its playable footprint is 27.9 by 20.88 m, and the developer bot plans routes around equipment and onto the raised sections. The approved prototype is saved separately in `art/prototypes/rooftop/approved-v1/`. See [Skyline map notes](docs/skyline-rooftop.md) for assets, rebuilding, and checks.
+
+## Cloudpeak mountain map
+
+Choose **Cloudpeak Dojo** under **Mid** for a mountain kung fu arena with stone terraces, stairs, training dummies, boulders, a gong, and open cliff edges. The bot can navigate obstacles and climb to the upper terrace. See [Cloudpeak map notes](docs/cloudpeak-dojo.md).
+
+## Crossline station map
+
+Choose **Crossline Station** under **Mid** for the enlarged train station with raised waiting areas, stairs, an overhead footbridge, and trains arriving at random intervals on the front and rear tracks. Amber signals warn before each pass; train impacts add damage and launch fighters along the tracks. See [Crossline map notes](docs/crossline-station.md).
 
 ## Preview the mobile controller
 

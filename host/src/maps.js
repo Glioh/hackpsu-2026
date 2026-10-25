@@ -6,12 +6,20 @@
 // ('solid' | 'warn' | 'gone' | 'lava' | 'falling') that the renderer shows. Only pieces with solid === true hold you up.
 import { CONFIG as C } from '../../shared/config.js';
 import { configureRooftop } from './rooftop-physics.js';
+import {configurePiano} from './piano-map.js';
+import { configureMountain } from './mountain-map.js';
+import {configureStation} from './station-map.js';
+import {configureTwinspire} from './twinspire-map.js';
 
 export const MAPS = [
   { id: 'classic', name: 'Classic Ring', tier: 'Early', blurb: 'Solid floor. Learn to shove.' },
   { id: 'ice', name: 'Ice Rink', tier: 'Early', blurb: 'No grip. Momentum carries you off the edge.' },
   { id: 'quake', name: 'Earthquake Arena', tier: 'Early', blurb: 'Tremors bounce everyone around.' },
   { id: 'skyline', name: 'Skyline Rooftop', tier: 'Mid', blurb: 'Climb ramps and stairs, brawl around rooftop utilities, and knock rivals off open edges.' },
+  { id: 'station', name: 'Crossline Station', tier: 'Mid', blurb: 'Climb the terraces and transfer bridge. Trains sweep the front and rear tracks at random intervals—watch the warning signals.' },
+  { id: 'mountain', name: 'Cloudpeak Dojo', tier: 'Mid', blurb: 'Kung fu above the clouds. Climb stone terraces, weave through training obstacles, and send rivals over the cliffs.' },
+  {id:'twinspire',name:'Twinspire',tier:'Mid',blurb:'Spawn on opposite skyscrapers. Cross two narrow skybridges and knock your rival into the city below.'},
+  {id:'piano',name:'Forte Grand Piano',tier:'Mid',blurb:'88 playable keys on a giant concert grand. Jump onto the sharps, play notes with your feet, and knock rivals off the case.'},
   { id: 'tiles', name: 'Disappearing Tiles', tier: 'Mid', blurb: 'Blinking tiles drop out, then come back.' },
   { id: 'split', name: 'Splitting Floor', tier: 'Mid', blurb: 'The floor splits in half, then slams shut.' },
   { id: 'platforms', name: 'Moving Platforms', tier: 'Mid', blurb: 'A small island and platforms that drift past.' },
@@ -61,6 +69,20 @@ export function createArena(id = 'classic', seed = 1) {
   const tick = (p, dt, next) => { if ((p.t -= dt) <= 0) Object.assign(p, next(p)); };
 
   switch (id) {
+    case 'station':
+      configureStation(arena,rng);
+      break;
+    case 'twinspire':
+      configureTwinspire(arena);
+      break;
+    case 'piano':
+      configurePiano(arena);
+      break;
+
+    case 'mountain':
+      configureMountain(arena);
+      break;
+
     case 'skyline':
       configureRooftop(arena);
       break;

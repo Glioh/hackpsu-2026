@@ -11,7 +11,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
   const scene = new T.Scene(); scene.background = new T.Color('#d8dfb2'); scene.fog = new T.Fog('#d8dfb2', 30, 65);
   const ko = createKOEffects(scene), hitEffects = createHitEffects(scene);
   const hitAges = [Infinity, Infinity];
-  const camera = new T.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 180);
+  const camera = new T.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 500);
   const cameraFocus = new T.Vector3(), cameraDirection = new T.Vector3(...CAMERA_DIRECTION);
   let cameraDistance = CAMERA_MIN_DISTANCE, previousTime = null;
   const renderer = new T.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; container.appendChild(renderer.domElement);
@@ -49,24 +49,27 @@ export function createRenderer(container, onCombatRig = () => {}) {
     renderer.domElement.style.filter = finishAge === null ? '' : `grayscale(${Math.min(1, finishAge / .22)}) contrast(1.15)`;
     ko.update(finishAge ?? 0);
     hitEffects.update(bodies, active ? dt : 0);
-    const rooftop = arena.id === 'skyline';
-    ground.position.y = rooftop ? -24 : -6;
-    ground.material.color.set(rooftop ? '#455e61' : '#bac797');
-    scene.background.set(rooftop ? '#526f72' : '#d8dfb2');
-    scene.fog.color.copy(scene.background);scene.fog.near=rooftop?60:30;scene.fog.far=rooftop?160:65;
-    cameraDirection.fromArray(rooftop ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION);
-    const framing = frameFighters(fighters, camera.aspect, undefined, rooftop);
+    const piano=arena.id==='piano';
+    const twinspire=arena.id==='twinspire';
+    const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain', elevated = rooftop || mountain;
+    ground.position.y = twinspire ? -39 : piano ? -24 : mountain ? -40 : rooftop ? -24 : -6;
+    ground.material.color.set(piano ? '#292830' : mountain ? '#93afa0' : rooftop ? '#455e61' : '#bac797');
+    scene.background.set(piano ? '#34343d' : mountain ? '#b6cbbb' : rooftop ? '#526f72' : '#d8dfb2');
+    scene.fog.color.copy(scene.background);scene.fog.near=piano?160:mountain?38:rooftop?60:30;scene.fog.far=piano?400:mountain?130:rooftop?160:65;
+    cameraDirection.fromArray(elevated ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION);
+    const framingOptions=piano?{minDistance:7,padding:1.08}:undefined;
+    const framing = frameFighters(fighters, camera.aspect, undefined, elevated, framingOptions);
     const desiredFocus = new T.Vector3(...framing.target);
     if (previousTime === null) cameraFocus.copy(desiredFocus);
     else cameraFocus.lerp(desiredFocus, 1 - Math.exp(-2.5 * dt));
     // Fit against the smoothed focus too, so fighters stay visible during pans.
-    const requiredDistance = frameFighters(fighters, camera.aspect, cameraFocus.toArray(), rooftop).distance;
+    const requiredDistance = frameFighters(fighters, camera.aspect, cameraFocus.toArray(), elevated, framingOptions).distance;
     if (previousTime === null || requiredDistance > cameraDistance) cameraDistance = requiredDistance;
     else cameraDistance += (requiredDistance - cameraDistance) * (1 - Math.exp(-1.5 * dt));
     camera.position.copy(cameraFocus).addScaledVector(cameraDirection, cameraDistance);
     camera.lookAt(cameraFocus);
     if (arena.shake) camera.position.add(new T.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(.45 * arena.shake)); // quake
-    drawArena(arena, time, fighters, camera);
+    drawArena(arena, time, arena.id==='piano'?bodies:fighters, camera);
     previousTime = time;
 
     fighters.forEach((f, i) => {

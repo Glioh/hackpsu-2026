@@ -8,13 +8,15 @@ const run = (sim, seconds, inputs = () => ({})) => { for (let i = 0; i < Math.ro
 // Keep blue parked far away so it does not interfere.
 const solo = (map, seed = 1) => { const s = new Simulation(map, seed); return s; };
 
-test('ten maps in early / mid / late order, each building a floor the fighters spawn on', () => {
-  assert.deepEqual(MAPS.map(m => m.tier), ['Early', 'Early', 'Early', 'Mid', 'Mid', 'Mid', 'Mid', 'Late', 'Late', 'Late']);
+test('maps stay in early / mid / late order, each building a floor the fighters spawn on', () => {
+  const tiers=MAPS.map(m=>['Early','Mid','Late'].indexOf(m.tier));
+  assert.ok(tiers.every(t=>t>=0));assert.deepEqual(tiers,[...tiers].sort((a,b)=>a-b));
   for (const { id } of MAPS) {
     const a = createArena(id, 1);
     assert.equal(a.id, id);
     for (const [x, z] of a.spawn) assert.ok(a.floorAt(x, z), `${id} spawn has floor`);
-    assert.equal(a.floorAt(C.arenaX + 3, 0), null, `${id} has a void outside`);
+    const outside=Math.max(...a.pieces.map(p=>p.x+p.hw))+3;
+    assert.equal(a.floorAt(outside, 0), null, `${id} has a void outside`);
   }
 });
 

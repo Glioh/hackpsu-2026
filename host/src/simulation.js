@@ -21,6 +21,7 @@ export class Simulation {
     if (this.winner) return [];
     const hits = [], previousAttacks = [];
     this.arena.step(dt, this.fighters, this.motionEvents);
+    for(const event of this.motionEvents)if(event.type==='hit'&&event.hazard)hits.push(event.team);
     for (const f of this.fighters) {
       const i = inputs[f.team] || {}, legs = i.legs || {}, arm = i.arm || {};
       f.cooldown = Math.max(0, f.cooldown - dt); f.hit = Math.max(0, f.hit - dt); f.stun = Math.max(0, f.stun - dt);

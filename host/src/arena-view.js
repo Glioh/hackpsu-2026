@@ -1,6 +1,10 @@
 import * as T from 'three';
+import {createPianoView} from './piano-view.js';
 import { CONFIG as C } from '../../shared/config.js';
 import { createRooftopView } from './rooftop-view.js';
+import { createMountainView } from './mountain-view.js';
+import {createStationView} from './station-view.js';
+import {createTwinspireView} from './twinspire-view.js';
 
 // Draws the current arena (maps.js) from its live state: each floor piece is a dark base plus a coloured top,
 // moved/hidden/recoloured every frame (blinking warnings, glowing lava, scrolling belts, falling tiles).
@@ -23,12 +27,16 @@ export function createArenaView(scene) {
   const root = new T.Group(), box = new T.BoxGeometry(1, 1, 1), belt = beltTexture();
   scene.add(root);
   const rooftop = createRooftopView(scene);
+  const station=createStationView(scene);
+  const mountain = createMountainView(scene);
+  const twinspire=createTwinspireView(scene);
+  const piano=createPianoView(scene);
   let current = null, items = [], last = 0;
 
   function build(arena) {
     for (const o of root.children) o.traverse(m => m.material?.map !== belt && m.material?.map?.dispose?.());
     root.clear();
-    if (arena.id === 'skyline') { items = []; current = arena; return; }
+    if (arena.id === 'skyline' || arena.id === 'mountain' || arena.id === 'piano' || arena.id === 'twinspire' || arena.id === 'station') { items = []; current = arena; return; }
     items = arena.pieces.map(p => {
       const base = new T.Mesh(box, new T.MeshStandardMaterial({ color: BASE[p.kind] ?? '#737e59', roughness: .85 }));
       const top = new T.Mesh(box, new T.MeshStandardMaterial({ color: TOP[p.kind] ?? TOP.floor, roughness: p.kind === 'ice' ? .12 : .85 }));
@@ -51,6 +59,10 @@ export function createArenaView(scene) {
 
   return (arena, time, fighters = [], camera) => {
     rooftop(arena.id === 'skyline', fighters, camera);
+    station(arena,fighters,camera);
+    piano(arena,fighters,camera);
+    mountain(arena.id === 'mountain', time, fighters, camera);
+    twinspire(arena.id==='twinspire',fighters,camera);
     if (arena !== current) { build(arena); last = time; }
     const dt = Math.max(0, Math.min(.1, time - last)); last = time;
     const blink = Math.sin(time * 18) > 0, pulse = .5 + .5 * Math.sin(time * 6);

@@ -12,7 +12,7 @@ const dot = (a, b) => a.reduce((sum, value, i) => sum + value * b[i], 0);
 
 export const ROOFTOP_CAMERA_DIRECTION = Object.freeze([0, .75, 1].map(v => v / Math.hypot(.75, 1)));
 
-export function frameFighters(fighters, aspect, focus, rooftop = false) {
+export function frameFighters(fighters, aspect, focus, rooftop = false, {minDistance, padding=1.25} = {}) {
   const direction = rooftop ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION;
   const [cx, cy, cz] = direction, ch = Math.hypot(cx, cz);
   const cameraRight = rooftop ? [cz/ch, 0, -cx/ch] : right;
@@ -26,12 +26,12 @@ export function frameFighters(fighters, aspect, focus, rooftop = false) {
   const center = focus || target;
   const tanY = Math.tan(CAMERA_FOV * Math.PI / 360);
   const tanX = tanY * Math.max(.1, aspect);
-  let distance = rooftop ? 19 : CAMERA_MIN_DISTANCE;
+  let distance = minDistance ?? (rooftop ? 19 : CAMERA_MIN_DISTANCE);
   // Fit the whole bodies, including hands and jumping heads, with 25% padding.
   // Project bounds into camera space instead of zooming out to fit the map.
   for (const p of points) for (const x of [-1.15, 1.15]) for (const y of [0, 2.6]) for (const z of [-1.15, 1.15]) {
     const delta = [p[0] + x - center[0], p[1] + y - center[1], p[2] + z - center[2]];
-    distance = Math.max(distance, dot(delta, direction) + 1.25 * Math.max(Math.abs(dot(delta, cameraRight)) / tanX, Math.abs(dot(delta, cameraUp)) / tanY));
+    distance = Math.max(distance, dot(delta, direction) + padding * Math.max(Math.abs(dot(delta, cameraRight)) / tanX, Math.abs(dot(delta, cameraUp)) / tanY));
   }
   return { target, distance };
 }

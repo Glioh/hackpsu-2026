@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Forte ? playable piano arena</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#526f79;color:#f4eedc;font:14px system-ui,sans-serif}canvas{display:block}header{position:absolute;top:30px;left:32px;pointer-events:none}small{letter-spacing:.18em;color:#c6d9d5}h1{font-size:48px;letter-spacing:-.05em;font-weight:500;margin:6px 0}p{line-height:1.65;max-width:270px;color:#dae2da}aside{position:absolute;right:30px;top:35px;text-align:right;line-height:2;font-size:12px}nav{position:absolute;bottom:28px;left:32px;right:20px;display:flex;gap:8px;flex-wrap:wrap}button,a{font:inherit;background:#294b50;color:#f4eedc;border:1px solid #8ba59c;border-radius:4px;padding:10px 14px;text-decoration:none;cursor:pointer}button:hover,a:hover{background:#426b66}button[aria-pressed=true]{background:#ece2c4;color:#294b50}#hint{position:absolute;right:30px;bottom:85px;font-size:12px;color:#d0dcd6}@media(max-width:750px){header{left:16px;top:16px}h1{font-size:32px}header p{font-size:12px;max-width:210px}aside{top:185px;right:16px}nav{left:16px;bottom:16px}button,a{padding:8px;font-size:12px}#hint{display:none}}
+</style><script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script></head>
+<body><header><small>TWO-BODY BRAWL / ENVIRONMENT STUDY</small><h1>FORTE</h1><p>A giant piano you can walk and play.<br>88 notes across an 84 m keyboard.<br>Step on ivory or ebony to make music.</p><small>3D PROTOTYPE / 04</small></header><aside><div>84 m keyboard ? 88 keys, A0 to C8</div><div>WASD / arrows to walk ? Shift to run</div><div>Space to jump ? R to respawn</div><div id="note">Step onto a key to play</div></aside>
+<nav><button id="play">Play / enable sound</button><button data-view="hero" aria-pressed="true">Perspective</button><button data-view="top">Map view</button><button data-view="combat">Player height</button><button data-view="red">Red spawn</button><button data-view="blue">Blue spawn</button><a href="piano.glb" download>Download 3D model</a></nav><div id="hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
+<script type="module">
+import * as T from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {createPiano} from './scene.mjs';
+const scene=new T.Scene();scene.background=new T.Color('#526f79');scene.fog=new T.Fog('#526f79',180,500);
+const camera=new T.PerspectiveCamera(43,innerWidth/innerHeight,.1,700);
+const renderer=new T.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.toneMapping=T.ACESFilmicToneMapping;document.body.prepend(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.minDistance=3;controls.maxDistance=350;controls.maxPolarAngle=Math.PI*.66;
+scene.add(new T.HemisphereLight('#ffe9c9','#567681',2.7));const sun=new T.DirectionalLight('#ffdbaf',3.2);sun.position.set(-65,90,65);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:250});sun.shadow.normalBias=.035;scene.add(sun);
+const model=createPiano();scene.add(model.root);
+// Preview-only concert stage is excluded from the exported arena.
+const ground=new T.Mesh(new T.CylinderGeometry(85,86,1,96),new T.MeshStandardMaterial({color:'#293c47',roughness:.85}));ground.position.y=-8;ground.receiveShadow=true;scene.add(ground);
+const views={hero:[[105,90,120],[0,0,-3]],top:[[0,171,.01],[0,0,-3]],combat:[[65,18,65],[0,1,0]],red:[[-33,5,29],[9,1,15]],blue:[[33,5,29],[-9,1,15]]};
+function view(id){const [position,target]=views[id];camera.position.set(...position);controls.target.set(...target);controls.update();document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===id)));}view('hero');
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>view(b.dataset.view));
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+import {setupWalking} from './walk.mjs';
+const walking=setupWalking({T,scene,camera,controls,renderer,model});
+const clock=new T.Clock();
+renderer.setAnimationLoop(()=>{walking.update(Math.min(clock.getDelta(),.04));controls.update();renderer.render(scene,camera);});
+window.pianoPrototype={scene,camera,renderer,model,view,walking};
+</script></body></html>
