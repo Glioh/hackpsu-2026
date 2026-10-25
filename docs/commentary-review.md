@@ -1,0 +1,21 @@
+# Commentary research follow-up — October 25, 2026
+
+The architecture is appropriate for urgent reactive calls: confirmed host telemetry, finite scripts, local decoded audio, one director and optional complete-text HTTP streaming. That is an engineering judgment, not a measured claim that the current voices or broadcast are the best possible.
+
+Official references checked again:
+
+- [ElevenLabs latency optimization](https://elevenlabs.io/docs/eleven-api/guides/how-to/best-practices/latency-optimization): HTTP streaming is recommended when full input text is available; WebSockets are useful for incremental text. Advertised Flash inference latency excludes network/application delay.
+- [Models](https://elevenlabs.io/docs/overview/models): Flash v2.5 remains a low-latency baseline. v4 is the quality/expression candidate; v4 Turbo is available through the dialogue WebSocket. Merely changing the existing HTTP TTS model environment variable is not an implementation of that protocol.
+- [Text to Dialogue](https://elevenlabs.io/docs/overview/capabilities/text-to-dialogue): the provider recommends v4 for expressive multi-speaker dialogue and recommends selecting among multiple generations.
+- [TTS versus dialogue WebSockets](https://elevenlabs.io/docs/eleven-api/guides/how-to/websockets/tts-vs-ttd-websockets): full v4 supports multiple registered voices; v4 Turbo permits only one registered voice per connection. Protocol, session quotas and turn boundaries differ from Flash TTS.
+- [THE FINALS official Dynamic Commentary announcement](https://www.reachthefinals.com/patchnotes/12-00): names Scotty and June and describes notable gameplay events/context being incorporated alongside existing commentary. It does not document its provider, complete scheduler or audio pipeline, so parity with its internal technology is unverified.
+
+Current product: two original scripted roles, Rex and Vera, taking individual turns. There is no paired conversational exchange system or LLM contextual writer. Two distinct ElevenLabs voice IDs must be selected and auditioned to hear two distinct voices. Missing credentials currently mean captions only, with both speaker names. The 33 approved scripts provide all ten event categories: round start, heavy hit, pressure, trade, reversal, train collision, ring-out, train-associated finish, draw and quiet interval. See shared/commentary-scripts.js for exact text and docs/commentary-implementation.md for setup.
+
+Audit fixes: speaker selection no longer repeatedly favors the first variant after both enter recent memory; pressure uses a rolling four-second window; an intervening opposing hit invalidates a two-hit reversal; reversal timing begins when the prior pressure ended; first streamed audio now receives its 80 ms scheduling lead after arrival rather than before the network request completes.
+
+Validation: 131 tests pass, including fourteen commentary tests. Coverage includes every event-to-script mapping for relevant teams, actual simultaneous simulation contact telemetry, heavy-hit boundary, rolling pressure, interrupted/late reversal, grounded quiet gating, stale/cancelled lifecycle, repeated speaker rotation, authorization, streaming bytes and rate limits. Headless Chrome rechecked the rendered keyboard/bot game, missing-credential fallback, local synthetic WAV playback, synthetic PCM split across sample boundaries, pause cleanup and a new round, with no page errors. Synthetic scheduling timings are not physical audible latency or provider benchmarks.
+
+Highest-value next work: (1) select and audition two original voices; (2) generate/review a larger bank with varied but factual scripts; (3) add sparse pre-scripted call-and-reply exchanges with shared expiry/cancellation; (4) compare expressive offline dialogue generation or directed performer/Voice Changer takes against Flash; (5) measure real-device p50/p95 audible onset and streaming underruns. An AudioWorklet queue is a candidate if measured main-thread jitter justifies it. No geometry-dependent save/danger claims should be added before landing/support validation.
+
+No provider calls or auditions could be completed without credentials. No claim of exact Scotty/June reproduction or THE FINALS production parity is made.

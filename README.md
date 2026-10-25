@@ -98,3 +98,7 @@ API references: [Socket.IO](https://socket.io/docs/v4/server-initialization/), [
 ### Mobile action and recovery screens
 
 Joined phones show live movement, steering, jump, and uppercut commands on black. Only a phone needing calibration shows recovery controls; other phones identify affected team/body slots and show their own control tips. Calibration pauses resume the same round automatically once all four phones are connected and calibrated. Host pauses still require host resume. Hits flash red on both phones belonging to the hit fighter and request vibration where supported.
+
+## Broadcast commentary
+
+Original two-host commentary, caption fallback, optional ElevenLabs audio and bank generation: see [setup, audition and validation](docs/commentary-implementation.md). The copied research documents are in `docs/`.

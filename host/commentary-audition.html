@@ -1,0 +1,5 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Commentary audition</title><h1>Rex &amp; Vera — original broadcast voices</h1><p>Audition diction, loudness and personality before using the generated bank.</p><main></main><script type="module">
+import {SCRIPTS,VOICES} from '/shared/commentary-scripts.js';
+const {clips}=await fetch('/api/commentary/catalog').then(r=>r.json());
+for(const s of SCRIPTS){const p=document.createElement('p');p.textContent=`${VOICES[s.speaker]}: ${s.text} `;if(clips[s.id]){const audio=document.createElement('audio');audio.controls=true;audio.preload='none';audio.src=clips[s.id].url;p.append(audio);}else p.append(' [clip missing]');document.querySelector('main').append(p);}
+</script></html>

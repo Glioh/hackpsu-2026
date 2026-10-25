@@ -1,3 +1,4 @@
+import { createCommentary } from './commentary-audio.js';
 import { Simulation } from './simulation.js';
 import { createRenderer } from './render.js';
 import { CONFIG as C, SLOTS } from '../../shared/config.js';
@@ -9,6 +10,7 @@ import { MAPS } from './maps.js';
 import { createBotController } from './bot.js';
 import { FINISH_DURATION, FINISH_TIME_SCALE, stepFinish } from './ko-finish.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
+const commentary = createCommentary(socket);
 const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
 const presentation = createPresentation($('gameScreen'));
 function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); draw?.resetMotion(); }
@@ -103,6 +105,7 @@ for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
 });
 socket.on('game:state',p=>{
   phase=p.phase; debug=p.debug;
+  commentary.phase(phase,p.resumed);
   syncScreen();
   if (phase === 'lobby') clearFinish();
   presentation.setPhase(phase);
@@ -122,9 +125,9 @@ socket.on('game:state',p=>{
   renderPicks();renderMaps();
   $('phase').textContent=phase==='playing'?(debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
 });
-function start(isDebug){presentation.request();socket.emit('game:start',{debug:isDebug},p=>{if(p.error){$('error').textContent=p.error;presentation.setPhase(phase);}});}
+function start(isDebug){commentary.unlock();presentation.request();socket.emit('game:start',{debug:isDebug},p=>{if(p.error){$('error').textContent=p.error;presentation.setPhase(phase);}});}
 $('start').onclick=()=>start(false);$('debugStart').onclick=()=>start(true);$('rematch').onclick=()=>start(debug);$('nextMap').onclick=()=>{pickMap(nextMapId());start(debug);};
-$('resumeGame').onclick=()=>{presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
+$('resumeGame').onclick=()=>{commentary.unlock();presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
 $('leaveGame').onclick=()=>socket.emit('game:state',{phase:'lobby'});
 $('pauseLobby').onclick=$('leaveGame').onclick;
 $('resultLobby').onclick=$('leaveGame').onclick;
@@ -154,6 +157,7 @@ function frame(now) {
         socket.emit('player:hit', {team});
         draw?.hit(sim.fighters.find(f => f.team === team));
       }
+      commentary.step(sim,C.tick);
       motions.forEach((motion, i) => stepMotion(motion, sim.fighters[i], sim.motionEvents, C.tick, $('motionPreset').value, $('motionEnabled').checked));
       if (sim.winner) { finishAge = 0; draw?.startKO(sim.fighters.filter(f => f.y < C.eliminationY)); }
     }
@@ -162,9 +166,10 @@ function frame(now) {
   motions.forEach(motion => interpolateMotion(motion, phase === 'playing' && finishAge === null ? accumulator / C.tick : 1));
   if (phase !== 'lobby') draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked, finishAge });
   if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)}\nheading ${f.heading.toFixed(2)} grounded ${f.grounded}\nspeed ${Math.hypot(f.vx,f.vz).toFixed(2)} cooldown ${f.cooldown.toFixed(2)}`).join('\n\n');
+  commentary.tick();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 // HTTP activity also keeps the cloud container awake during long matches.
 setInterval(() => { if (['playing','paused'].includes(phase) && !document.hidden) fetch('/health', {cache:'no-store'}).catch(() => {}); }, 60000);
-document.addEventListener('visibilitychange',()=>{previous=performance.now();accumulator=0;if(document.hidden&&['playing','paused'].includes(phase)){phase='paused';socket.emit('game:pause',{});snapshots.clear();keys.clear();edges.clear();}});
+document.addEventListener('visibilitychange',()=>{previous=performance.now();accumulator=0;if(document.hidden&&['playing','paused'].includes(phase)){commentary.phase('paused');phase='paused';socket.emit('game:pause',{});snapshots.clear();keys.clear();edges.clear();}});

@@ -20,3 +20,7 @@
 .pause-overlay #pauseReason{color:#ffb28e}
 .pause-overlay button{min-width:190px}
 @media(max-width:700px){.calibration-hud{top:auto;bottom:12px;right:10px;width:210px;padding:10px}.calibration-row{flex-direction:row;justify-content:space-between;gap:8px}.calibration-row span{max-width:105px}.pause-overlay{justify-content:flex-start;padding-top:70px}.arena-top{font-size:8px;gap:8px}.arena-top .match-control{font-size:8px;padding:6px}.calibration-hud h3{font-size:9px}}
+
+.commentary-controls{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:10px 0}.commentary-controls label{display:flex;align-items:center;gap:6px}.commentary-controls input[type=range]{width:100px}.commentary-caption{position:absolute;bottom:24px;left:10%;right:10%;z-index:8;text-align:center;background:#111d;color:white;border-radius:8px;padding:10px;pointer-events:none}.commentary-caption:empty{display:none}
+
+.arena-wrap .commentary-controls{position:absolute;left:16px;bottom:78px;z-index:9;background:#111d;color:white;border-radius:8px;padding:8px 12px;font-size:12px}.arena-wrap .commentary-controls input{accent-color:#cfe27f}.arena-wrap .commentary-controls small{font-size:11px}
