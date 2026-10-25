@@ -8,8 +8,8 @@ import {EventEmitter} from 'node:events';
 import {MAPS} from '../host/src/maps.js';
 const hit=(attacker,damage=16)=>({type:'hit',source:'fighter',attacker,team:attacker==='red'?'blue':'red',damage});
 test('Gemini configuration keeps one announcer, separate provider keys, and an explicit off switch',()=>{
- const config=configuration({ELEVENLABS_VOICE_A:'zGedNEybz7PeBgPNR4L7',ELEVENLABS_VOICE_B:'retired-voice',GEMINI_API_KEY:'gemini-secret',ELEVENLABS_API_KEY:'speech-secret'});
- assert.equal(config.a,'zGedNEybz7PeBgPNR4L7');assert.equal(config.b,config.a);assert.equal(config.dialogue,true);
+ const config=configuration({ELEVENLABS_VOICE_A:'zGedNEybz7PeBgPNR4L7',ELEVENLABS_MODEL_ID:'selected-model',ELEVENLABS_VOICE_B:'retired-voice',GEMINI_API_KEY:'gemini-secret',ELEVENLABS_API_KEY:'speech-secret',COMMENTARY_LIVE:'1'});
+ assert.equal(config.a,'zGedNEybz7PeBgPNR4L7');assert.equal(Object.hasOwn(config,'b'),false);assert.equal(config.model,'selected-model');assert.equal(config.live,true);assert.equal(config.dialogue,true);
  assert.equal(config.geminiKey,'gemini-secret');assert.equal(config.key,'speech-secret');assert.equal(config.geminiModel,'gemini-3.5-flash-lite');
  assert.equal(configuration({COMMENTARY_DIALOGUE:'0'}).dialogue,false);
 });
@@ -70,13 +70,18 @@ test('director bounds pending stories, expires stale lines, interrupts for resul
  const e={...event('heavy_hit'),round:2,expires:1};now=2;d.offer(e);await d.tick(SCRIPTS);assert.equal(d.pending,null);assert.equal(spoken.length,2);
 });
 test('provider sends finite script and supported format; cache excludes secrets but versions voices and models',async()=>{
- const config=configuration({ELEVENLABS_API_KEY:'secret',ELEVENLABS_VOICE_A:'original-a',ELEVENLABS_VOICE_B:'original-b'});let request;
+ const config=configuration({ELEVENLABS_API_KEY:'secret',ELEVENLABS_VOICE_A:'original-a',ELEVENLABS_MODEL_ID:'selected-model',ELEVENLABS_VOICE_B:'ignored-b'});let request;
  await synthesize(SCRIPTS[0],config,{format:'pcm_24000',fetcher:async(url,options)=>{request={url,options};return {ok:true};}});
  assert.match(request.url,/output_format=pcm_24000/);assert.equal(JSON.parse(request.options.body).text,SCRIPTS[0].text);assert.equal(request.options.headers['xi-api-key'],'secret');
  assert.equal(cacheKey(SCRIPTS[0],config),cacheKey(SCRIPTS[0],{...config,key:'rotated'}));assert.notEqual(cacheKey(SCRIPTS[0],config),cacheKey(SCRIPTS[0],{...config,a:'new'}));
  await assert.rejects(synthesize(SCRIPTS[0],{}),/credentials/);
  const second=SCRIPTS.find(script=>script.speaker==='b');
- await synthesize(second,{...config,b:'zGedNEybz7PeBgPNR4L7'},{fetcher:async(url)=>{assert.match(url,/text-to-speech\/zGedNEybz7PeBgPNR4L7\/stream/);return {ok:true};}});
+ await synthesize(second,{...config,b:'ignored-voice'},{fetcher:async(url,options)=>{
+  assert.match(url,/text-to-speech\/original-a\/stream/);assert.equal(JSON.parse(options.body).model_id,'selected-model');return {ok:true};
+ }});
+ assert.equal(cacheKey(second,config),cacheKey(second,{...config,b:'ignored-voice'}));
+ for(const missing of ['key','a','model'])await assert.rejects(synthesize(SCRIPTS[0],{...config,[missing]:undefined},{fetcher:()=>assert.fail('incomplete configuration must not call ElevenLabs')}),/credentials/);
+ assert.equal(configuration({}).a,undefined);assert.equal(configuration({}).model,undefined);
 });
 
 test('speech failures preserve safe provider codes and hints without returning provider messages or credentials',async()=>{
@@ -103,14 +108,14 @@ test('backend denies non-host, unknown scripts and missing live config without p
 
 test('live relay streams PCM bytes and limits repeat requests',async()=>{
  const app=express(),io=new EventEmitter();let calls=0;const requestedVoices=[];
- installCommentary(app,io,{config:{key:'private',a:'a',b:'zGedNEybz7PeBgPNR4L7',model:'eleven_flash_v2_5',live:true},fetcher:async(url)=>{calls++;requestedVoices.push(url);return {ok:true,body:(async function*(){yield Uint8Array.of(1,2,3);yield Uint8Array.of(4);})()};}});
+ installCommentary(app,io,{config:{key:'private',a:'only-voice-a',model:'selected-model',live:true},fetcher:async(url,options)=>{calls++;requestedVoices.push(url);assert.equal(JSON.parse(options.body).model_id,'selected-model');return {ok:true,body:(async function*(){yield Uint8Array.of(1,2,3);yield Uint8Array.of(4);})()};}});
  const socket=new EventEmitter();socket.id='h';socket.data={host:true};io.emit('connection',socket);let token;socket.emit('commentary:authorize',{},r=>token=r.token);
  const server=app.listen(0);await new Promise(r=>server.once('listening',r));
  try{const url=`http://127.0.0.1:${server.address().port}/api/commentary/live/${SCRIPTS[0].id}`,headers={Authorization:`Bearer ${token}`};const result=await fetch(url,{headers});assert.equal(result.status,200);assert.equal(result.headers.get('x-audio-sample-rate'),'24000');assert.deepEqual([...new Uint8Array(await result.arrayBuffer())],[1,2,3,4]);assert.equal((await fetch(url,{headers})).status,429);assert.equal(calls,1);
  const second=SCRIPTS.find(script=>script.speaker==='b');
- const reply=await fetch(new URL(second.id,url),{headers});assert.equal(reply.status,200,'second announcer can respond inside the first announcer cooldown');await reply.arrayBuffer();
- assert.equal(calls,2);assert.match(requestedVoices[1],/text-to-speech\/zGedNEybz7PeBgPNR4L7\/stream/);
- assert.equal((await fetch(new URL(second.id,url),{headers})).status,429,'same speaker still has a cooldown');
+ const reply=await fetch(new URL(second.id,url),{headers});assert.equal(reply.status,400,'retired second-speaker IDs cannot request speech');
+ assert.equal(calls,1);assert.match(requestedVoices[0],/text-to-speech\/only-voice-a\/stream/);
+ const catalog=await fetch(new URL('/api/commentary/catalog',url)).then(r=>r.json());assert.equal(catalog.live,true,'live speech needs only one voice');
  }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
 });
 

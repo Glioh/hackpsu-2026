@@ -1,6 +1,6 @@
 # Live Gemini commentary
 
-The game has one announcer. Gemini writes a fresh, short reaction to a real game event; the same text appears as a caption and is spoken through the configured ElevenLabs voice. The countdown uses cached voice clips so starting a match never waits for Gemini.
+The game has one announcer. Gemini writes a fresh, short reaction to a real game event; the same text appears as a caption and is spoken through the configured ElevenLabs voice. The countdown uses cached voice clips preloaded in the lobby so starting a match never waits for Gemini. Missing clips leave the visual countdown active without substituting a browser voice.
 
 ## Setup
 
@@ -16,7 +16,7 @@ ELEVENLABS_MODEL_ID=eleven_flash_v2_5
 COMMENTARY_LIVE=1
 ```
 
-`GOOGLE_API_KEY` is accepted when `GEMINI_API_KEY` is absent. Only `ELEVENLABS_VOICE_A` is used; no second voice or ElevenLabs Agent is required. The Gemini model can be overridden using `GEMINI_MODEL`.
+`GOOGLE_API_KEY` is accepted when `GEMINI_API_KEY` is absent. Only `ELEVENLABS_VOICE_A` is used; no second voice or ElevenLabs Agent is required. Both `ELEVENLABS_VOICE_A` and `ELEVENLABS_MODEL_ID` must be set explicitly; the server never substitutes a default voice or model. The Gemini model can be overridden using `GEMINI_MODEL`.
 
 Run `npm start`, then open http://localhost:3000 and start a match. Both `npm start` and `npm run dev` load `.env`. Restart the server and refresh the host after changing credentials. In the host's commentary settings, successful generation shows **Gemini live commentary**.
 

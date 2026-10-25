@@ -10,7 +10,7 @@ import { SCRIPTS } from '../shared/commentary-scripts.js';
 const input = () => ({ round: 1, firstSpeaker: 'a', event: { type: 'heavy_hit', team: 'red', time: 2 },
   game: { map: 'classic', winner: null, fighters: ['red','blue'].map(team => ({ team, damage: 16, grounded: true, lives: 2 })) }, history: [] });
 const line = 'Red launches a strongly worded uppercut!';
-const config = { dialogue: true, geminiKey: 'gemini-secret', geminiModel: 'gemini-3.5-flash-lite', key: 'voice-secret', a: 'voice-a', b: 'voice-a', live: true };
+const config = { dialogue: true, geminiKey: 'gemini-secret', geminiModel: 'gemini-3.5-flash-lite', key: 'voice-secret', a: 'voice-a', model: 'selected-model', live: true };
 const completion = text => ({ ok: true, json: async () => ({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({text}) }] } }] }) });
 
 test('Gemini writes one line using game facts and recent history, retrying repetitions', async () => {
@@ -105,6 +105,7 @@ test('host-only Gemini API returns one generated line, uses the existing voice, 
   const audio=await fetch(h.base+'/api/commentary/live/'+turn.id,{headers:h.headers});assert.equal(audio.status,200);await audio.arrayBuffer();
   assert.equal((await fetch(h.base+'/api/commentary/live/'+turn.id,{headers:h.headers})).status,400);
   assert.equal(h.calls.length,2);assert.match(h.calls[1].url,/voice-a/);assert.equal(JSON.parse(h.calls[1].options.body).text,line);
+  assert.equal(JSON.parse(h.calls[1].options.body).model_id,'selected-model');
   const catalog=await fetch(h.base+'/api/commentary/catalog').then(r=>r.json());assert.equal(catalog.dialogue,true);
   assert.ok(!JSON.stringify(catalog).includes('secret'));assert.ok(!JSON.stringify(exchange).includes('secret'));
   h.socket.emit('disconnect');assert.equal((await h.post(input())).status,403);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCommentary} from '../host/src/commentary-audio.js';
 
-test('unrendered contextual lines use speech fallback and cancel on fight or commentary disable',async t=>{
+test('missing voice clips use captions only and never substitute a browser voice',async t=>{
  const elements=new Map(),spoken=[];let cancelled=0;
  const element=id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id);};
  const globals={
@@ -17,11 +17,11 @@ test('unrendered contextual lines use speech fallback and cancel on fight or com
  try{
  commentary.unlock();await new Promise(resolve=>setImmediate(resolve));
  commentary.phase('playing',false,{map:'piano',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();await new Promise(resolve=>setImmediate(resolve));
- assert.match(spoken[0].text,/piano|keys/i);assert.equal(element('commentaryCaption').textContent,spoken[0].text);
- commentary.fight();assert.ok(cancelled>0);assert.equal(element('commentaryCaption').textContent,'');
+ assert.match(element('commentaryCaption').textContent,/piano|keys/i);assert.equal(spoken.length,0);
+ commentary.fight();assert.equal(cancelled,0);assert.equal(element('commentaryCaption').textContent,'');
  await new Promise(resolve=>setImmediate(resolve));
  commentary.phase('playing',false,{map:'station',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();await new Promise(resolve=>setImmediate(resolve));
- assert.match(spoken.at(-1).text,/Station|trains|tracks/i);
+ assert.match(element('commentaryCaption').textContent,/Station|trains|tracks/i);assert.equal(spoken.length,0);
  element('commentaryEnabled').onchange({target:{checked:false}});assert.equal(element('commentaryCaption').textContent,'');
  }finally{commentary.phase('paused');}
 });

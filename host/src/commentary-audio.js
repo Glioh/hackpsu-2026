@@ -7,8 +7,7 @@ export function createCommentary(socket){
  let game={map:'classic',winner:null,fighters:['red','blue'].map(team=>({team,damage:0,grounded:true}))};
  const buffers=new Map(),active=new Set(),metrics=[];
  const caption=document.getElementById('commentaryCaption'),status=document.getElementById('commentaryStatus');
- let speaking=false;
- const stop=()=>{for(const node of active){try{node.stop();}catch{}}active.clear();if(speaking){globalThis.speechSynthesis?.cancel();speaking=false;}};
+ const stop=()=>{for(const node of active){try{node.stop();}catch{}}active.clear();};
  function audioContext(){if(!context){context=new AudioContext({latencyHint:'interactive'});gain=context.createGain();gain.connect(context.destination);gain.gain.value=muted?0:volume;}return context;}
  async function preload(){
   try{catalogPromise=fetch('/api/commentary/catalog').then(r=>r.json());catalog=await catalogPromise;
@@ -56,20 +55,6 @@ export function createCommentary(socket){
     if(carry!==null)throw Error('Truncated PCM sample');if(first)throw Error('Empty speech');await Promise.all(ended);return !signal.aborted;
    }catch(error){for(const node of nodes){try{node.stop();}catch{}}await Promise.all(ended);if(!signal.aborted)status.textContent=`${error.message||'Custom voice unavailable.'} Captions only; keeping your selected voice.`;}finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);request.abort();}
   }
-  // New scripts remain audible before their studio voice clips are rendered.
-  if(!catalog.live&&!muted&&globalThis.speechSynthesis&&globalThis.SpeechSynthesisUtterance&&!signal.aborted){
-   const utterance=new SpeechSynthesisUtterance(script.text);
-   utterance.volume=volume;utterance.rate=script.speaker==='a'?1.08:.96;utterance.pitch=script.speaker==='a'?.85:1.1;
-   const voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith('en'));
-   utterance.voice=voices[script.speaker==='a'?0:Math.min(1,voices.length-1)]||null;
-   await new Promise(resolve=>{
-    let finished=false;
-    const done=()=>{if(finished)return;finished=true;clearTimeout(timer);signal.removeEventListener('abort',cancel);speaking=false;resolve();};
-    const cancel=()=>{speechSynthesis.cancel();done();};
-    const timer=setTimeout(cancel,12000);utterance.onend=utterance.onerror=done;
-    signal.addEventListener('abort',cancel,{once:true});speaking=true;speechSynthesis.speak(utterance);
-   });return !signal.aborted;
-  }
   await wait(Math.max(1800,script.text.split(/\s+/).length*280),signal);return !signal.aborted;
  }
  async function prepare(event,history,firstSpeaker,signal){
@@ -98,6 +83,7 @@ export function createCommentary(socket){
  document.getElementById('commentaryVolume').oninput=e=>{volume=Number(e.target.value);if(gain)gain.gain.value=muted?0:volume;};
  document.getElementById('commentaryCaptions').onchange=e=>caption.hidden=!e.target.checked;
  socket.on('disconnect',()=>{token=null;director.cancel();});
+ loadPromise=preload();
  return {
   unlock(){try{const ctx=audioContext();ctx.resume().catch(()=>{status.textContent='Audio blocked · captions available';});loadPromise??=preload();socket.emit('commentary:authorize',{},result=>{token=result.token;});}catch{status.textContent='Captions only · Web Audio unavailable';}},
   phase(phase,resumed,details={}){if(phase==='playing'){if(!resumed){match=details;game={map:details.map||'classic',winner:null,fighters:['red','blue'].map(team=>({team,character:details.fighters?.[team],damage:0,grounded:true}))};detector.reset(++round);director.reset(round,details);if(enabled)offer(detector.event('round_start',null));}director.paused=false;}else if(phase!=='results'){director.cancel();director.paused=true;}},
@@ -109,11 +95,6 @@ export function createCommentary(socket){
    const buffer=buffers.get(script.id);
    if(buffer&&context?.state==='running'){
     void track(buffer,context.currentTime,catalog.clips[script.id]?.offset||0,new AbortController().signal,new Set());
-   }else if(globalThis.speechSynthesis&&globalThis.SpeechSynthesisUtterance){
-    const utterance=new SpeechSynthesisUtterance(script.text);
-    utterance.volume=volume;utterance.rate=1.08;utterance.pitch=.85;
-    utterance.voice=speechSynthesis.getVoices().find(v=>v.lang.startsWith('en'))||null;
-    speaking=true;utterance.onend=utterance.onerror=()=>{speaking=false;};speechSynthesis.speak(utterance);
    }
    if(index===3){
     // Welcome the players after the countdown finishes.
