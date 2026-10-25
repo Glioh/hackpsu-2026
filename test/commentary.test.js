@@ -7,6 +7,14 @@ import express from 'express';
 import {EventEmitter} from 'node:events';
 import {MAPS} from '../host/src/maps.js';
 const hit=(attacker,damage=16)=>({type:'hit',source:'fighter',attacker,team:attacker==='red'?'blue':'red',damage});
+
+test('losing a life triggers a roast event before the final knockout',()=>{
+ const detector=new CommentaryDetector();
+ const events=detector.step([{type:'ringout',team:'red',lives:1}],null,.1);
+ assert.equal(events.length,1);assert.equal(events[0].type,'life_lost');assert.equal(events[0].team,'red');assert.equal(events[0].priority,90);
+ const final=detector.step([{type:'ringout',team:'red',lives:0}],'blue',.1);
+ assert.equal(final.length,1);assert.equal(final[0].type,'ring_out');assert.equal(final[0].team,'blue');
+});
 test('Gemini configuration keeps one announcer, separate provider keys, and an explicit off switch',()=>{
  const config=configuration({ELEVENLABS_VOICE_A:'zGedNEybz7PeBgPNR4L7',ELEVENLABS_MODEL_ID:'selected-model',ELEVENLABS_VOICE_B:'retired-voice',GEMINI_API_KEY:'gemini-secret',ELEVENLABS_API_KEY:'speech-secret',COMMENTARY_LIVE:'1'});
  assert.equal(config.a,'zGedNEybz7PeBgPNR4L7');assert.equal(Object.hasOwn(config,'b'),false);assert.equal(config.model,'selected-model');assert.equal(config.live,true);assert.equal(config.dialogue,true);

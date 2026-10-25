@@ -26,6 +26,7 @@ test('Gemini writes one line using game facts and recent history, retrying repet
   assert.ok(!requests[0].url.includes(config.geminiKey));assert.ok(!requests[0].options.body.includes(config.key));
   assert.deepEqual(prompt.history,context.history);assert.equal(prompt.game.fighters[0].lives,2);assert.equal(prompt.ignore,undefined);
   assert.match(body.systemInstruction.parts[0].text,/sole live announcer/);
+  assert.match(body.systemInstruction.parts[0].text,/rapid-fire/);assert.match(body.systemInstruction.parts[0].text,/Playfully roast/);
   assert.deepEqual(body.generationConfig.responseJsonSchema.required,['text']);
   assert.notEqual(prompt.variation,JSON.parse(JSON.parse(requests[1].options.body).contents[0].parts[0].text).variation);
 });
@@ -50,6 +51,19 @@ test('Gemini cannot announce a win before the game has a winner',async()=>{
   await assert.rejects(generateDialogue(input(),config,{fetcher:async()=>completion('Red wins the match!')}),/invalid/);
   const context=input();context.game.winner='red';context.event={type:'ring_out',team:'red',time:10};
   assert.deepEqual(await generateDialogue(context,config,{fetcher:async()=>completion('Red wins the match!')}),[{speaker:'a',text:'Red wins the match!'}]);
+});
+
+test('loss reactions target the losing team and reject recycled punchlines with swapped names',async()=>{
+ const context=input();context.event={type:'life_lost',team:'red',time:4};context.game.fighters[0].lives=1;
+ context.history=[{speaker:'a',text:'Blue just filed a complaint with gravity.'}];
+ let calls=0;
+ const fresh='Red, try keeping those feet on the actual platform!';
+ const result=await generateDialogue(context,config,{fetcher:async(url,options)=>{
+  calls++;const prompt=JSON.parse(JSON.parse(options.body).contents[0].parts[0].text);
+  assert.equal(prompt.roastTarget,'red');assert.equal(prompt.game.winner,null);assert.equal(prompt.game.fighters[0].lives,1);
+  return completion(calls===1?'Red just filed a complaint with gravity.':fresh);
+ }});
+ assert.equal(calls,2);assert.deepEqual(result,[{speaker:'a',text:fresh}]);
 });
 
 test('canceling Gemini generation aborts the provider request and never retries it',async()=>{
@@ -106,14 +120,15 @@ test('host-only Gemini API returns one generated line, uses the existing voice, 
   assert.equal((await fetch(h.base+'/api/commentary/live/'+turn.id,{headers:h.headers})).status,400);
   assert.equal(h.calls.length,2);assert.match(h.calls[1].url,/voice-a/);assert.equal(JSON.parse(h.calls[1].options.body).text,line);
   assert.equal(JSON.parse(h.calls[1].options.body).model_id,'selected-model');
+  assert.equal(JSON.parse(h.calls[1].options.body).voice_settings.speed,1.15);
   const catalog=await fetch(h.base+'/api/commentary/catalog').then(r=>r.json());assert.equal(catalog.dialogue,true);
   assert.ok(!JSON.stringify(catalog).includes('secret'));assert.ok(!JSON.stringify(exchange).includes('secret'));
   h.socket.emit('disconnect');assert.equal((await h.post(input())).status,403);
 });
 
-test('missing Gemini credentials stay scripted and provider errors disclose no secrets',async t=>{
-  const offline=await backend(t,{});assert.equal((await offline.post(input())).status,503);assert.equal(offline.calls.length,0);
-  assert.equal((await fetch(offline.base+'/api/commentary/catalog').then(r=>r.json())).dialogue,false);
+test('missing Gemini credentials keep generated mode without exposing secrets or enabling canned fallback',async t=>{
+  const offline=await backend(t,{...config,geminiKey:undefined});assert.equal((await offline.post(input())).status,503);assert.equal(offline.calls.length,0);
+  const catalog=await fetch(offline.base+'/api/commentary/catalog').then(r=>r.json());assert.equal(catalog.dialogue,false);assert.equal(catalog.commentaryMode,'generated');
   const failed=await backend(t,config,()=>({ok:false,status:429}));const response=await failed.post(input());
   assert.equal(response.status,502);assert.ok(!(await response.text()).includes(config.geminiKey));
 });

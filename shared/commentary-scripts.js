@@ -8,6 +8,7 @@ function add(event, team, variants) {
 }
 for (const team of ['red','blue']) {
  const name=team==='red'?'Red':'Blue';
+ add('life_lost',team,[['a',`${name} loses a life!`]]);
  add('heavy_hit',team,[['a',`${name} lands a huge uppercut!`],['b',`${name} puts some weight behind that one.`]]);
  add('pressure_run',team,[['a',`${name}: three unanswered hits!`],['b',`${name} is keeping the pressure on.`]]);
  add('counter_swing',team,[['b',`${name} answers with two of their own!`],['a',`${name} turns the pressure around!`]]);

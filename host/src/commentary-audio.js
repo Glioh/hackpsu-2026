@@ -3,7 +3,7 @@ import {SCRIPTS} from '../../shared/commentary-scripts.js';
 const announcerScripts=SCRIPTS.filter(script=>script.speaker==='a');
 export function createCommentary(socket){
  const detector=new CommentaryDetector();let round=0,context,gain,catalog={clips:{}},token,enabled=true,muted=false,volume=.75,loadPromise,catalogPromise;
- let match={},nextGenerationAt=0;
+ let match={},lastGenerationAt=-Infinity;
  let game={map:'classic',winner:null,fighters:['red','blue'].map(team=>({team,damage:0,grounded:true}))};
  const buffers=new Map(),active=new Set(),metrics=[];
  const caption=document.getElementById('commentaryCaption'),status=document.getElementById('commentaryStatus');
@@ -11,9 +11,10 @@ export function createCommentary(socket){
  function audioContext(){if(!context){context=new AudioContext({latencyHint:'interactive'});gain=context.createGain();gain.connect(context.destination);gain.gain.value=muted?0:volume;}return context;}
  async function preload(){
   try{catalogPromise=fetch('/api/commentary/catalog').then(r=>r.json());catalog=await catalogPromise;
-   const ctx=audioContext();const entries=Object.entries(catalog.clips).filter(([id])=>announcerScripts.some(script=>script.id===id));let cursor=0;
+   const generatedMode=catalog.commentaryMode==='generated'||catalog.dialogue;
+   const ctx=audioContext();const entries=Object.entries(catalog.clips).filter(([id])=>announcerScripts.some(script=>script.id===id&&(!generatedMode||script.event==='countdown')));let cursor=0;
    await Promise.all(Array.from({length:Math.min(3,entries.length)},async()=>{while(cursor<entries.length){const [id,clip]=entries[cursor++];try{const response=await fetch(clip.url);if(response.ok)buffers.set(id,await ctx.decodeAudioData(await response.arrayBuffer()));}catch{}}}));
-   status.textContent=`${buffers.size} voice clips ready${catalog.dialogue?' · Gemini live commentary':' · scripted commentary'}${catalog.live?' · live voice':buffers.size?'':' · speech unavailable'}`;
+   status.textContent=`${buffers.size} voice clips ready${catalog.dialogue?' · Gemini live commentary':generatedMode?' · Gemini unavailable':' · scripted commentary'}${catalog.live?' · live voice':buffers.size?'':' · speech unavailable'}`;
   }catch{status.textContent='Voice bank unavailable';}
  }
  function track(buffer,when,offset,signal,nodes,onStart=()=>{}){
@@ -64,8 +65,16 @@ export function createCommentary(socket){
  }
  async function prepare(event,history,firstSpeaker,signal){
   if(catalogPromise)await catalogPromise;
-  if(!catalog.dialogue||!token||signal.aborted||performance.now()<nextGenerationAt)return null;
-  nextGenerationAt=performance.now()+8000;
+  if(signal.aborted)return [];
+  const generatedMode=catalog.commentaryMode==='generated'||catalog.dialogue;
+  if(!generatedMode)return null;
+  if(!catalog.dialogue||!token){status.textContent='Gemini commentary unavailable. Waiting for fresh commentary.';return [];}
+  const urgent=['life_lost','ring_out','train_finish','double_fall'].includes(event.type),elapsed=performance.now()-lastGenerationAt;
+  if(elapsed<(urgent?1000:2500)){
+   if(!urgent)return [];
+   await wait(1000-elapsed,signal);if(signal.aborted)return [];
+  }
+  lastGenerationAt=performance.now();
   const request=new AbortController(),cancel=()=>request.abort();signal.addEventListener('abort',cancel,{once:true});
   const timer=setTimeout(cancel,4500),started=performance.now();
   try{
@@ -74,11 +83,11 @@ export function createCommentary(socket){
    if(!response.ok)throw Error('Gemini unavailable');
    const result=await response.json();
    if(!Array.isArray(result.turns)||result.turns.length!==1||result.turns.some(turn=>turn.speaker!=='a'||typeof turn.id!=='string'||typeof turn.text!=='string'||!turn.text.trim()||turn.text.length>180))throw Error('Invalid Gemini commentary');
-   if(signal.aborted)return null;
+   if(signal.aborted)return [];
    metrics.push({path:'gemini',generateMs:performance.now()-started,event:event.type});
    status.textContent='Gemini live commentary';
    return result.turns.map(turn=>({...turn,generated:true}));
-  }catch{if(!signal.aborted)status.textContent='Gemini unavailable · scripted commentary';return null;}
+  }catch{if(!signal.aborted)status.textContent='Gemini unavailable · waiting for fresh commentary';return [];}
   finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);request.abort();}
  }
  const director=new CommentaryDirector({play,prepare,stop,clock:()=>detector.time,caption:text=>{caption.textContent=text;}});

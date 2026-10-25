@@ -104,4 +104,4 @@ Joined phones show live movement, steering, jump, and uppercut commands on black
 
 ## Broadcast commentary
 
-One announcer delivers live Gemini-generated commentary with matching captions and an ElevenLabs voice. Set `GEMINI_API_KEY` in `.env` and run `npm start`; scripted commentary remains available when generation is unavailable. See [setup and implementation](docs/commentary-implementation.md).
+One announcer delivers live Gemini-generated commentary with matching captions and an ElevenLabs voice. Set `GEMINI_API_KEY` in `.env` and run `npm start`; Gemini writes fresh, fast-paced reactions and playful roasts while ElevenLabs handles speech. Generated mode never replaces a failed request with a canned line. See [setup and implementation](docs/commentary-implementation.md).

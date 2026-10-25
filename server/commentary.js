@@ -31,7 +31,7 @@ const speechErrorHints={
 };
 export async function synthesize(script,config,{format='mp3_44100_128',signal,fetcher=fetch}={}){
  if(!config.key||!config.a||!config.model)throw Error('Voice credentials missing: set ELEVENLABS_API_KEY, ELEVENLABS_VOICE_A and ELEVENLABS_MODEL_ID.');
- const result=await fetcher(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(config.a)}/stream?output_format=${format}`,{method:'POST',headers:{'xi-api-key':config.key,'Content-Type':'application/json'},body:JSON.stringify({text:script.text,model_id:config.model}),signal});
+ const result=await fetcher(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(config.a)}/stream?output_format=${format}`,{method:'POST',headers:{'xi-api-key':config.key,'Content-Type':'application/json'},body:JSON.stringify({text:script.text,model_id:config.model,...(script.generated?{voice_settings:{speed:1.15}}:{})}),signal});
  if(!result.ok){
   let detail;try{detail=(await result.json()).detail;}catch{}
   const rawCode=detail?.code||detail?.status;
@@ -51,7 +51,7 @@ export function installCommentary(app,io,{config=configuration(),fetcher=fetch,b
   let clips={};try{clips=JSON.parse(await readFile(new URL('manifest.json',bankDir),'utf8')).clips||{};}catch{}
   // Serve only files from the current voice/model/script configuration.
   const approved={};for(const script of SCRIPTS.filter(script=>script.speaker==='a')){const clip=clips[script.id];if(config.a&&config.model&&clip?.key===cacheKey(script,config))approved[script.id]={url:`/host/audio/commentary/${clip.key}.mp3`,offset:clip.offset||0};}
-  res.set('Cache-Control','no-store').json({clips:approved,live:!!(config.live&&config.key&&config.a&&config.model),dialogue:!!(config.dialogue&&config.geminiKey)});
+  res.set('Cache-Control','no-store').json({clips:approved,live:!!(config.live&&config.key&&config.a&&config.model),dialogue:!!(config.dialogue&&config.geminiKey),commentaryMode:config.dialogue?'generated':'scripted'});
  });
  app.post('/api/commentary/dialogue',(req,res,next)=>{
   const session=sessions.get(req.get('Authorization')?.replace(/^Bearer /,''));if(!session)return res.sendStatus(403);
@@ -60,17 +60,18 @@ export function installCommentary(app,io,{config=configuration(),fetcher=fetch,b
   const s=req.commentarySession;
   if(!validDialogue(req.body))return res.sendStatus(400);
   if(!config.dialogue||!config.geminiKey)return res.sendStatus(503);
-  if(s.dialogueBusy||Date.now()-s.lastDialogue<8000)return res.sendStatus(429);
+  const urgent=['life_lost','ring_out','train_finish','double_fall'].includes(req.body.event.type);
+  if(s.dialogueBusy||Date.now()-s.lastDialogue<(urgent?1000:2500))return res.sendStatus(429);
   s.dialogueBusy=true;s.lastDialogue=Date.now();const abort=new AbortController();s.dialogueAbort=abort;
   const timer=setTimeout(()=>abort.abort(),5000);res.on('close',()=>abort.abort());
   try{
    const turns=await generateDialogue(req.body,config,{signal:abort.signal,fetcher,recent:s.recent});
    if(abort.signal.aborted)return res.end();
    s.turns.clear();
-   const exchange=turns.map(turn=>{const script={...turn,id:randomBytes(16).toString('hex'),expires:Date.now()+45000};s.turns.set(script.id,script);return {id:script.id,speaker:script.speaker,text:script.text};});
+   const exchange=turns.map(turn=>{const script={...turn,generated:true,id:randomBytes(16).toString('hex'),expires:Date.now()+45000};s.turns.set(script.id,script);return {id:script.id,speaker:script.speaker,text:script.text};});
    s.recent.push(...turns.map(turn=>turn.text));s.recent=s.recent.slice(-40);
    res.set('Cache-Control','no-store').json({turns:exchange,provider:'gemini'});
-  }catch{if(!res.headersSent&&!res.destroyed)res.status(502).json({error:'Gemini commentary unavailable. Using scripted commentary.'});}finally{clearTimeout(timer);s.dialogueBusy=false;}
+  }catch{if(!res.headersSent&&!res.destroyed)res.status(502).json({error:'Gemini commentary unavailable. Waiting for fresh commentary.'});}finally{clearTimeout(timer);s.dialogueBusy=false;}
  });
  app.get('/api/commentary/live/:id',async(req,res)=>{
   const s=sessions.get(req.get('Authorization')?.replace(/^Bearer /,''));if(!s)return res.sendStatus(403);
