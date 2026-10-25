@@ -64,8 +64,9 @@ export function createArena(id = 'classic', seed = 1) {
   };
   const standingOn = f => (f.grounded ? arena.floorAt(f.x, f.z) : null);
   const shove = (f, angle, speed, up, events, strength) => {
+    const before={x:f.x,y:f.y,z:f.z,vx:f.vx,vy:f.vy,vz:f.vz,grounded:f.grounded};
     f.vx += Math.cos(angle) * speed; f.vz += Math.sin(angle) * speed; f.vy = up; f.grounded = false; f.hit = Math.max(f.hit, .25);
-    events.push({ type: 'hit', team: f.team, x: Math.cos(angle), z: Math.sin(angle), strength });
+    events.push({ type: 'hit', source: 'hazard', before, after:{x:f.x,y:f.y,z:f.z,vx:f.vx,vy:f.vy,vz:f.vz,grounded:f.grounded}, hazard: arena.id, hazardId: arena.id, team: f.team, x: Math.cos(angle), z: Math.sin(angle), strength });
   };
   // Tiles count down in their current state, then move on (warn -> next, next -> after).
   const tick = (p, dt, next) => { if ((p.t -= dt) <= 0) Object.assign(p, next(p)); };

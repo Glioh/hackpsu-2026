@@ -1,4 +1,5 @@
 import express from 'express';
+import { installCommentary } from './commentary.js';
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +11,7 @@ import { CALIBRATION, validCalibration } from '../shared/calibration.js';
 export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500 } = {}) {
   const app = express(), http = createServer(app), io = new Server(http, { maxHttpBufferSize: 8192 });
   const rooms = new Map();
+  installCommentary(app, io);
   const root = fileURLToPath(new URL('../', import.meta.url));
   // A Vercel HTTP proxy can serve the pages while sockets connect directly to
   // the persistent HTTPS server (Vercel Functions cannot host WebSockets).

@@ -14,7 +14,7 @@ export class Simulation {
     const [[rx, rz], [bx, bz]] = this.arena.spawn;
     this.fighters = [Object.assign(fighter('red', rx, Math.PI / 2), { z: rz }), Object.assign(fighter('blue', bx, -Math.PI / 2), { z: bz })];
     if (this.arena.resolveMotion) for (const f of this.fighters) f.y = this.arena.floorAt(f.x, f.z)?.y ?? 0;
-    this.winner = null; this.motionEvents = [];
+    this.winner = null; this.motionEvents = []; this.attackSequence = 0;
   }
   step(inputs, dt = C.tick) {
     this.motionEvents.length = 0;
@@ -34,7 +34,7 @@ export class Simulation {
       f.vx += (x * C.speed * drive - f.vx) * (1 - Math.exp(-damping * dt));
       f.vz += (z * C.speed * drive - f.vz) * (1 - Math.exp(-damping * dt));
       if (legs.jump && f.grounded) { f.vy = C.jump; f.grounded = false; this.motionEvents.push({type:'takeoff',team:f.team}); }
-      if (arm.punch && f.cooldown <= 0) { f.attack = .28; f.cooldown = C.punchCooldown; f.landed = false; f.power = arm.power ?? .6; this.motionEvents.push({type:'punch',team:f.team}); }
+      if (arm.punch && f.cooldown <= 0) { f.attackId = ++this.attackSequence; f.attack = .28; f.cooldown = C.punchCooldown; f.landed = false; f.power = arm.power ?? .6; this.motionEvents.push({type:'punch',team:f.team}); }
       previousAttacks.push(f.attack);
       f.attack = Math.max(0, f.attack - dt);
       if (floor) { f.x += floor.vx * dt; f.z += floor.vz * dt; } // moving platforms and conveyor belts carry you
@@ -60,6 +60,7 @@ export class Simulation {
     // Resolve contacts before applying either launch so simultaneous uppercuts trade fairly.
     const contacts = this.fighters.map((f,index) => !f.landed && previousAttacks[index] > 0 &&
       uppercutHits(this.rigs[index], this.rigs[1-index], f, this.fighters[1-index], previousAttacks[index], dt));
+    const contactStates = this.fighters.map(f => ({x:f.x,y:f.y,z:f.z,vx:f.vx,vy:f.vy,vz:f.vz,grounded:f.grounded}));
     const velocities = this.fighters.map(f => ({x:f.vx,z:f.vz}));
     for (const [index, f] of this.fighters.entries()) {
       if (!contacts[index]) continue;
@@ -74,7 +75,7 @@ export class Simulation {
       const nx = dist > .001 ? dx/dist : Math.sin(f.heading), nz = dist > .001 ? dz/dist : Math.cos(f.heading);
       target.vx = nx*power; target.vz = nz*power; target.vy = C.uppercutLift+growth*1.5;
       target.grounded = false; target.hit = .3; target.stun = .22+growth*.14; hits.push(target.team);
-      this.motionEvents.push({type:'hit',team:target.team,x:nx,z:nz,strength:power,damage});
+      this.motionEvents.push({type:'hit',source:'fighter',attacker:f.team,attackId:f.attackId,attackerBefore:contactStates[index],before:contactStates[1-index],after:{x:target.x,y:target.y,z:target.z,vx:target.vx,vy:target.vy,vz:target.vz,grounded:target.grounded},team:target.team,x:nx,z:nz,strength:power,damage});
     }
     const out = this.fighters.filter(f => f.y < C.eliminationY);
     if (out.length) this.winner = out.length === 2 ? 'draw' : out[0].team === 'red' ? 'blue' : 'red';

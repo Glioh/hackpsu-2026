@@ -22,9 +22,10 @@ export function configureStation(arena,random) {
       for(const f of fighters){
         if(f.y>=3.2||f.y+2.2<.02||f.x<minX||f.x>maxX||Math.abs(f.z-train.z)>TRAIN_HALF_WIDTH+.62||hitPass[i].get(f.team)===train.pass)continue;
         hitPass[i].set(f.team,train.pass);
+        const before={x:f.x,y:f.y,z:f.z,vx:f.vx,vy:f.vy,vz:f.vz,grounded:f.grounded};
         f.vx=train.direction*42;f.vz=Math.sign(f.z-train.z)*3;f.vy=6;
         f.damage+=25;f.stun=1.1;f.hit=.4;f.grounded=false;
-        events.push({type:'hit',team:f.team,x:train.direction,z:0,strength:42,damage:25,hazard:'train'});
+        events.push({type:'hit',source:'hazard',before,after:{x:f.x,y:f.y,z:f.z,vx:f.vx,vy:f.vy,vz:f.vz,grounded:f.grounded},hazardId:`train-${i}-${train.pass}`,team:f.team,x:train.direction,z:0,strength:42,damage:25,hazard:'train'});
       }
     });
   };

@@ -7,3 +7,4 @@ node_modules/
 
 # Local browser acceptance captures
 .visual-validation/
+host/audio/commentary/
