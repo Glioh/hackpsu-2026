@@ -4,7 +4,8 @@ export function createCommentary(socket){
  const detector=new CommentaryDetector();let round=0,context,gain,catalog={clips:{}},token,source,enabled=true,muted=false,volume=.75,loadPromise;
  const buffers=new Map(),active=new Set(),metrics=[];
  const caption=document.getElementById('commentaryCaption'),status=document.getElementById('commentaryStatus');
- const stop=()=>{for(const node of active){try{node.stop();}catch{}}active.clear();source=null;};
+ let speaking=false;
+ const stop=()=>{for(const node of active){try{node.stop();}catch{}}active.clear();source=null;if(speaking){globalThis.speechSynthesis?.cancel();speaking=false;}};
  function audioContext(){if(!context){context=new AudioContext({latencyHint:'interactive'});gain=context.createGain();gain.connect(context.destination);gain.gain.value=muted?0:volume;}return context;}
  async function preload(){
   try{catalog=await fetch('/api/commentary/catalog').then(r=>r.json());
@@ -43,6 +44,20 @@ export function createCommentary(socket){
     if(carry!==null)throw Error('Truncated PCM sample');await wait(Math.max(0,(next??context.currentTime)-context.currentTime)*1000,signal);return;
    }catch{if(!signal.aborted)stop();}finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);request.abort();}
   }
+  // New scripts remain audible before their studio voice clips are rendered.
+  if(!muted&&globalThis.speechSynthesis&&globalThis.SpeechSynthesisUtterance&&!signal.aborted){
+   const utterance=new SpeechSynthesisUtterance(script.text);
+   utterance.volume=volume;utterance.rate=script.speaker==='a'?1.08:.96;utterance.pitch=script.speaker==='a'?.85:1.1;
+   const voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith('en'));
+   utterance.voice=voices[script.speaker==='a'?0:Math.min(1,voices.length-1)]||null;
+   await new Promise(resolve=>{
+    let finished=false;
+    const done=()=>{if(finished)return;finished=true;clearTimeout(timer);signal.removeEventListener('abort',cancel);speaking=false;resolve();};
+    const cancel=()=>{speechSynthesis.cancel();done();};
+    const timer=setTimeout(cancel,12000);utterance.onend=utterance.onerror=done;
+    signal.addEventListener('abort',cancel,{once:true});speaking=true;speechSynthesis.speak(utterance);
+   });return;
+  }
   await wait(2800,signal);
  }
  const director=new CommentaryDirector({play,stop,clock:()=>detector.time,caption:(text,speaker)=>{caption.textContent=text?`${speaker==='a'?'Rex':'Vera'}: ${text}`:'';}});
@@ -54,7 +69,8 @@ export function createCommentary(socket){
  socket.on('disconnect',()=>{token=null;director.cancel();});
  return {
   unlock(){try{const ctx=audioContext();ctx.resume().catch(()=>{status.textContent='Audio blocked · captions available';});loadPromise??=preload();socket.emit('commentary:authorize',{},result=>{token=result.token;});}catch{status.textContent='Captions only · Web Audio unavailable';}},
-  phase(phase,resumed){if(phase==='playing'){if(!resumed){detector.reset(++round);director.reset(round);if(enabled)offer(detector.event('round_start',null));}director.paused=false;}else if(phase!=='results'){director.cancel();director.paused=true;}},
+  phase(phase,resumed,match={}){if(phase==='playing'){if(!resumed){detector.reset(++round);director.reset(round,match);if(enabled)offer(detector.event('round_start',null));}director.paused=false;}else if(phase!=='results'){director.cancel();director.paused=true;}},
+  fight(){director.cancel();director.nextAt=0;},
   step(sim,dt){for(const event of detector.step(sim.motionEvents,sim.winner,dt,sim.fighters))if(enabled)offer(event);},
   tick(){if(enabled)void director.tick(SCRIPTS);if(metrics.length>100)metrics.splice(0,metrics.length-100);},
   metrics
