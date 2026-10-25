@@ -1,4 +1,6 @@
-export function createHitFeedback(overlay, {now=()=>performance.now(),vibrate=pattern=>navigator.vibrate?.(pattern),reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches}={}) {
+import { requestVibration } from './vibration.js';
+
+export function createHitFeedback(overlay, {now=()=>performance.now(),vibrate=requestVibration,reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches}={}) {
   let starts=[],until=0;
   function clear(){until=0;starts=[];overlay.style.opacity='0';}
   return {
