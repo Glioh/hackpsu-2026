@@ -82,6 +82,9 @@ export function createCommentary(socket){
     body:JSON.stringify({round,firstSpeaker:'a',event:{type:event.type,team:event.team==='draw'?null:event.team,time:event.time,hazard:event.evidence?.hazard},game,history})});
    if(!response.ok)throw Error('Gemini unavailable');
    const result=await response.json();
+   if(event.type==='quiet_brawl'&&Array.isArray(result.turns)&&result.turns.length===0){
+    if(!signal.aborted)status.textContent='Gemini live commentary';return [];
+   }
    if(!Array.isArray(result.turns)||result.turns.length!==1||result.turns.some(turn=>turn.speaker!=='a'||typeof turn.id!=='string'||typeof turn.text!=='string'||!turn.text.trim()||turn.text.length>180))throw Error('Invalid Gemini commentary');
    if(signal.aborted)return [];
    metrics.push({path:'gemini',generateMs:performance.now()-started,event:event.type});

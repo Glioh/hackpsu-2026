@@ -185,6 +185,17 @@ test('generated mode with a missing Gemini key never substitutes cached commenta
  assert.match(h.elements.get('commentaryStatus').textContent,/Waiting for fresh commentary/);
 });
 
+test('a deliberate quiet Gemini response produces no speech and no error',async t=>{
+ let now=0;
+ const h=harness({now:()=>now,live:true,dialogue:async payload=>({ok:true,json:async()=>({turns:payload.event.type==='quiet_brawl'?[]:[{id:'opening',speaker:'a',text:'Two bodies, four operators, absolutely no excuses.'}]})}),
+  stream:async()=>{let read=false;return {ok:true,body:{getReader:()=>({read:async()=>read?{done:true}:(read=true,{done:false,value:Uint8Array.of(0,0)})})}};}});
+ t.after(()=>h.api.phase('paused'));
+ await flush();h.api.phase('playing');h.api.tick();await flush();h.nodes[0].end();await flush();
+ now=11000;h.advance(11);h.api.tick();await flush();
+ assert.equal(h.nodes.length,1);assert.equal(h.elements.get('commentaryCaption').textContent,'');
+ assert.equal(h.elements.get('commentaryStatus').textContent,'Gemini live commentary');
+});
+
 test('a lost life can get a fresh Gemini reaction before the ordinary event cooldown',async t=>{
  let now=0;const requests=[];
  const h=harness({now:()=>now,live:true,dialogue:async payload=>{

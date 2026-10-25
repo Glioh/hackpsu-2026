@@ -53,6 +53,12 @@ test('Gemini cannot announce a win before the game has a winner',async()=>{
   assert.deepEqual(await generateDialogue(context,config,{fetcher:async()=>completion('Red wins the match!')}),[{speaker:'a',text:'Red wins the match!'}]);
 });
 
+test('quiet moments may stay silent instead of forcing another joke',async()=>{
+ const context=input();context.event={type:'quiet_brawl',team:null,time:12};
+ assert.deepEqual(await generateDialogue(context,config,{fetcher:async()=>completion('')}),[]);
+ await assert.rejects(generateDialogue(input(),config,{fetcher:async()=>completion('')}),/invalid/);
+});
+
 test('loss reactions target the losing team and reject recycled punchlines with swapped names',async()=>{
  const context=input();context.event={type:'life_lost',team:'red',time:4};context.game.fighters[0].lives=1;
  context.history=[{speaker:'a',text:'Blue just filed a complaint with gravity.'}];
