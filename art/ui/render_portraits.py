@@ -33,6 +33,8 @@ FIGHTERS = {
     # The cone is taller than he is: the head icon crops it at head_clip so his face still reads.
     "conehead": dict(slug="conehead", pfx="CH_", root="Conehead", hand="Hand", head_clip=1.75),
     "bubbles": dict(slug="captain_bubbles", pfx="CB_", root="CaptainBubbles", hand="Hand"),
+    "wukong": dict(slug="wukong", pfx="WK_", root="Wukong", hand="Hand"),
+    "lebron": dict(slug="lebron", pfx="LB_", root="LeBron", hand="Hand"),
 }
 # Poses. Arm targets are world directions the shoulder->wrist segment points along (+X = the fighter's left,
 # the big punching side; -Y = forward). torso/head: extra (x, y, z) rotation in radians; lift raises the whole body.
@@ -51,6 +53,12 @@ POSES = {
     },
     "toast": {
         "portrait": dict(arms={"L": (0.55, -0.35, 0.8), "R": (-0.45, -0.85, 0.3)}, torso=(0.05, 0.05, 0.12)),
+    },
+    "wukong": {
+        "portrait": dict(arms={"L": (0.55, -0.6, 0.65), "R": (-0.8, 0.1, -0.35)}, torso=(0.06, 0.04, 0.1), head=(-0.08, 0.1, 0.08)),   # staff held low at his side
+    },
+    "lebron": {
+        "portrait": dict(arms={"L": (0.6, -0.5, 0.7), "R": (-0.55, -0.6, 0.1)}, torso=(0.04, 0.04, 0.1), head=(-0.04, 0.08, 0.06)),
     },
     "bubbles": {
         "portrait": dict(arms={"L": (0.6, -0.55, 0.7), "R": (-0.4, -0.85, 0.3)}, torso=(0.06, 0.04, 0.1), head=(-0.04, 0.1, 0.06),
