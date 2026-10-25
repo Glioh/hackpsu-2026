@@ -65,7 +65,7 @@ test('Skyline jump input clears low obstacles and walking off a terrace falls to
 test('Skyline all four open edges allow ring-outs, including from the raised rear',()=>{
   for(const [x,z,y,moveX,moveZ] of [[-10.9,6,0,-1,0],[10.9,6,0,1,0],[0,8.8,0,0,1],[0,-7.5,1.185,0,-1]]) {
     const s=at(x,z,y);run(s,120,{red:{legs:{moveX,moveZ:-moveZ}}});
-    assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2);assert.ok(s.fighters[0].y<C.eliminationY);
+    assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,1);assert.ok(s.fighters[0].y<C.eliminationY);
   }
 });
 

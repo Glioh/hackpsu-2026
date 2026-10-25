@@ -51,6 +51,24 @@ test('local voices wait for actual audio ending, even when audio clock stalls pa
   assert.equal(h.nodes[1].stopped, true);
 });
 
+test('announcer countdown uses ready voice clips on each beat, interrupts dialogue, and stops on pause or mute', async t => {
+  const h=harness();t.after(()=>h.api.phase('paused'));
+  await flush();h.api.phase('playing');h.api.tick();await flush();
+  assert.equal(h.nodes.length,1);
+  for(let i=0;i<4;i++){
+    const previous=h.nodes.at(-1);
+    h.api.countdown(i);
+    assert.equal(previous.stopped,true,'each beat replaces previous speech');
+    assert.equal(h.nodes.length,i+2,'beat plays immediately from a loaded clip');
+    h.api.tick();await flush();
+    assert.equal(h.nodes.length,i+2,'commentary cannot overlap countdown');
+  }
+  h.api.phase('paused');assert.equal(h.nodes.at(-1).stopped,true);
+  const count=h.nodes.length;
+  h.elements.get('commentaryMute').onchange({target:{checked:true}});
+  h.api.countdown(0);assert.equal(h.nodes.length,count);
+});
+
 test('late canceled stream cannot stop newer ElevenLabs speech', async t => {
   let calls = 0, rejectOld;
   const h = harness({ live: true, stream: async () => {

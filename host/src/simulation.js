@@ -5,7 +5,7 @@ import { createWeapons } from './weapons.js';
 import { legInputToWorld } from '../../shared/movement.js';
 import { staffMomentum } from './wukong-gags.js';
 export function fighter(team, x, heading) {
-  return { team, lives: 3, respawnRemaining: 0, damage: 0, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, hit: 0, stun: 0, landed: false };
+  return { team, lives: C.lives, respawnRemaining: 0, damage: 0, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, hit: 0, stun: 0, landed: false };
 }
 export class Simulation {
   constructor(mapId = 'classic', seed = 1) { this.rigs = [fallbackCombatRig(), fallbackCombatRig()]; this.mapId = mapId; this.seed = seed; this.reset(); }
@@ -15,7 +15,7 @@ export class Simulation {
   reset() {
     this.arena = createArena(this.mapId, this.seed++);
     const [[rx, rz], [bx, bz]] = this.arena.spawn;
-    this.fighters = [Object.assign(fighter('red', rx, Math.PI / 2), { z: rz }), Object.assign(fighter('blue', bx, -Math.PI / 2), { z: bz })];
+    this.fighters = [Object.assign(fighter('red', rx, Math.atan2(bx-rx, bz-rz)), { z: rz }), Object.assign(fighter('blue', bx, Math.atan2(rx-bx, rz-bz)), { z: bz })];
     if (this.arena.resolveMotion) for (const f of this.fighters) f.y = this.arena.floorAt(f.x, f.z)?.y ?? 0;
     this.winner = null; this.motionEvents = []; this.attackSequence = 0; this.weapons = createWeapons(this.seed);
   }

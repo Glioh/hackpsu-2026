@@ -96,6 +96,20 @@ export function createCommentary(socket){
   unlock(){try{const ctx=audioContext();ctx.resume().catch(()=>{status.textContent='Audio blocked · captions available';});loadPromise??=preload();socket.emit('commentary:authorize',{},result=>{token=result.token;});}catch{status.textContent='Captions only · Web Audio unavailable';}},
   phase(phase,resumed,details={}){if(phase==='playing'){if(!resumed){match=details;game={map:match.map||'classic',winner:null,fighters:['red','blue'].map(team=>({team,character:match.fighters?.[team],damage:0,grounded:true}))};detector.reset(++round);director.reset(round,match);if(enabled)offer(detector.event('round_start',null));}director.paused=false;}else if(phase!=='results'){director.cancel();director.paused=true;}},
   fight(){director.cancel();director.nextAt=0;},
+  countdown(index){
+   director.cancel();director.paused=index!==3;
+   const script=SCRIPTS.find(s=>s.id===`countdown-${index}`);
+   if(!script||!enabled||muted)return;
+   const buffer=buffers.get(script.id);
+   if(buffer&&context?.state==='running'){
+    void track(buffer,context.currentTime,catalog.clips[script.id]?.offset||0,new AbortController().signal,new Set());
+   }else if(globalThis.speechSynthesis&&globalThis.SpeechSynthesisUtterance){
+    const utterance=new SpeechSynthesisUtterance(script.text);
+    utterance.volume=volume;utterance.rate=1.08;utterance.pitch=.85;
+    utterance.voice=speechSynthesis.getVoices().find(v=>v.lang.startsWith('en'))||null;
+    speaking=true;utterance.onend=utterance.onerror=()=>{speaking=false;};speechSynthesis.speak(utterance);
+   }
+  },
   step(sim,dt){game={map:sim.arena.id,winner:sim.winner??null,fighters:sim.fighters.map(f=>({team:f.team,character:match.fighters?.[f.team],damage:f.damage,grounded:f.grounded}))};for(const event of detector.step(sim.motionEvents,sim.winner,dt,sim.fighters))if(enabled)offer(event);},
   tick(){if(enabled)void director.tick(SCRIPTS);if(metrics.length>100)metrics.splice(0,metrics.length-100);},
   metrics

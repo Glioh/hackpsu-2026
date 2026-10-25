@@ -31,10 +31,6 @@ function syncPreviewControls() {
   $('devMode').setAttribute('aria-pressed', String(mapPreview));
   $('devMode').textContent = mapPreview ? 'Exit dev mode' : 'Dev mode: preview maps with idle bots';
   $('leaveGame').textContent = mapPreview ? 'Choose another map' : 'Return to lobby';
-  if (mapPreview) $('calibrationRows').replaceChildren(...['red','blue'].map(team => {
-    const row = document.createElement('div'); row.className = 'calibration-row'; row.dataset.ready = 'true';
-    row.textContent = team.toUpperCase() + ' / IDLE DUMMY BOT'; return row;
-  }));
 }
 $('devMode').onclick = () => {
   mapPreview = !mapPreview;
@@ -150,12 +146,6 @@ socket.on('room:roster', p => {
   $('chooseSprites').textContent = connectedCount === 4 ? 'Choose player sprites →' : 'Waiting for ' + (4-connectedCount) + ' more phone' + (connectedCount===3?'':'s');
   $('roster').replaceChildren(...p.slots.map(s=>{const row=document.createElement('div');row.className='slot';const [team,role]=s.key.split(':');const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' / '+role.toUpperCase();const status=document.createElement('span');status.className='slot-status';status.textContent=s.ready&&s.connected?'● READY':s.connected?'Calibrating…':s.occupied?'Disconnected · reserved':'Waiting for phone';row.append(name,status);if(s.occupied)row.append(kickButton(s));return row;}));
   $('resumeGame').disabled = !debug && !ready;
-  $('calibrationRows').replaceChildren(...p.slots.map(slot => {
-    const row = document.createElement('div'); row.className = 'calibration-row'; row.dataset.ready = String(slot.connected && slot.ready);
-    const name = document.createElement('b'); name.textContent = slot.key.replace(':',' / ').toUpperCase();
-    const status = document.createElement('span'); status.textContent = slot.message || (slot.ready ? 'Ready' : 'Calibration required');
-    row.append(name, status); if(slot.occupied)row.append(kickButton(slot)); return row;
-  }));
   if(!p.slots.every(s=>s.connected))snapshots.clear();
   syncPreviewControls();
 });
@@ -177,7 +167,6 @@ socket.on('game:state',p=>{
   if (phase === 'lobby') clearFinish();
   presentation.setPhase(phase);
   $('pauseOverlay').classList.toggle('hidden', phase !== 'paused');
-  $('calibrationMode').textContent = mapPreview ? 'MAP PREVIEW / IDLE BOTS' : debug ? 'KEYBOARD / BOT MODE' : 'PHONE CALIBRATION';
   syncPreviewControls();
   $('resumeGame').disabled = !debug && !ready;
   if(phase==='paused') {
@@ -194,26 +183,18 @@ socket.on('game:state',p=>{
   $('phase').textContent=phase==='playing'?(mapPreview?'MAP PREVIEW / IDLE BOTS':debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
 });
 function start(isDebug){commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:start',{debug:isDebug},p=>{if(p.error){$('error').textContent=p.error;presentation.setPhase(phase);}});}
-// Hold simulation during the introduction so no fighter loses behind the overlay.
-const FACEOFF_BEATS=[{at:6200,text:'3'},{at:7400,text:'2'},{at:8600,text:'1'},{at:9800,text:'FIGHT',fight:true}];
-const FACEOFF_DURATION=10350;
+// Hold combat until the announced countdown reaches START.
+const FACEOFF_BEATS=[{at:0,text:'3'},{at:1200,text:'2'},{at:2400,text:'1'},{at:3600,text:'START!',fight:true}];
+const FACEOFF_DURATION=4150;
 function showFaceoff(){
   clearFaceoff();
   if(mapPreview||typeof setTimeout!=='function')return;
-  TEAMS.forEach(team=>{
-    const f=FIGHTERS[picks[TEAMS.indexOf(team)]], url=portraitUrl(picks[TEAMS.indexOf(team)],'portrait');
-    const img=$('faceoff'+cap(team)+'Portrait'), fallback=$('faceoff'+cap(team)+'Fallback');
-    img.src=url;img.alt=url?f.name:'';img.classList.toggle('hidden',!url);
-    fallback.textContent=url?'':f.name[0];fallback.classList.toggle('hidden',!!url);
-    $('faceoff'+cap(team)+'Name').textContent=f.name;
-  });
-  $('faceoffMap').textContent=MAPS.find(m=>m.id===sim.mapId).name.toUpperCase();
   const countdown=$('faceoffCountdown');
   countdown.textContent='';countdown.className='faceoff-countdown hidden';
   faceoffActive=true;syncScreen();
   $('faceoff').className='faceoff';
   combatAudio.cheer(FACEOFF_DURATION/1000);
-  for(const beat of FACEOFF_BEATS)faceoffTimers.push(setTimeout(()=>{
+  const showBeat=beat=>{
     countdown.textContent=beat.text;
     countdown.classList.remove('hidden','pop','fight');
     void countdown.offsetWidth; // restart the pop animation even though the class is reapplied
@@ -223,10 +204,14 @@ function showFaceoff(){
       faceoffActive=false;commentary.fight();$('faceoff').classList.add('reveal');
       snapshots.clear();keys.clear();edges.clear();accumulator=0;previous=performance.now();syncScreen();
     }
-  },beat.at));
+    commentary.countdown(FACEOFF_BEATS.indexOf(beat));
+  };
+  for(const beat of FACEOFF_BEATS){
+    if(beat.at===0)showBeat(beat);
+    else faceoffTimers.push(setTimeout(()=>showBeat(beat),beat.at));
+  }
   faceoffTimers.push(setTimeout(()=>{$('faceoff').classList.add('hidden');faceoffTimers.length=0;},FACEOFF_DURATION));
 }
-function cap(s){return s[0].toUpperCase()+s.slice(1);}
 $('start').onclick=()=>start(mapPreview);$('debugStart').onclick=()=>{mapPreview=false;syncPreviewControls();start(true);};$('rematch').onclick=()=>start(debug);
 $('resumeGame').onclick=()=>{commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
 
@@ -275,8 +260,8 @@ function frame(now) {
   motions.forEach(motion => interpolateMotion(motion, phase === 'playing' && finishAge === null ? accumulator / C.tick : 1));
   for (const f of sim.fighters) {
     const lives = $(f.team + 'Lives');
-    lives.textContent = '●'.repeat(f.lives) + '○'.repeat(3 - f.lives);
-    lives.setAttribute('aria-label', `${f.team} team: ${f.lives} of 3 lives remaining`);
+    lives.textContent = '●'.repeat(f.lives) + '○'.repeat(C.lives - f.lives);
+    lives.setAttribute('aria-label', `${f.team} team: ${f.lives} of ${C.lives} lives remaining`);
   }
   if (phase !== 'lobby') draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked, finishAge, weapons: sim.weapons.state });
   if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)}\nheading ${f.heading.toFixed(2)} grounded ${f.grounded}\nspeed ${Math.hypot(f.vx,f.vz).toFixed(2)} cooldown ${f.cooldown.toFixed(2)}`).join('\n\n');

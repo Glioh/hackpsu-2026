@@ -28,7 +28,7 @@ test('earthquake open fault drops a fighter and rematch restores intact terrain'
   while((s.arena.fracture??0)<.7)s.arena.step(tick,[],[]);
   Object.assign(s.fighters[0],{x:0,z:3,y:0,vx:0,vz:0,vy:0,grounded:false});
   for(let i=0;i<90;i++)s.step({});
-  assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2);
+  assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,1);
   s.setMap('quake');assert.ok(s.arena.floorAt(0,3));assert.equal(s.arena.fracture,undefined);
 });
 

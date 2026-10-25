@@ -31,7 +31,7 @@ test('Cloudpeak training dummies and boulders obstruct walking',()=>{
 
 test('Cloudpeak has open cliff ring-outs on all four sides',()=>{
   for(const [x,z,y,moveX,moveZ]of [[-12.7,5,0,-1,0],[12.7,5,0,1,0],[0,9.7,0,0,1],[0,-9.7,1.8,0,-1]]) {
-    const s=at(x,z,y);run(s,120,{red:{legs:{moveX,moveZ:-moveZ}}});assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2);
+    const s=at(x,z,y);run(s,120,{red:{legs:{moveX,moveZ:-moveZ}}});assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,1);
   }
 });
 

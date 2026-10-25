@@ -21,7 +21,7 @@ test('magma island has jagged support and safe spawns before the crust breaks',(
   assert.equal(a.floorAt(0,0,0),floor);assert.equal(insideLava(0,0,20),false);
   const s=new Simulation('lava');Object.assign(s.fighters[0],{x:8.5,z:5.5});
   for(let i=0;i<180&&!s.winner;i++)s.step({});
-  assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2,'diagonal edge costs a life');
+  assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,1,'diagonal edge costs a life');
 });
 
 test('crust warns, loses support and sinks permanently, preserving the core until reset',()=>{
@@ -40,7 +40,7 @@ test('crust warns, loses support and sinks permanently, preserving the core unti
   s.arena.time=LAVA_COLLAPSE.start-.01;s.arena.volcanicHazards=[];
   Object.assign(s.fighters[0],{x:p.x,z:p.z});
   for(let i=0;i<180&&!s.winner;i++)s.step({});
-  assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2,'fighter falls through the opening');
+  assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,1,'fighter falls through the opening');
   s.reset();assert.ok(s.arena.pieces.every(p=>p.solid&&p.y===0&&p.state==='solid'));
   assert.ok(s.arena.floorAt(p.x,p.z));
 });

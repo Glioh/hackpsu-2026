@@ -198,6 +198,30 @@
       "offset": 0,
       "text": "The legs and arms are still in negotiations.",
       "speaker": "b"
+    },
+    "countdown-0": {
+      "key": "ac8ade88bcc9584c459e6db0c9fcf36744a4e16ce4c9693b49115eccbc5b9368",
+      "offset": 0,
+      "text": "Three!",
+      "speaker": "a"
+    },
+    "countdown-1": {
+      "key": "2283a058604733b5ddd10036c5cb5ffe70be321bf8b09f96eaad0e17d1493a57",
+      "offset": 0,
+      "text": "Two!",
+      "speaker": "a"
+    },
+    "countdown-2": {
+      "key": "33fa782e750bba780d61a742dbd9c660dd0f5a4575e32a9f494d1a8a52b7aa28",
+      "offset": 0,
+      "text": "One!",
+      "speaker": "a"
+    },
+    "countdown-3": {
+      "key": "0b868cfa4d7561e1c316dc380cf2c51f5a995272c91cab7f6205e3b8dcdc437c",
+      "offset": 0,
+      "text": "Start!",
+      "speaker": "a"
     }
   }
 }
