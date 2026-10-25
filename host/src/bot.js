@@ -5,7 +5,9 @@ import {worldToLegInput} from '../../shared/movement.js';
 export function createBotController() {
   let arena=null,radius=null,navigator=null,path=[],goal=null,nextPlan=0,lastPosition=null,stuck=0;
   return (sim,index=1)=>{
-    const f=sim.fighters[index],target=sim.fighters[1-index],r=sim.rigs[index].radius;
+    const f=sim.fighters[index], targets=sim.fighters.filter(target=>target.lives>0&&!target.respawnRemaining&&sim.enemies(f,target));
+    const target=targets.sort((a,b)=>Math.hypot(a.x-f.x,a.z-f.z)-Math.hypot(b.x-f.x,b.z-f.z))[0],r=sim.rigs[index].radius;
+    if(!target)return {legs:{moveX:0,moveZ:0,jump:false},arm:{turn:0,punch:false,power:.8}};
     const dx=target.x-f.x,dz=target.z-f.z,range=Math.hypot(dx,dz);
     let waypoint=target;
     if(sim.arena.navigation) {

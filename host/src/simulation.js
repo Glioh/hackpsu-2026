@@ -4,19 +4,26 @@ import { createArena } from './maps.js';
 import { WEAPONS, createWeapons } from './weapons.js';
 import { legInputToWorld } from '../../shared/movement.js';
 import { staffMomentum } from './wukong-gags.js';
+import { DADDY_RULES } from '../../shared/party.js';
+import { scaledDamage, scaledLaunch } from './combat-stats.js';
 export function fighter(team, x, heading) {
   return { team, lives: C.lives, respawnRemaining: 0, damage: 0, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, hit: 0, stun: 0, landed: false };
 }
 export class Simulation {
   constructor(mapId = 'classic', seed = 1) { this.rigs = [fallbackCombatRig(), fallbackCombatRig()]; this.mapId = mapId; this.seed = seed; this.reset(); }
-  setCombatRig(index, rig) { this.rigs[index] = rig; }
+  setCombatRig(index, rig) { this.rigs[index] = rig; this.scaleRig(index); }
+  scaleRig(index) {
+    const rig = this.rigs[index], scale = this.fighters[index]?.scale ?? 1;
+    if (!rig) return;
+    rig.baseRadius ??= rig.radius; rig.radius = rig.baseRadius * scale; rig.group.scale.setScalar(scale);
+  }
   configureMatch(match) {
     this.match = match;
     this.rigs = (match?.fighters || [0, 1]).map((_, i) => this.rigs[i] || fallbackCombatRig());
     if (match?.mapId) this.mapId = match.mapId;
     this.reset();
   }
-  enemies(a, b) { return a !== b && (this.match?.mode !== 'teams' || a.side !== b.side); }
+  enemies(a, b) { return a !== b && (!['teams', 'daddy'].includes(this.match?.mode) || a.side !== b.side); }
   setMap(mapId) { this.mapId = mapId; this.reset(); }
   // Each reset builds a fresh arena with a new seed, so hazards differ round to round.
   reset() {
@@ -27,7 +34,8 @@ export class Simulation {
     if (this.match) {
       const placed = [];
       this.fighters = this.match.fighters.map((spec, index) => {
-        const anchor = this.arena.spawn[spec.side === 'blue' ? 1 : this.match.mode === 'ffa' ? index % 2 : 0];
+        const anchorIndex = this.match.mode === 'ffa' ? index % 2 : this.match.mode === 'daddy' ? (spec.side === 'daddy' ? 0 : 1) : spec.side === 'blue' ? 1 : 0;
+        const anchor = this.arena.spawn[anchorIndex];
         const spots = [anchor];
         for (const piece of this.arena.pieces.filter(p => p.solid)) {
           spots.push([piece.x, piece.z]);
@@ -38,10 +46,14 @@ export class Simulation {
         const clear = spot => placed.every(f => Math.hypot(f.x - spot[0], f.z - spot[1]) > 1.8);
         spots.sort((a, b) => distance(a) - distance(b));
         const [x, z] = spots.find(spot => clear(spot) && this.arena.floorAt(...spot)) || anchor;
-        const f = Object.assign(fighter(spec.id, x, Math.atan2(-x, -z)), { side: spec.side, color: spec.color, lives: this.match.lives, z });
+        const daddy = this.match.mode === 'daddy' && spec.id === this.match.daddyId;
+        const combat = daddy ? { move: DADDY_RULES.move, turn: DADDY_RULES.turn, damageTaken: DADDY_RULES.damageTaken,
+          launchTaken: DADDY_RULES.launchTaken, damageDealt: DADDY_RULES.damageDealt, launchDealt: DADDY_RULES.launchDealt } : null;
+        const f = Object.assign(fighter(spec.id, x, Math.atan2(-x, -z)), { side: spec.side, color: spec.color, lives: this.match.lives, scale: spec.scale ?? 1, combat, z });
         placed.push(f); return f;
       });
     }
+    this.rigs.forEach((_, i) => this.scaleRig(i));
     for (const f of this.fighters) f.y = this.arena.floorAt(f.x, f.z)?.y ?? 0;
     this.winner = null; this.motionEvents = []; this.attackSequence = 0; this.weapons = createWeapons(this.seed);
   }
@@ -60,9 +72,9 @@ export class Simulation {
     for (const spot of spots) {
       const floor = this.arena.floorAt(spot.x, spot.z);
       if (!floor || floor.y <= C.eliminationY || ['falling', 'gone', 'lava'].includes(floor.state)) continue;
-      const { lives, side, color } = f;
+      const { lives, side, color, scale, combat } = f;
       Object.assign(f, fighter(f.team, spot.x, (f.side || f.team) === 'red' ? Math.PI / 2 : -Math.PI / 2),
-        { lives, side, color, z: spot.z, y: floor.y, weapon: null, weaponAttack: null });
+        { lives, side, color, scale, combat, z: spot.z, y: floor.y, weapon: null, weaponAttack: null });
       this.motionEvents.push({ type: 'respawn', team: f.team });
       return true;
     }
@@ -88,11 +100,11 @@ export class Simulation {
       if (f.respawnRemaining || f.lives === 0) { previousAttacks.push(0); continue; }
       const i = inputs[f.team] || {}, legs = i.legs || {}, arm = i.arm || {};
       f.cooldown = Math.max(0, f.cooldown - dt); f.hit = Math.max(0, f.hit - dt); f.stun = Math.max(0, f.stun - dt);
-      f.heading += (arm.turn || 0) * C.turnRate * dt;
+      f.heading += (arm.turn || 0) * C.turnRate * (f.combat?.turn ?? 1) * dt;
       const { x, z } = legInputToWorld(legs.moveX || 0, legs.moveZ || 0);
       // Brief hitstun preserves launch momentum; ordinary movement regains control smoothly.
       const floor = f.grounded ? this.arena.floorAt(f.x, f.z) : null, grip = floor?.grip ?? 1;
-      const damping = f.stun > 0 ? C.launchDamping : C.damping * grip, drive = f.stun > 0 ? 0 : WEAPONS[f.weapon?.type]?.speed ?? 1;
+      const damping = f.stun > 0 ? C.launchDamping : C.damping * grip, drive = f.stun > 0 ? 0 : (WEAPONS[f.weapon?.type]?.speed ?? 1) * (f.combat?.move ?? 1);
       f.vx += (x * C.speed * drive - f.vx) * (1 - Math.exp(-damping * dt));
       f.vz += (z * C.speed * drive - f.vz) * (1 - Math.exp(-damping * dt));
       if (legs.jump && f.grounded) { f.vy = C.jump; f.grounded = false; this.motionEvents.push({type:'takeoff',team:f.team}); }
@@ -136,12 +148,15 @@ export class Simulation {
       dx = target.x-f.x; dz = target.z-f.z; dist = Math.hypot(dx,dz);
       const punchPower = Math.max(0,Math.min(1,f.power ?? .6)), velocity = velocities[index];
       const momentum = Math.max(0,(velocity.x*dx+velocity.z*dz)/Math.max(.001,dist));
-      const damage = Math.min(C.maxPunchDamage,Math.round(C.punchDamage*(.65+punchPower*.6)+momentum*C.momentumDamage));
+      const baseDamage = C.punchDamage*(.65+punchPower*.6)+momentum*C.momentumDamage;
+      const damage = scaledDamage(f, target, baseDamage, C.maxPunchDamage);
       target.damage += damage;
       const growth = Math.min(1,target.damage/C.knockbackSoftCap);
-      const power = Math.min(C.maxKnockback,C.knockback*(.85+punchPower*.3)*(1+growth*C.knockbackGrowth));
+      const basePower = C.knockback*(.85+punchPower*.3)*(1+growth*C.knockbackGrowth);
+      const power = scaledLaunch(f, target, basePower, C.maxKnockback);
       const nx = dist > .001 ? dx/dist : Math.sin(f.heading), nz = dist > .001 ? dz/dist : Math.cos(f.heading);
-      target.vx = nx*power; target.vz = nz*power; target.vy = C.uppercutLift+growth*1.5;
+      const lift = scaledLaunch(f, target, C.uppercutLift+growth*1.5);
+      target.vx = nx*power; target.vz = nz*power; target.vy = lift;
       target.grounded = false; target.hit = .3; target.stun = .22+growth*.14; hits.push(target.team);
       this.motionEvents.push({type:'hit',source:'fighter',attacker:f.team,attackId:f.attackId,attackerBefore:contactStates[index],before:contactStates[targetIndex],after:{x:target.x,y:target.y,z:target.z,vx:target.vx,vy:target.vy,vz:target.vz,grounded:target.grounded},team:target.team,x:nx,z:nz,strength:power,damage});
     }
@@ -156,7 +171,8 @@ export class Simulation {
       f.weapon = f.weaponAttack = null;
       this.motionEvents.push({ type: 'ringout', team: f.team, color: f.color, x: f.x, z: f.z, lives: f.lives });
     }
-    const alive = [...new Set(this.fighters.filter(f => f.lives > 0).map(f => this.teamLives ? f.side : f.team))];
+    const factionMode = ['teams', 'daddy'].includes(this.match?.mode);
+    const alive = [...new Set(this.fighters.filter(f => f.lives > 0).map(f => factionMode ? f.side : f.team))];
     if (alive.length <= 1) this.winner = alive[0] || 'draw';
     return hits;
   }
