@@ -27,6 +27,7 @@ FIGHTERS = {
     "squish": dict(slug="sir_squish", pfx="SS_", root="SirSquish", hand="Glove"),
     "crank": dict(slug="crank", pfx="CR_", root="Crank", hand="Hand"),
     "bonk": dict(slug="bonk3000", pfx="BK_", root="Bonk3000", hand="Hand"),
+    "nik": dict(slug="nik", pfx="NK_", root="Nik", hand="Hand"),
 }
 # Poses. Arm targets are world directions the shoulder->wrist segment points along (+X = the fighter's left,
 # the big punching side; -Y = forward). torso/head: extra (x, y, z) rotation in radians; lift raises the whole body.
@@ -39,6 +40,9 @@ POSES = {
     },
     "bonk": {
         "portrait": dict(arms={"L": (0.45, -0.75, 0.55), "R": (-0.85, -0.25, 0.55)}, torso=(0.04, 0.05, 0.14), head=(0.04, -0.1, 0.12)),
+    },
+    "nik": {
+        "portrait": dict(arms={"L": (0.6, -0.55, 0.75), "R": (-0.35, -0.85, 0.35)}, torso=(0.06, 0.04, 0.12), head=(-0.04, 0.08, 0.1)),
     },
 }
 # Shots: camera view direction (from subject towards the camera), which parts to frame, lens fill and size.
