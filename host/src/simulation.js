@@ -3,8 +3,9 @@ import { fallbackCombatRig, uppercutHits } from './combat-rig.js';
 import { createArena } from './maps.js';
 import { createWeapons } from './weapons.js';
 import { legInputToWorld } from '../../shared/movement.js';
+import { staffMomentum } from './wukong-gags.js';
 export function fighter(team, x, heading) {
-  return { team, lives: 3, respawnRemaining: 0, damage: 0, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, hit: 0, stun: 0, landed: false };
+  return { team, lives: C.lives, respawnRemaining: 0, damage: 0, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, hit: 0, stun: 0, landed: false };
 }
 export class Simulation {
   constructor(mapId = 'classic', seed = 1) { this.rigs = [fallbackCombatRig(), fallbackCombatRig()]; this.mapId = mapId; this.seed = seed; this.reset(); }
@@ -21,7 +22,7 @@ export class Simulation {
   reset() {
     this.arena = createArena(this.mapId, this.seed++);
     const [[rx, rz], [bx, bz]] = this.arena.spawn;
-    this.fighters = [Object.assign(fighter('red', rx, Math.PI / 2), { z: rz }), Object.assign(fighter('blue', bx, -Math.PI / 2), { z: bz })];
+    this.fighters = [Object.assign(fighter('red', rx, Math.atan2(bx-rx, bz-rz)), { z: rz }), Object.assign(fighter('blue', bx, Math.atan2(rx-bx, rz-bz)), { z: bz })];
     this.teamLives = this.match?.mode === 'teams' ? { red: this.match.lives, blue: this.match.lives } : null;
     if (this.match) {
       const placed = [];
@@ -95,7 +96,7 @@ export class Simulation {
       f.vx += (x * C.speed * drive - f.vx) * (1 - Math.exp(-damping * dt));
       f.vz += (z * C.speed * drive - f.vz) * (1 - Math.exp(-damping * dt));
       if (legs.jump && f.grounded) { f.vy = C.jump; f.grounded = false; this.motionEvents.push({type:'takeoff',team:f.team}); }
-      if (arm.punch && f.cooldown <= 0 && !this.weapons.attack(f, this.motionEvents)) { f.attackId = ++this.attackSequence; f.attack = .28; f.cooldown = C.punchCooldown; f.landed = false; f.power = arm.power ?? .6; this.motionEvents.push({type:'punch',team:f.team}); }
+      if (arm.punch && f.cooldown <= 0 && !this.weapons.attack(f, this.motionEvents)) { f.attackId = ++this.attackSequence; f.attack = .28; f.cooldown = C.punchCooldown; f.landed = false; f.power = arm.power ?? .6; this.motionEvents.push({type:'punch',team:f.team}); if (this.rigs[this.fighters.indexOf(f)].traits?.staffMomentum) staffMomentum(f); }
       previousAttacks.push(f.attack);
       f.attack = Math.max(0, f.attack - dt);
       if (floor) { f.x += floor.vx * dt; f.z += floor.vz * dt; } // moving platforms and conveyor belts carry you

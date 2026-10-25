@@ -24,7 +24,7 @@ test('votes choose only leaders; roulette slows and ends on the authoritative wi
   assert.equal(roll.winner, 'classic'); assert.equal(rollFrame(roll, 100 + roll.duration), roll.winner);
   const delays = roll.frames.slice(1, -1).map((f, i) => f.at - roll.frames[i].at);
   assert.ok(delays.at(-1) > delays[0] * 2);
-  const agree = makeRoll(['crank'], { unanimous: true, now: 0 }); assert.equal(agree.frames.length, 1); assert.equal(agree.winner, 'crank');
+  const agree = makeRoll(['squish'], { unanimous: true, now: 0 }); assert.equal(agree.frames.length, 1); assert.equal(agree.winner, 'squish');
   const input = [1,2,3,4]; assert.notDeepEqual(shuffled(input, () => 0), input); assert.deepEqual(input, [1,2,3,4]);
 });
 test('team lives are shared; either teammate can consume the pool and team loses together', () => {

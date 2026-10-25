@@ -26,7 +26,7 @@ test('Twinspire bridges support crossing while central gap and outer edges ring 
     assert.ok(s.fighters[0].x>4);assert.equal(s.fighters[0].grounded,true);assert.equal(s.winner,null);
   }
   for(const [x,z,moveX,moveZ]of [[-4,.5,1,0],[-18,2,-1,0],[-11,9,0,1],[18,2,1,0]]) {
-    const s=at(x,z);run(s,180,{red:{legs:{moveX,moveZ:-moveZ}}});assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2);
+    const s=at(x,z);run(s,180,{red:{legs:{moveX,moveZ:-moveZ}}});assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,1);
   }
   assert.equal(createArena('twinspire').floorAt(0,0),null);
 });

@@ -1,10 +1,14 @@
-export const VOICES = { a: 'Jacks Dad', b: 'Jacks Dad' };
+export const VOICES = { a: 'Rex', b: 'Vera' };
 export const SCRIPTS = [];
+for (const [i,text] of ['Three!','Two!','One!','Start!'].entries()) {
+ SCRIPTS.push({id:`countdown-${i}`,event:'countdown',team:null,speaker:'a',text,intensity:5,offset:0,version:1});
+}
 function add(event, team, variants) {
   variants.forEach(([speaker,text],i) => SCRIPTS.push({id:`${event}-${team || 'any'}-${i}`,event,team,speaker,text,intensity:event==='ring_out'?5:3,offset:0,version:1}));
 }
 for (const team of ['red','blue']) {
  const name=team==='red'?'Red':'Blue';
+ add('life_lost',team,[['a',`${name} loses a life!`]]);
  add('heavy_hit',team,[['a',`${name} lands a huge uppercut!`],['b',`${name} puts some weight behind that one.`]]);
  add('pressure_run',team,[['a',`${name}: three unanswered hits!`],['b',`${name} is keeping the pressure on.`]]);
  add('counter_swing',team,[['b',`${name} answers with two of their own!`],['a',`${name} turns the pressure around!`]]);

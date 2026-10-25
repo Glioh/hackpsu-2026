@@ -22,8 +22,8 @@ test('8 and 12 phones receive balanced teams; vote changes count once; only top 
     assert.equal(c.room.match.fighters.filter(f=>f.side==='red').length,count/4);
     const mapReady=event(c.host,'game:state',s=>s.phase==='map-vote');
     await emit(c.phones[0],'character:vote',{id:'squish'});
-    await emit(c.phones[0],'character:vote',{id:'tung'});
-    for(let i=1;i<count;i++)await emit(c.phones[i],'character:vote',{id:'crank'});
+    await emit(c.phones[0],'character:vote',{id:'wukong'});
+    for(let i=1;i<count;i++)await emit(c.phones[i],'character:vote',{id:'squish'});
     const state=await mapReady, [a,b]=state.selection.options;
     assert.equal(new Set(state.selection.options).size,6);
     assert.ok((await emit(c.host,'map:vote',{id:a})).error);

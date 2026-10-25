@@ -2,14 +2,14 @@
 export class CommentaryDetector {
   reset(round) { this.round=round; this.time=0; this.seq=0; this.lastContact=0; this.quietAt=-30; this.run=null; this.reversal=null; this.history=[]; this.finished=false; }
   constructor() { this.reset(0); }
-  event(type,team,evidence={}) { return {id:`${this.round}:${++this.seq}`,round:this.round,time:this.time,type,team,evidence,priority:({ring_out:100,train_finish:100,double_fall:100,hazard_impact:80,counter_swing:60,pressure_run:50,trade:50,heavy_hit:40,round_start:30,quiet_brawl:10})[type],expires:this.time+(type.includes('finish')||type==='ring_out'||type==='double_fall'?8:type==='pressure_run'||type==='counter_swing'?3:1.5)}; }
+  event(type,team,evidence={}) { return {id:`${this.round}:${++this.seq}`,round:this.round,time:this.time,type,team,evidence,priority:({ring_out:100,train_finish:100,double_fall:100,life_lost:90,hazard_impact:80,counter_swing:60,pressure_run:50,trade:50,heavy_hit:40,round_start:30,quiet_brawl:10})[type],expires:this.time+(type.includes('finish')||type==='ring_out'||type==='double_fall'?8:type==='life_lost'?6:type==='pressure_run'||type==='counter_swing'?3:1.5)}; }
   step(events,winner,dt,fighters=[]) {
     if(this.finished)return [];
     this.time+=dt;
     const hits=events.filter(e=>e.type==='hit');
     this.history.push(...hits.map(e=>({...e,time:this.time})));this.history=this.history.filter(e=>this.time-e.time<8).slice(-80);
     if(winner){this.finished=true;const loser=winner==='red'?'blue':'red';const last=this.history.filter(e=>e.team===loser).at(-1);return [this.event(winner==='draw'?'double_fall':last?.source==='hazard'&&last.hazard==='train'&&this.time-last.time<1.5?'train_finish':'ring_out',winner,{latestImpulse:last})];}
-    const out=[];if(hits.length)this.lastContact=this.time;
+    const out=events.filter(e=>e.type==='ringout'&&e.lives>0).map(e=>this.event('life_lost',e.team,{lives:e.lives}));if(hits.length)this.lastContact=this.time;
     const combat=hits.filter(e=>e.source==='fighter'&&['red','blue'].includes(e.attacker)&&e.attacker!==e.team);
     const trade=new Set(combat.map(e=>e.attacker)).size===2;
     if(trade){out.push(this.event('trade',null,{hits:combat}));this.run=null;this.reversal=null;}
@@ -45,26 +45,29 @@ export class CommentaryDirector {
     const options=scripts.filter(s=>s.event===event.type&&s.team===(event.team==='draw'?null:event.team)
       &&(!s.map||s.map===map)&&(!s.fighter||(event.team?fighters[event.team]===s.fighter:Object.values(fighters).includes(s.fighter)))
       &&(!s.hazard||s.hazard===event.evidence?.hazard));
-    // Exhaust fresh lines before repeating; prefer arena/character detail among equally fresh choices.
+    // Alternate hosts first, then choose a fresh, context-specific line for that host.
     const freshness=s=>this.recent.lastIndexOf(s.id);
     const specific=s=>Number(!!(s.map||s.fighter||s.hazard));
-    const script=options.slice().sort((a,b)=>freshness(a)-freshness(b)||specific(b)-specific(a)
-      ||Number(a.speaker===this.lastSpeaker)-Number(b.speaker===this.lastSpeaker))[0];if(!script)return;
+    const script=options.slice().sort((a,b)=>Number(a.speaker===this.lastSpeaker)-Number(b.speaker===this.lastSpeaker)
+      ||freshness(a)-freshness(b)||specific(b)-specific(a))[0];if(!script)return;
     this.busy=true;const generation=this.generation;this.abort=new AbortController();const signal=this.abort.signal;
+    let pause=2;
     try{
       let turns=[script];
       if(this.prepare){try{turns=await this.prepare(event,this.history.slice(),script.speaker,signal)||turns;}catch{/* Use the local bank when generation is unavailable. */}}
+      if(turns.some(turn=>turn.generated)||turns.length===0)pause=.35;
       if(signal.aborted||generation!==this.generation||event.expires<this.clock())return;
       for(const turn of turns){
         if(signal.aborted||generation!==this.generation)return;
-        this.caption(turn.text,turn.speaker);
-        const completed=await this.play(turn,event,signal);
+        const completed=await this.play(turn,event,signal,()=>{
+          if(!signal.aborted&&generation===this.generation)this.caption(turn.text,turn.speaker);
+        });
         if(signal.aborted||generation!==this.generation)return;
         if(completed!==false){this.history.push({speaker:turn.speaker,text:turn.text});this.history=this.history.slice(-12);this.lastSpeaker=turn.speaker;}
         this.recent.push(turn.id);this.recent=this.recent.slice(-128);
         if(this.pending?.priority>event.priority)break;
       }
     }catch{/* Audio is optional. */}
-    finally{if(generation===this.generation){this.busy=false;this.nextAt=this.clock()+2;this.caption('');}}
+    finally{if(generation===this.generation){this.busy=false;this.nextAt=this.clock()+pause;this.caption('');}}
   }
 }

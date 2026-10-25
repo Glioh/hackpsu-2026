@@ -14,7 +14,7 @@ await page.goto(`${baseURL}/__visual-review`);
 await page.evaluate(async()=>{
  document.body.innerHTML='<div id="test-arena" style="width:100vw;height:100vh"></div>';document.body.style.cssText='margin:0;overflow:hidden';
  const [{createRenderer},{Simulation},{createMotion,interpolateMotion}]=await Promise.all([import('/host/src/render.js'),import('/host/src/simulation.js'),import('/host/src/motion.js')]);
- const draw=createRenderer(document.querySelector('#test-arena'));draw.setFighter(0,'crank');draw.setFighter(1,'squish');
+ const draw=createRenderer(document.querySelector('#test-arena'));draw.setFighter(0,'wukong');draw.setFighter(1,'squish');
  window.review={draw,setMap(id,wide=false){this.sim=new Simulation(id);if(wide){this.sim.fighters[0].x=-10;this.sim.fighters[1].x=10;this.sim.fighters.forEach(f=>f.y=this.sim.arena.floorAt(f.x,f.z)?.y??0);}this.poses=this.sim.fighters.map(f=>interpolateMotion(createMotion(f),1));},frames:[],running:true};
  review.setMap('skyline');let previous=performance.now();
  function frame(now){if(!review.running)return;review.draw(review.poses,now/1000,review.sim.fighters,review.sim.arena,{active:false});review.frames.push(now-previous);previous=now;requestAnimationFrame(frame);}requestAnimationFrame(frame);

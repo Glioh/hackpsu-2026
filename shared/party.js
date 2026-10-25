@@ -1,6 +1,6 @@
 export const CHARACTERS = [
-  ['squish', 'Sir Squish'], ['crank', 'Crank'], ['bonk', 'Bonk-3000'], ['nik', 'Nik'],
-  ['tung', 'Tung Tung Sahur'], ['toast', 'Toast Malone'], ['conehead', 'Conehead'], ['bubbles', 'Captain Bubbles'],
+  ['squish', 'Sir Squish'], ['bonk', 'Bonk-3000'], ['toast', 'Toast Malone'],
+  ['conehead', 'Conehead'], ['bubbles', 'Captain Bubbles'], ['wukong', 'Wukong'], ['lebron', 'LeBron James'],
 ].map(([id, name]) => ({ id, name, portrait: `/host/assets/ui/portraits/${id}_portrait.png` }));
 
 export const FFA_COLORS = ['#ff665b', '#63c7ec', '#ffd447', '#c98cff', '#68e0a5', '#ff94c9', '#ffa94d', '#97b8ff'];

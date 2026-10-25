@@ -33,7 +33,7 @@ export async function startMatch(context, { characters, maps, calibrate = true }
   const started = await emit(host, 'game:start');
   if (started.error) throw Error(started.error);
   const mapVote = event(host, 'game:state', state => state.phase === 'map-vote');
-  for (let i = 0; i < phones.length; i++) await emit(phones[i], 'character:vote', { id: characters?.[i] || 'crank' });
+  for (let i = 0; i < phones.length; i++) await emit(phones[i], 'character:vote', { id: characters?.[i] || 'squish' });
   const state = await mapVote;
   const final = event(host, 'game:state', state => ['playing', 'calibrating'].includes(state.phase));
   for (let i = 0; i < phones.length; i++) await emit(phones[i], 'map:vote', { id: maps?.(state.selection.options, i) || state.selection.options[0] });

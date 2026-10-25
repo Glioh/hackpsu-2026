@@ -1,3 +1,4 @@
+import { createWinnerView } from './winner-view.js';
 import { createCombatAudio } from './combat-audio.js';
 import { createCommentary } from './commentary-audio.js';
 import { Simulation } from './simulation.js';
@@ -16,6 +17,7 @@ const commentary = createCommentary(socket), combatAudio = createCombatAudio(), 
 let draw, motions = [], renderFighters = [];
 let roomCode = '', phase = 'lobby', debug = false, match = null, selection = null, slots = [], ready = false;
 let serverOffset = 0, mapPreview = false, finishAge = null, visualTime = 0, introUntil = 0, lastCountdown = '';
+const winnerView = createWinnerView($('winnerSprite'));
 const snapshots = new Map(), keys = new Set(), edges = new Set(), bot = createBotController();
 let previous = performance.now(), accumulator = 0;
 try { draw = createRenderer($('arena'), (i, rig) => sim.setCombatRig(i, rig)); }
@@ -60,22 +62,16 @@ function renderRoster() {
     name.textContent = slot.name; status.textContent = slot.connected ? 'IN THE CREW' : 'RECONNECTING';
     label.append(name, status); tile.append(avatar, label, kickButton(slot)); return tile;
   }));
-  const affected = slots.filter(slot => !slot.ready || !slot.connected);
-  $('calibrationMode').textContent = debug ? 'DEVELOPER MATCH' : affected.length ? 'CHECK PHONE CALIBRATION' : `${count} PHONES READY`;
-  $('calibrationRows').replaceChildren(...affected.map(slot => {
-    const row = document.createElement('div'); row.className = 'calibration-row'; row.dataset.ready = String(slot.connected && slot.ready);
-    const name = document.createElement('b'), status = document.createElement('span'); name.textContent = `${slot.name} / ${(slot.role || 'waiting').toUpperCase()}`;
-    status.textContent = slot.message || 'Calibration required'; row.append(name, status); return row;
-  }));
   $('resumeGame').disabled = !debug && !ready;
 }
 socket.on('room:roster', p => { slots = p.slots; ready = slots.length > 0 && slots.every(s => s.connected && s.ready); renderRoster(); if (selection || phase === 'calibrating') renderPreparation(); });
 function syncScreen() {
   const setup = !['playing', 'paused', 'results'].includes(phase);
   $('setup').classList.toggle('hidden', !setup); $('gameScreen').classList.toggle('hidden', setup);
+  $('gameScreen').classList.toggle('showing-results', phase === 'results');
+  if (phase !== 'results') winnerView.hide();
   $('joinStep').classList.toggle('hidden', phase !== 'lobby'); $('preparationStage').classList.toggle('hidden', phase === 'lobby');
   $('joinBanner').classList.toggle('hidden', phase !== 'lobby'); $('pauseOverlay').classList.toggle('hidden', phase !== 'paused'); $('result').classList.toggle('hidden', phase !== 'results');
-  $('calibrationMode').textContent = mapPreview ? 'MAP PREVIEW / IDLE BOTS' : debug ? 'KEYBOARD / BOT MODE' : ready ? `${slots.length} PHONES READY` : 'CHECK PHONE CALIBRATION';
   $('phase').textContent = phase === 'playing' ? debug ? 'DEVELOPER MATCH' : match?.mode === 'ffa' ? 'FREE-FOR-ALL / LAST DUO STANDING' : 'RED VS BLUE / SHARED LIVES' : phase.toUpperCase();
 }
 function renderPreparation() {
@@ -131,9 +127,10 @@ socket.on('game:state', p => {
   if (phase === 'playing' && oldPhase !== 'playing') {
     if (!p.resumed) {
       sim.configureMatch(debug ? null : match); clearFinish(); resetPoses();
-      if (match) draw?.configure(match.fighters); else draw?.configure([{ id: 'red', character: 'crank', color: '#ff665b' }, { id: 'blue', character: 'squish', color: '#63c7ec' }]);
+      if (match) draw?.configure(match.fighters); else draw?.configure([{ id: 'red', character: 'wukong', color: '#ff665b' }, { id: 'blue', character: 'squish', color: '#63c7ec' }]);
       $('mapName').textContent = MAPS.find(m => m.id === sim.mapId)?.name.toUpperCase();
-      introUntil = mapPreview ? 0 : performance.now() + 3400; lastCountdown = '';
+      introUntil = mapPreview ? 0 : performance.now() + 4150; lastCountdown = '';
+      $('faceoffCountdown').textContent = '3';
       $('faceoffTitle').textContent = match?.mode === 'ffa' ? `${match.count} DUOS. ONE SURVIVOR.` : 'RED. BLUE. BRAWL.';
       $('faceoffMap').textContent = MAPS.find(m => m.id === sim.mapId)?.name; $('faceoff').classList.toggle('hidden', !introUntil);
       if (match?.mode !== 'ffa') commentary.phase('playing', false, { map: sim.mapId });
@@ -144,6 +141,8 @@ socket.on('game:state', p => {
   if (phase === 'paused') { snapshots.clear(); keys.clear(); edges.clear(); $('pauseReason').textContent = `${p.interruption?.key || ''} ${p.interruption?.message || 'Recalibrate every phone to continue.'}`; }
   if (phase === 'results') {
     const winner = match?.fighters.find(f => f.id === p.winner); $('winner').textContent = p.winner === 'draw' ? 'DRAW' : `${winner?.label || p.winner.toUpperCase()} WINS!`;
+    const winners = match ? match.fighters.filter(f => p.winner === 'draw' || (match.mode === 'ffa' ? f.id : f.side) === p.winner) : [];
+    void winnerView.show(p.winner, ['wukong', 'squish'], winners.length ? winners.map(f => f.character) : undefined);
     $('winner').style.color = winner?.color || (p.winner === 'red' ? '#ff665b' : '#63c7ec');
   }
   if (phase === 'lobby') { clearFinish(); snapshots.clear(); renderRoster(); }
@@ -187,7 +186,7 @@ function phone(id, now) {
 function livesHUD() {
   if (!['playing', 'paused', 'results'].includes(phase)) return;
   $('livesHud').classList.toggle('hidden', match?.mode === 'ffa'); if (match?.mode === 'ffa') return;
-  const max = match?.lives || 3;
+  const max = match?.lives || C.lives;
   for (const side of ['red', 'blue']) {
     let label = $(side + 'Lives'); if (!label) { label = document.createElement('span'); label.id = side + 'Lives'; label.className = side; label.setAttribute('role', 'status'); $('livesHud').append(label); }
     const lives = sim.teamLives?.[side] ?? sim.fighters.find(f => f.team === side)?.lives ?? max;
@@ -198,9 +197,10 @@ function livesHUD() {
 function frame(now) {
   const frameDt = Math.max(0, Math.min((now - previous) / 1000, .1)); previous = now; tickSelection();
   if (introUntil && phase === 'playing') {
-    const remaining = introUntil - now, text = remaining > 400 ? String(Math.ceil((remaining - 400) / 1000)) : 'BRAWL';
-    if (lastCountdown !== text) { $('faceoffCountdown').textContent = text; lastCountdown = text; combatAudio.countdown(text === 'BRAWL'); }
-    if (remaining <= 0) { introUntil = 0; $('faceoff').classList.add('hidden'); snapshots.clear(); accumulator = 0; commentary.fight(); }
+    const remaining = introUntil - now, elapsed = 4150 - remaining;
+    const beat = Math.min(3, Math.floor(elapsed / 1200)), text = ['3', '2', '1', 'START!'][beat];
+    if (lastCountdown !== text) { $('faceoffCountdown').textContent = text; lastCountdown = text; combatAudio.countdown(beat === 3); if (beat === 3) commentary.fight(); if (match?.mode !== 'ffa') commentary.countdown(beat); }
+    if (remaining <= 0) { introUntil = 0; $('faceoff').classList.add('hidden'); snapshots.clear(); accumulator = 0; }
   }
   const scale = finishAge === null ? 1 : FINISH_TIME_SCALE;
   if (phase === 'playing' && !introUntil) visualTime += frameDt * scale;
@@ -220,7 +220,7 @@ function frame(now) {
         const side = id => sim.fighters.find(f => f.team === id)?.side || id;
         commentary.step(match ? { ...sim, fighters: ['red', 'blue'].map(team => {
           const fighters = sim.fighters.filter(f => f.side === team);
-          return { team, damage: Math.max(...fighters.map(f => f.damage)), grounded: fighters.every(f => f.grounded), stun: Math.max(...fighters.map(f => f.stun)) };
+          return { team, damage: Math.max(...fighters.map(f => f.damage)), grounded: fighters.every(f => f.grounded), stun: Math.max(...fighters.map(f => f.stun)), lives: sim.teamLives[team] };
         }), motionEvents: sim.motionEvents.map(event => ({ ...event, team: side(event.team), attacker: side(event.attacker) })) } : sim, C.tick);
       }
       motions.forEach((m, i) => stepMotion(m, sim.fighters[i], sim.motionEvents, C.tick, $('motionPreset').value, $('motionEnabled').checked)); if (sim.winner) finishAge = 0;

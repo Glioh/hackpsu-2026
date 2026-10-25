@@ -84,28 +84,29 @@ export function createWinnerView(container) {
     container.replaceChildren(...(renderer?[renderer.domElement]:[]));
   }
   return {
-    async show(winner,picks) {
+    async show(winner,picks,characters) {
       hide();visible=true;const token=generation;
       const indices=winner==='draw'?[0,1]:[winner==='blue'?1:0];
-      const ids=indices.map(i=>picks[i]);
+      const ids=characters || indices.map(i=>picks[i]);
       container.setAttribute('aria-label',ids.map(id=>FIGHTERS[id].name).join(' and ')+(winner==='draw'?' draw':' celebrating victory'));
       try {
         initialize();
         const factories=await Promise.all(ids.map(loadFighter));
         if(token!==generation||!visible)return;
         models=factories.map((make,i)=>{
-          const model=make(indices[i]===0?'#ff7964':'#69dbe8');
+          const teamIndex=characters?(winner==='blue'?1:0):indices[i];
+          const model=make(teamIndex===0?'#ff7964':'#69dbe8');
           const rings=[];
           model.root.traverse(node=>{if(node.geometry?.type==='RingGeometry')rings.push(node);});
           for(const ring of rings){ring.removeFromParent();ring.geometry.dispose();ring.material.dispose();}
-          model.victoryX=indices.length===2?(i?2:-2):0;model.root.position.x=model.victoryX;stage.add(model.root);return model;
+          model.victoryX=(i-(ids.length-1)/2)*4;model.root.position.x=model.victoryX;stage.add(model.root);return model;
         });
         pose(0);resize();start=performance.now();frame=requestAnimationFrame(animate);
       } catch {
         if(token!==generation||!visible)return;
         clear();
         // Portrait fallback still identifies the selected character if WebGL fails.
-        const images=ids.filter(id=>id!=='tung').map(id=>{const img=document.createElement('img');img.src=`/host/assets/ui/portraits/${id}_portrait.png`;img.alt=FIGHTERS[id].name;img.className='winner-portrait';return img;});
+        const images=ids.map(id=>{const img=document.createElement('img');img.src=`/host/assets/ui/portraits/${id}_portrait.png`;img.alt=FIGHTERS[id].name;img.className='winner-portrait';return img;});
         container.replaceChildren(...images);
       }
     },

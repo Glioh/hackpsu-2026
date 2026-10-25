@@ -1,5 +1,5 @@
 export const CONFIG = Object.freeze({
-  version: 1, tick: 1 / 60, staleMs: 400, reconnectMs: 30000,
+  version: 1, tick: 1 / 60, staleMs: 400, reconnectMs: 30000, lives: 2,
   arenaX: 11, arenaZ: 8, radius: 0.62, speed: 5, acceleration: 17,
   damping: 5, turnRate: 3, gravity: 20, jump: 8, eliminationY: -5,
   punchCooldown: 0.65, knockback: 5.5, maxKnockback: 11,

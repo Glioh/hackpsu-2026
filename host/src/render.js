@@ -12,6 +12,7 @@ import { FINISH_TIME_SCALE } from './ko-finish.js';
 import { createHitEffects, createHitFlash } from './hit-effects.js';
 import { createJiggle } from './jiggle.js';
 import { createFishbowl } from './fishbowl.js';
+import { createWukongGags } from './wukong-gags.js';
 import { createWeaponView } from './weapon-view.js';
 import { createCrumbs } from './crumbs.js';
 import { createContactShadows } from './contact-shadows.js';
@@ -41,7 +42,8 @@ export function createRenderer(container, onCombatRig = () => {}) {
   let flashes = models.map(m => createHitFlash(m.group));
   let clumsies = models.map((_, i) => createClumsy(i));
   // Per-fighter extras that only some characters opt into: jiggling gear and crumbs on impacts.
-  let jiggles = models.map(() => createJiggle()), bowls = models.map(() => createFishbowl());
+  let jiggles = models.map(() => createJiggle()), bowls = models.map(() => createFishbowl()), gags = models.map(() => createWukongGags());
+  const knockedOut = new Set();                                            // teams rung out this round (startKO)
   const crumbs = createCrumbs(scene), landings = [null, null], weaponView = createWeaponView(scene);
   let punchShake = 0;                                                     // spring glove impacts rattle the camera
   // 1 when the floor ends within reach of a grounded fighter (map edge, tile hole, platform edge): time to teeter.
@@ -58,7 +60,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
       const i = models.length, model = createCharacter('#ffd447', mesh);
       scene.add(model.group); models.push({ ...model, torsoY: model.torso.position.y });
       flashes.push(createHitFlash(model.group)); clumsies.push(createClumsy(i));
-      jiggles.push(createJiggle()); bowls.push(createFishbowl()); landings.push(null); hitAges.push(Infinity);
+      jiggles.push(createJiggle()); bowls.push(createFishbowl()); gags.push(createWukongGags()); landings.push(null); hitAges.push(Infinity);
     }
   }
   const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(container); resize();
@@ -113,6 +115,10 @@ export function createRenderer(container, onCombatRig = () => {}) {
       m.group.visible = !body?.respawnRemaining && body?.lives !== 0;
       m.group.position.set(f.x, f.y + .09, f.z);
       m.group.rotation.y = f.heading;
+      // Wukong: a winner's victory twirl topples him over; a loser's headband slips over his eyes.
+      const hasStaff = m.wobbly?.some(w => w.kind === 'staff'), won = finishAge !== null && knockedOut.size === 1 && body && !knockedOut.has(body.team);
+      const victory = hasStaff && won ? gags[i].victory(finishAge) : null;
+      m.group.rotation.order = 'YXZ'; m.group.rotation.z = victory?.tilt ?? 0;
       // Joints follow motion.js; clumsy.js adds the lurching, stumbling, flailing and teetering on top.
       const c = body ? clumsies[i](body, active ? dt : 0, time, { enabled: motionEnabled, edge: edgeNear(arena, body) }) : null;
       const k = c ?? { torso: { x: 0, z: 0 }, drop: 0, head: { x: 0, z: 0 }, arms: [{ x: 0, z: 0 }, { x: 0, z: 0 }], legs: [0, 0], gear: { x: 0, z: 0 } };
@@ -131,7 +137,10 @@ export function createRenderer(container, onCombatRig = () => {}) {
       }
       const j = body && m.wobbly?.some(w => w.kind === 'jiggle' || w.kind === 'bounce') ? jiggles[i](body, active ? dt : 0, motionEnabled) : null;
       const bowl = body && m.wobbly?.some(w => w.kind === 'fish' || w.kind === 'water') ? bowls[i](body, active ? dt : 0, motionEnabled) : null;
+      const falling = body && (knockedOut.has(body.team) || (!body.grounded && body.vy < -4 && !arena.floorAt(body.x, body.z, body.y)));
       m.wobbly?.forEach(({ node, kind, rest, restY, restScale, maxTilt, lift }) => {
+        if (kind === 'staff') { node.rotation.set(rest.x + (victory ? victory.spin : gags[i].staff(m.arms[0].rotation.x, active ? dt : 0, motionEnabled)), rest.y, rest.z); return; }
+        if (kind === 'crown') { const slip = gags[i].crown(falling, active ? dt : 0); node.position.y = restY - .18 * slip; node.rotation.set(rest.x + .3 * slip, rest.y, rest.z); return; }
         if (kind === 'water' || kind === 'fish' || kind === 'fishtail') {                      // fishbowl head
           if (!bowl) return;
           if (kind === 'water') node.rotation.set(rest.x + bowl.water.x, rest.y, rest.z + bowl.water.z);
@@ -159,7 +168,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
     if(materialArena!==arena){enrichMaterials(scene);materialArena=arena;}
     renderer.render(scene, camera);
   };
-  draw.resetMotion = () => { hitEffects.clear(); weaponView.clear(); crumbs.clear(); landings.fill(null); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); jiggles = models.map(() => createJiggle()); bowls = models.map(() => createFishbowl()); };
+  draw.resetMotion = () => { hitEffects.clear(); weaponView.clear(); crumbs.clear(); landings.fill(null); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); jiggles = models.map(() => createJiggle()); bowls = models.map(() => createFishbowl()); gags.forEach(g => g.reset()); };
   draw.setFighter = setFighter;
   draw.configure = fighters => {
     ensureModels(fighters.length);
@@ -190,7 +199,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
     hitAges[targetIndex] = 0; hitEffects.hit(body, impact);
     if (models[targetIndex]?.impactFx === 'crumbs') { const heavy = Math.hypot(body.vx, body.vz) > 7; crumbs.burst(body, heavy ? 24 : 6, heavy ? 1.2 : .6, impact); }
   };
-  draw.startKO = fighters => ko.trigger(fighters);
-  draw.clearKO = () => { ko.clear(); renderer.domElement.style.filter = ''; };
+  draw.startKO = fighters => { ko.trigger(fighters); fighters.forEach(f => knockedOut.add(f.team)); };
+  draw.clearKO = () => { ko.clear(); knockedOut.clear(); renderer.domElement.style.filter = ''; };
   return draw;
 }

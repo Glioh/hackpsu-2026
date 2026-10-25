@@ -21,7 +21,7 @@ Every player then votes on six randomly sampled arenas, arranged in two columns 
 
 Two phones control each character. An odd character count (6, 10, 14, ... phones) creates a free-for-all: one life per duo, last duo standing wins, and the team lives HUD stays hidden. An even character count splits evenly into Red and Blue: 4 or 8 phones give each team two shared lives; 12 or more phones in team mode give each team three shared lives. Every ring-out consumes one team life. A depleted pool eliminates that whole team. Teammates cannot damage each other with punches or weapons; grenades can still hurt their thrower.
 
-For a single-machine match, expand **Developer Playground**, choose an arena, then **Start keyboard / bot match** or **Preview map with idle bots**. Red: WASD move, Q/E turn, Space jump, F punch. Blue: arrows move, J/L turn, I jump, K punch. Developer matches keep their original three-life baseline.
+For a single-machine match, expand **Developer Playground**, choose an arena, then **Start keyboard / bot match** or **Preview map with idle bots**. Red: WASD move, Q/E turn, Space jump, F punch. Blue: arrows move, J/L turn, I jump, K punch. Developer matches use two lives per team.
 
 Each fighter starts at **0% damage**. Two-arm uppercuts add damage based on punch strength and forward momentum (at most 18 percentage points per hit). Accumulated damage gently raises horizontal knockback and upward recoil, with launch growth capped at 180%. There are no health knockouts: knock the other team off the platform to win. Damage resets on rematch and is preserved while paused. Tilt uses a 3-degree neutral dead zone relative to the calibrated holding angle. Forward/back movement reaches full speed at 15 degrees; left/right movement and Arm rotation reach full speed at 20 degrees.
 
@@ -29,7 +29,7 @@ Combat uses each selected GLB model's part bounds and swept hand volumes along t
 
 **Spring body motion** enables cosmetic torso inertia, head lag, arm follow-through, distance-driven steps, and jump/landing reactions. Compare **Subtle** (default), **Floppy**, and **Lively** in Developer Playground, or turn the checkbox off for a rigid baseline. Pose updates run at 60 Hz and interpolate with the root movement; results freeze the pose and rematches reset all motion. The extra wobble is damped, walking no longer squashes the body, and jump/hit scaling stays within 4%. These are visual effects; collisions and combat still use the existing root simulation.
 
-Character selection happens on paired phones after the host starts. All eight fighters have portrait cards; Tung Tung Sahur uses a newly generated transparent portrait. Character art and build scripts live in `art/characters/`; the browser models are `host/assets/characters/*.glb`, listed in `host/src/fighter-model.js`.
+Character selection happens on paired phones after the host starts. All seven current fighters have portrait cards, including Wukong and LeBron James. Character art and build scripts live in `art/characters/`; the browser models are `host/assets/characters/*.glb`, listed in `host/src/fighter-model.js`.
 
 ## Skyline rooftop map
 
@@ -101,7 +101,7 @@ Slot identity comes from the socket's server assignment. Client-supplied team/ke
 Choose **Random Map** to select one of the existing arenas at random each round.
 See [Movement and random maps](docs/movement-and-random-maps.md) for behavior and manual checks.
 
-`npm test`: 225 passing tests covering gameplay and room behavior, calibration interruption/resume and stale-controller detection, fullscreen fallback, camera framing, spring decay and bounds, neutral model hierarchy, directional inertia, distance-driven gait, baseline mode, punch timing, landing reactions, heading wrapping, full pose reset, once-per-tick motion events, and identical fixed-step pose evolution under simulated 30/60/120/144 Hz render schedules.
+`npm test`: 252 passing tests covering gameplay and room behavior, calibration interruption/resume and stale-controller detection, fullscreen fallback, camera framing, spring decay and bounds, neutral model hierarchy, directional inertia, distance-driven gait, baseline mode, punch timing, landing reactions, heading wrapping, full pose reset, once-per-tick motion events, and identical fixed-step pose evolution under simulated 30/60/120/144 Hz render schedules.
 
 Desktop WebGL rendering, normal/debug native fullscreen, the corner calibration HUD, round-end fullscreen exit, and a visible calibration-error pause were inspected in Brave through the temporary HTTPS tunnel. The pause check used four simulated Socket.IO controllers. The tunnel also passed automated role assignment, input relay, and room QR checks. Real iPhone/Android motion, four-human matches, and Cloudflare container deployment remain **not tested**. See [QA.md](QA.md) for release gates.
 
@@ -113,8 +113,4 @@ Joined phones show live movement, steering, jump, and uppercut commands on black
 
 ## Broadcast commentary
 
-Original two-host commentary, caption fallback, optional ElevenLabs audio and bank generation: see [setup, audition and validation](docs/commentary-implementation.md). The copied research documents are in `docs/`.
-
-### Party-flow verification
-
-Automated checks cover deferred assignments, even player counts, 6/8/12-phone modes, shared stock pools, all-map multi-character spawns, teammate damage filtering, authoritative character/map roulette, vote deadlines, reconnects, and calibration pauses. Browser checks use simulated phone sensors; physical-device motion and large in-person matches still need device testing.
+One announcer delivers live Gemini-generated commentary with matching captions and an ElevenLabs voice. Set `GEMINI_API_KEY` in `.env` and run `npm start`; Gemini writes fresh, fast-paced reactions and playful roasts while ElevenLabs handles speech. Generated mode never replaces a failed request with a canned line. See [setup and implementation](docs/commentary-implementation.md).

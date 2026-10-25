@@ -27,9 +27,9 @@ function hostHarness() {
   const socket={connected:true,on:(name,fn)=>handlers[name]=fn,emit:(event,payload,ack)=>{emitted.push({event,payload});ack?.({});}};
   const context={...motion,Simulation:TrackedSimulation,MAPS,C,CHARACTERS,matchRules,rollFrame,
     document:{getElementById:$,querySelector:()=>null,createElement:element,addEventListener(){},hidden:false},
-    createCommentary:()=>({unlock(){},phase(){},step(){},tick(){},fight(){}}),
+    createCommentary:()=>({unlock(){},phase(){},step(){},tick(){},fight(){},countdown(){}}),
     createCombatAudio:()=>({unlock(){},event(){},countdown(){}}),connectSocket:()=>socket,createRenderer:()=>draw,
-    createPresentation:()=>({request(){},setPhase(){}}),createBotController:()=>()=>({}),choiceCard:element,updateChoices(){},
+    createWinnerView:()=>({show(){},hide(){}}),createPresentation:()=>({request(){},setPhase(){}}),createBotController:()=>()=>({}),choiceCard:element,updateChoices(){},
     FINISH_DURATION:2,FINISH_TIME_SCALE:.2,stepFinish(){},URL,location:{origin:'http://localhost:3000'},
     localStorage:{getItem(){return null;},setItem(){}},addEventListener(){},setInterval(){},performance:{now:()=>clock},requestAnimationFrame:fn=>frame=fn};
   const source=readFileSync(new URL('../host/src/main.js',import.meta.url),'utf8').replace(/^\uFEFF?import .*;\r?\n/gm,'');
@@ -50,13 +50,13 @@ test('lobby needs even count; dev map preview bypasses phone voting and uses idl
 test('dynamic shared-life HUD follows team pool, hides entirely in FFA',()=>{
   const h=hostHarness(),{$,handlers,sim}=h;
   const match={...makeMatch(Array.from({length:8},(_,i)=>String(i))),mapId:'classic'};
-  handlers['game:state']({phase:'playing',debug:false,match});h.advance(3500);
+  handlers['game:state']({phase:'playing',debug:false,match});h.advance(4200);
   assert.match($('redLives').textContent,/RED  \u25cf\u25cf/);
-  sim.fighters.find(f=>f.side==='red').y=-7;h.advance(3540);
+  sim.fighters.find(f=>f.side==='red').y=-7;h.advance(4240);
   assert.match($('redLives').textContent,/RED  \u25cf\u25cb/);assert.equal(h.beams.length,1);assert.equal(h.frames.at(-1).finishAge,null);
   handlers['game:state']({phase:'lobby'});
   const ffa={...makeMatch(Array.from({length:6},(_,i)=>String(i))),mapId:'classic'};
-  handlers['game:state']({phase:'playing',debug:false,match:ffa});h.advance(3600);
+  handlers['game:state']({phase:'playing',debug:false,match:ffa});h.advance(4300);
   assert.equal($('livesHud').classList.contains('hidden'),true);assert.equal(sim.fighters.length,3);
 });
 test('two-life party setup never reads the previous three-life developer fighters',()=>{
@@ -68,8 +68,8 @@ test('intro holds combat, begins after countdown, and cancels on pause or discon
   const h=hostHarness(),{$,handlers}=h;
   handlers['game:state']({phase:'playing',debug:true});h.advance(500);
   assert.equal(h.lastInputs,undefined);assert.equal($('faceoffCountdown').textContent,'3');
-  h.advance(1600);assert.equal($('faceoffCountdown').textContent,'2');h.advance(2600);assert.equal($('faceoffCountdown').textContent,'1');
-  h.advance(3500);assert.ok(h.lastInputs);assert.equal($('faceoff').classList.contains('hidden'),true);
+  h.advance(1800);assert.equal($('faceoffCountdown').textContent,'2');h.advance(2800);assert.equal($('faceoffCountdown').textContent,'1');
+  h.advance(4200);assert.ok(h.lastInputs);assert.equal($('faceoff').classList.contains('hidden'),true);
   handlers['game:state']({phase:'paused',debug:true});assert.equal($('faceoff').classList.contains('hidden'),true);
   handlers['game:state']({phase:'playing',debug:true,resumed:true});handlers.disconnect();assert.equal($('setup').classList.contains('hidden'),false);
 });

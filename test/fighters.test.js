@@ -10,6 +10,13 @@ const gltfJson = url => {
   return JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString());
 };
 
+test('active roster excludes retired fighters and matches phone selection choices',async()=>{
+  assert.deepEqual(Object.keys(FIGHTERS),['squish','bonk','toast','conehead','bubbles','wukong','lebron']);
+  assert.deepEqual(TEAM_FIGHTERS,['wukong','squish']);
+  const {CHARACTERS}=await import('../shared/party.js');
+  assert.deepEqual(CHARACTERS.map(character=>character.id),Object.keys(FIGHTERS));
+});
+
 test('every selectable fighter has the rig parts the renderer needs and the standard arm length', () => {
   assert.ok(TEAM_FIGHTERS.every(id => FIGHTERS[id]));
   for (const [id, f] of Object.entries(FIGHTERS)) {

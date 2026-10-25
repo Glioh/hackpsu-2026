@@ -19,8 +19,6 @@ main{max-width:1600px;margin:auto;padding:35px 36px 0}.intro{display:flex;align-
 .champ-top h2{font-size:clamp(30px,3.4vw,44px);margin:10px 0 0}
 .champ-top p{font-size:12px;max-width:320px;text-align:right;margin:0}
 .champ-board{position:relative;max-width:1500px;margin:0 auto;display:grid;grid-template-columns:220px minmax(0,1fr) 220px;gap:20px;align-items:start}
-.champ-board::after{content:'';position:absolute;left:220px;right:220px;top:0;height:140px;background:url('/host/assets/ui/logos/vs_logo.svg') center/contain no-repeat;pointer-events:none;opacity:.9;filter:drop-shadow(0 6px 10px #00000080)}
-@media(max-width:1100px){.champ-board::after{display:none}}
 .champ-slot{position:relative;border-radius:6px;padding:18px;min-height:360px;display:flex;flex-direction:column;align-items:center;text-align:center;overflow:hidden;border:1px solid #232b38;transition:border-color .2s}
 .champ-slot.red{background:linear-gradient(160deg,#2a1319,#0f141c 70%),url('/host/assets/ui/backgrounds/vs_red.svg') center/cover}
 .champ-slot.blue{background:linear-gradient(200deg,#122733,#0f141c 70%),url('/host/assets/ui/backgrounds/vs_blue.svg') center/cover}
@@ -47,35 +45,16 @@ main{max-width:1600px;margin:auto;padding:35px 36px 0}.intro{display:flex;align-
 @media(max-width:1100px){.champ-board{grid-template-columns:1fr;gap:28px}.champ-slot{min-height:220px;flex-direction:row;gap:16px;text-align:left}.champ-portrait{width:90px;flex:none;height:90px;margin:0}.champ-top{flex-direction:column;align-items:flex-start}.champ-top p{text-align:left}}
 @media(max-width:700px){.champ-grid{grid-template-columns:repeat(2,1fr)}.champ-select{padding:20px 16px 28px}}
 
-/* Face-off: Smash-style vs. screen + 3-2-1 countdown between picking and the match actually starting. */
-.faceoff{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:#070a0f;overflow:hidden;animation:faceoffShake .45s ease-out .32s}
-.faceoff::after{content:'';position:absolute;inset:0;z-index:5;background:#fff;opacity:0;pointer-events:none;animation:faceoffFlash .4s ease-out .3s}
-.faceoff-fighter{position:relative;flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-width:0;animation:faceoffFighterFade .45s ease-in 5.7s forwards}
-.faceoff-fighter.red{background:linear-gradient(100deg,#2a1319,#0f141c 80%);transform:translateX(-130%);animation:faceoffInLeft .42s cubic-bezier(.2,1.4,.4,1) .08s forwards,faceoffFighterFade .45s ease-in 5.7s forwards}
-.faceoff-fighter.blue{background:linear-gradient(260deg,#122733,#0f141c 80%);transform:translateX(130%);animation:faceoffInRight .42s cubic-bezier(.2,1.4,.4,1) .08s forwards,faceoffFighterFade .45s ease-in 5.7s forwards}
-.faceoff-fighter img,.faceoff-fallback{width:min(46vw,420px);height:min(46vh,420px);object-fit:contain;filter:drop-shadow(0 16px 24px #00000070)}
-.faceoff-fallback{display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',Impact,sans-serif;font-size:140px;color:#ffffff14}
-.faceoff-fighter strong{font-family:'Barlow Condensed',Impact,sans-serif;font-size:clamp(28px,4vw,52px);text-transform:uppercase}
-.faceoff-fighter small{font-size:11px;letter-spacing:.18em;font-weight:800}
-.faceoff-fighter.red strong,.faceoff-fighter.red small{color:var(--red)}
-.faceoff-fighter.blue strong,.faceoff-fighter.blue small{color:var(--blue)}
-.faceoff-vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.2);width:min(26vw,260px);z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px;opacity:0;animation:faceoffVs .35s cubic-bezier(.2,1.8,.3,1) .32s forwards,faceoffFighterFade .45s ease-in 5.7s forwards}
-.faceoff-vs img{width:100%;filter:drop-shadow(0 0 30px #ffd44780)}
-.faceoff-vs span{font:800 11px 'DM Sans',sans-serif;letter-spacing:.16em;color:#c3cadb}
-.faceoff-countdown{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;font-family:'Barlow Condensed',Impact,sans-serif;font-size:min(76vh,65vw);font-weight:900;color:var(--gold);text-shadow:0 0 60px #ffd447a0,0 10px 20px #000;line-height:1}
+/* Countdown appears immediately over the arena. */
+.faceoff{position:fixed;inset:0;z-index:90;pointer-events:none;overflow:hidden}
+.faceoff-countdown{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:'Barlow Condensed',Impact,sans-serif;font-size:min(76vh,65vw);font-weight:900;color:var(--gold);text-shadow:8px 8px 0 #a64e16,0 0 90px #ffd447a0,0 16px 30px #000;line-height:1}
 .faceoff-countdown.pop{animation:faceoffCountdownPop 1.1s cubic-bezier(.15,1.8,.3,1)}
-.faceoff-countdown.fight{color:var(--red);font-size:min(40vh,24vw);text-shadow:0 0 70px #ff465590,0 10px 20px #000;letter-spacing:.04em;animation:faceoffCountdownPop .55s cubic-bezier(.15,1.8,.3,1)}
-@keyframes faceoffInLeft{to{transform:translateX(0)}}
-@keyframes faceoffInRight{to{transform:translateX(0)}}
-@keyframes faceoffVs{to{transform:translate(-50%,-50%) scale(1);opacity:1}}
-@keyframes faceoffFighterFade{to{opacity:0}}
-@keyframes faceoffFlash{0%{opacity:0}18%{opacity:.9}100%{opacity:0}}
-@keyframes faceoffShake{0%{transform:translate(0,0)}15%{transform:translate(-10px,4px)}30%{transform:translate(9px,-5px)}45%{transform:translate(-6px,3px)}60%{transform:translate(4px,-2px)}100%{transform:translate(0,0)}}
+.faceoff-countdown.fight{color:var(--red);font-size:min(35vh,22vw);animation:faceoffCountdownPop .55s cubic-bezier(.15,1.8,.3,1)}
+.faceoff.reveal{animation:faceoffExit .55s ease-in forwards}
+#commentaryCaption{z-index:95}
 @keyframes faceoffCountdownPop{0%{transform:translate(-50%,-50%) scale(2.8) rotate(-12deg);opacity:0}20%{transform:translate(-50%,-50%) scale(.92) rotate(3deg);opacity:1}38%{transform:translate(-50%,-50%) scale(1.08) rotate(-2deg);opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
-@media(prefers-reduced-motion:reduce){.faceoff{animation:none}.faceoff::after{animation:none}.faceoff-fighter,.faceoff-fighter.red,.faceoff-fighter.blue{animation:none;transform:none}.faceoff-vs{animation:none;opacity:1;transform:translate(-50%,-50%) scale(1)}.faceoff-countdown.pop,.faceoff-countdown.fight{animation:none}}
-@media(max-width:700px){.faceoff{flex-direction:column}.faceoff-fighter{height:auto;flex:1}.faceoff-fighter.red{transform:translateY(-130%);animation-name:faceoffInUp,faceoffFighterFade}.faceoff-fighter.blue{transform:translateY(130%);animation-name:faceoffInDown,faceoffFighterFade}.faceoff-fighter img,.faceoff-fallback{width:min(60vw,260px);height:min(26vh,260px)}.faceoff-countdown{font-size:min(65vh,85vw)}.faceoff-countdown.fight{font-size:min(28vh,25vw)}}
-@keyframes faceoffInUp{to{transform:translateY(0)}}
-@keyframes faceoffInDown{to{transform:translateY(0)}}
+@keyframes faceoffExit{to{opacity:0;transform:scale(1.25)}}
+@media(prefers-reduced-motion:reduce){.faceoff.reveal,.faceoff-countdown.pop,.faceoff-countdown.fight{animation:none}}
 .debug select{font:inherit;width:100%;padding:10px;background:#30383a;color:#f5f1e8;border:1px solid #52605d;border-radius:6px}.debug select:focus-visible{outline:3px solid white;outline-offset:3px}
 
 /* The lobby leads with joining, then reveals one setup decision at a time. */
@@ -114,15 +93,3 @@ main{max-width:1600px;margin:auto;padding:35px 36px 0}.intro{display:flex;align-
 body:has(#setup.hidden) .setup-progress,body:has(#setup.hidden) .instructions{display:none}
 @media(max-width:1100px){.join-stage{grid-template-columns:1fr 1fr}.join .qr-row{flex-direction:column;align-items:flex-start}.qr-row img{width:200px;height:200px}.crew-heading{align-items:flex-start;flex-direction:column}}
 @media(max-width:700px){.join-stage{grid-template-columns:1fr}.join .qr-row{flex-direction:row;align-items:center;gap:16px}.qr-row img{width:150px;height:150px}#code{font-size:32px}.setup-progress{gap:6px;flex-wrap:wrap}.setup-progress button{padding:12px 8px;font-size:10px}.setup-progress button span{display:block;margin:6px 0 0}.play-step{display:none}.setup-stage{padding:20px}.join-stage{padding:0}.pick div{gap:6px}.pick button{padding:20px 6px;font-size:14px}.setup-actions button{padding:14px 12px;font-size:12px}.slot{font-size:11px;gap:6px}.crew-heading{flex-direction:row;align-items:center}}
-
-.faceoff::before{content:'';position:absolute;inset:-100%;background:repeating-conic-gradient(from 10deg,#ffd44712 0deg 3deg,transparent 3deg 14deg);animation:faceoffRays 18s linear infinite;pointer-events:none}
-.faceoff-countdown{text-shadow:8px 8px 0 #a64e16,0 0 90px #ffd447a0,0 16px 30px #000;-webkit-text-stroke:2px #fff3}
-.faceoff-countdown::after{content:'';position:absolute;inset:-12%;border:5px solid currentColor;border-radius:50%;opacity:0;pointer-events:none}
-.faceoff-countdown.pop::after{animation:faceoffRing 1.1s ease-out}
-.faceoff.reveal{background:transparent;pointer-events:none;animation:faceoffExit .55s ease-in forwards}
-.faceoff.reveal::before{display:none}
-#commentaryCaption{z-index:95}
-@keyframes faceoffRays{to{transform:rotate(360deg)}}
-@keyframes faceoffRing{from{transform:scale(.55);opacity:.75}to{transform:scale(1.6);opacity:0}}
-@keyframes faceoffExit{to{opacity:0;transform:scale(1.25)}}
-@media(prefers-reduced-motion:reduce){.faceoff,.faceoff::before,.faceoff::after,.faceoff-countdown,.faceoff-countdown::after,.faceoff.reveal{animation:none!important}.faceoff-fighter.red,.faceoff-fighter.blue,.faceoff-vs{animation:none;transform:none}.faceoff-vs{transform:translate(-50%,-50%)}.faceoff:has(.faceoff-countdown.pop) .faceoff-fighter,.faceoff:has(.faceoff-countdown.pop) .faceoff-vs,.faceoff.reveal .faceoff-fighter,.faceoff.reveal .faceoff-vs{visibility:hidden}}
