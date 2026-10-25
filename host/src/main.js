@@ -9,16 +9,19 @@ import { MAPS } from './maps.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
 const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
 const presentation = createPresentation($('gameScreen'));
+// Two screens: the lobby (scan in, fighters, arena) and the game (playing, paused, results). See host/screens.css.
+const showScreen = () => { document.body.dataset.screen = ['playing','paused','results'].includes(phase) ? 'game' : 'lobby'; };
 function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); draw?.resetMotion(); }
 let draw;
 try { draw = createRenderer($('arena'), (index, rig) => sim.setCombatRig(index, rig)); } catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
 let roomCode = '', phase = 'lobby', debug = false, snapshots = new Map(), ready = false;
+showScreen();
 const keys = new Set(), edges = new Set();
 addEventListener('keydown', e => { if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); if (!keys.has(e.code)) edges.add(e.code); keys.add(e.code); });
 addEventListener('keyup', e => keys.delete(e.code)); addEventListener('blur',()=>{keys.clear();edges.clear();});
 function createRoom() { socket.emit('room:create', {}, p => { if (p.error) return $('error').textContent = p.error; roomCode = p.roomCode; $('code').textContent = roomCode; updateURL(); }); }
 socket.on('connect', createRoom);
-socket.on('disconnect',()=>{phase='lobby';snapshots.clear();presentation.setPhase(phase);$('pauseOverlay').classList.add('hidden');$('phase').textContent='HOST DISCONNECTED · RECONNECTING';$('start').disabled=true;$('error').textContent='Connection lost. Reconnecting creates a new room; phones must rejoin.';});
+socket.on('disconnect',()=>{phase='lobby';snapshots.clear();presentation.setPhase(phase);showScreen();$('pauseOverlay').classList.add('hidden');$('phase').textContent='HOST DISCONNECTED · RECONNECTING';$('start').disabled=true;$('error').textContent='Connection lost. Reconnecting creates a new room; phones must rejoin.';});
 function updateURL() {
   let origin = $('origin').value.trim() || location.origin;
   try { const url=new URL(origin); if (!['http:','https:'].includes(url.protocol)) throw Error(); origin=url.origin; } catch { $('error').textContent='Enter a valid HTTP(S) origin.';return; }
@@ -30,7 +33,9 @@ $('origin').value = localStorage.getItem('brawl-origin') || location.origin;
 $('setOrigin').onclick=()=>{localStorage.setItem('brawl-origin',$('origin').value);updateURL();};
 // Character select: one pick per team, remembered per browser, locked while a round is live.
 const TEAMS=['red','blue'], picks=TEAMS.map((team,i)=>{const saved=localStorage.getItem('brawl-fighter-'+team);return FIGHTERS[saved]?saved:TEAM_FIGHTERS[i];});
-function renderPicks(){$('fighterPicks').replaceChildren(...TEAMS.map((team,i)=>{const row=document.createElement('div');row.className='pick';const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' TEAM';const choices=document.createElement('div');choices.append(...Object.entries(FIGHTERS).map(([id,f])=>{const b=document.createElement('button');b.className='secondary';b.textContent=f.name;b.setAttribute('aria-pressed',picks[i]===id);b.disabled=phase==='playing'||phase==='paused';b.onclick=()=>pickFighter(i,id);return b;}));row.append(name,choices);return row;}));}
+// Arcade art rendered from the character models (art/ui/render_portraits.py); shot: portrait | head.
+const art=(id,shot)=>`/host/assets/ui/portraits/${id}_${shot}.png`;
+function renderPicks(){$('fighterPicks').replaceChildren(...TEAMS.map((team,i)=>{const row=document.createElement('div');row.className='pick';const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' TEAM';const choices=document.createElement('div');choices.append(...Object.entries(FIGHTERS).map(([id,f])=>{const b=document.createElement('button');b.className='fighter-card';const icon=document.createElement('img');icon.src=art(id,'head');icon.alt='';const label=document.createElement('span');label.textContent=f.name;b.append(icon,label);b.setAttribute('aria-pressed',picks[i]===id);b.disabled=phase==='playing'||phase==='paused';b.onclick=()=>pickFighter(i,id);return b;}));row.append(name,choices);return row;}));$('versus').innerHTML=TEAMS.map((team,i)=>`<div class="side ${team}"><img src="${art(picks[i],'portrait')}" alt=""><b>${FIGHTERS[picks[i]].name}</b></div>`).join('')+'<img class="vs-logo" src="/host/assets/ui/logos/vs_logo.svg" alt="">';}
 function pickFighter(i,id){picks[i]=id;localStorage.setItem('brawl-fighter-'+TEAMS[i],id);draw?.setFighter(i,id);renderPicks();}
 picks.forEach((id,i)=>draw?.setFighter(i,id));renderPicks();
 // Arena select: grouped Early / Mid / Late, remembered per browser, locked while a round is live.
@@ -62,7 +67,7 @@ for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
 });
 socket.on('game:state',p=>{
   phase=p.phase; debug=p.debug;
-  presentation.setPhase(phase);
+  presentation.setPhase(phase);showScreen();
   $('pauseOverlay').classList.toggle('hidden', phase !== 'paused');
   $('calibrationMode').textContent = debug ? 'KEYBOARD / BOT MODE' : 'PHONE CALIBRATION';
   $('resumeGame').disabled = !debug && !ready;
@@ -74,7 +79,7 @@ socket.on('game:state',p=>{
   }
   $('result').classList.toggle('hidden',phase!=='results');
   if(phase==='playing'){if(!p.resumed){sim.reset();resetPoses();}snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
-  if(phase==='results'){$('winner').textContent=p.winner==='draw'?'DRAW':p.winner.toUpperCase()+' WINS!';$('winner').className=p.winner;$('resultType').textContent='RING-OUT';}
+  if(phase==='results'){$('winner').textContent=p.winner==='draw'?'DRAW':p.winner.toUpperCase()+' WINS!';$('winner').className=p.winner;$('resultType').textContent='RING-OUT'}
   if(phase==='lobby')snapshots.clear();
   renderPicks();renderMaps();
   $('phase').textContent=phase==='playing'?(debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';

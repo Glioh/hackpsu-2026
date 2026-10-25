@@ -27,10 +27,12 @@ export function createRenderer(container, onCombatRig = () => {}) {
   // Swaps team i's body to character id. The current body (capsule fallback at first) stays if loading fails,
   // and a slower earlier pick never overwrites a newer one.
   const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);m.group.clear();m.group.add(s.root);Object.assign(m,s,{head:null,torsoY:0});onCombatRig(i,s.combatRig);},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
-  const resize=()=>{const w=container.clientWidth,h=container.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
+  // While the arena is hidden (lobby screen) it has no size: skip, or the camera maths turns NaN for good.
+  const resize=()=>{const w=container.clientWidth,h=container.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
   // fighters: interpolated motion poses from motion.js; bodies: raw simulation fighters (velocity, landings, hits);
   // arena: the simulation's current map (maps.js).
   const draw = (fighters, time, bodies = [], arena = fallbackArena, { active = true, motionEnabled = true } = {}) => {
+    if (!container.clientWidth || !container.clientHeight) return;
     const dt = previousTime === null ? 0 : Math.max(0, Math.min(.1, time - previousTime));
     const framing = frameFighters(fighters, camera.aspect);
     const desiredFocus = new T.Vector3(...framing.target);
