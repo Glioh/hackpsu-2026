@@ -104,12 +104,6 @@ function frame(now) {
   }
   motions.forEach(motion => interpolateMotion(motion, phase === 'playing' ? accumulator / C.tick : 1));
   draw?.(renderFighters, now / 1000, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked });
-  for (const fighter of sim.fighters) {
-    const bar = $(fighter.team + 'Health'), text = $(fighter.team + 'HealthText');
-    bar.value = Math.min(C.knockbackSoftCap, fighter.damage);
-    const label = fighter.damage + '%';
-    if (text.textContent !== label) text.textContent = label;
-  }
   if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)}\nheading ${f.heading.toFixed(2)} grounded ${f.grounded}\nspeed ${Math.hypot(f.vx,f.vz).toFixed(2)} cooldown ${f.cooldown.toFixed(2)}`).join('\n\n');
   requestAnimationFrame(frame);
 }

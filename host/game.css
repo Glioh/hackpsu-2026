@@ -1,7 +1,7 @@
 .game-focus{overflow:hidden}
 .game-focus #gameScreen,#gameScreen:fullscreen{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;border:0;border-radius:0;z-index:100;background:#d8dfb2}
-#gameScreen.match-active #arena,#gameScreen:fullscreen #arena{height:calc(100dvh - 72px);width:100%}
-#gameScreen.match-active .scorebar,#gameScreen:fullscreen .scorebar{height:72px;align-items:center;padding:12px 22px}
+#gameScreen.match-active #arena,#gameScreen:fullscreen #arena{height:calc(100dvh - 48px);width:100%}
+#gameScreen.match-active .scorebar,#gameScreen:fullscreen .scorebar{height:48px;align-items:center;padding:12px 22px}
 .arena-top{align-items:center;gap:16px;pointer-events:none}
 .arena-top .match-control{display:none;pointer-events:auto;padding:8px 12px;font-size:10px;white-space:nowrap}
 .match-active .arena-top .match-control{display:block}
@@ -17,16 +17,10 @@
 .pause-overlay p{margin:0;max-width:480px;font-size:14px}
 .pause-overlay #pauseReason{color:#ffb28e}
 .pause-overlay button{min-width:190px}
-@media(max-width:700px){.calibration-hud{top:auto;bottom:84px;right:10px;width:210px;padding:10px}.calibration-row{flex-direction:row;justify-content:space-between;gap:8px}.calibration-row span{max-width:105px}.pause-overlay{justify-content:flex-start;padding-top:70px}.arena-top{font-size:8px;gap:8px}.arena-top .match-control{font-size:8px;padding:6px}.calibration-hud h3{font-size:9px}}
+@media(max-width:700px){.calibration-hud{top:auto;bottom:60px;right:10px;width:210px;padding:10px}.calibration-row{flex-direction:row;justify-content:space-between;gap:8px}.calibration-row span{max-width:105px}.pause-overlay{justify-content:flex-start;padding-top:70px}.arena-top{font-size:8px;gap:8px}.arena-top .match-control{font-size:8px;padding:6px}.calibration-hud h3{font-size:9px}}
 
-.scorebar{gap:20px;align-items:center;min-height:72px}
-.health-team{flex:1;max-width:340px;min-width:0}
-.health-team>div{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
-.health-team output{font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#f5f1e8}
-.health-team progress{display:block;width:100%;height:10px;border:0;border-radius:3px;overflow:hidden;background:#101715;appearance:none;accent-color:currentColor}
-.health-team progress::-webkit-progress-bar{background:#101715}
-.health-team progress::-webkit-progress-value{background:currentColor}
-.health-team progress::-moz-progress-bar{background:currentColor}
-@media(max-width:600px){.scorebar{gap:12px}.scorebar .win-rule{display:none}.health-team>div{font-size:10px}.health-team output{font-size:10px}}
-
-.health-team output{font-size:24px;font-weight:800}
+.scorebar{gap:20px;align-items:center;min-height:48px}
+#arena{position:relative}
+.fighter-damage{position:absolute;top:0;left:0;z-index:1;pointer-events:none;padding:4px 10px;border:2px solid currentColor;border-radius:9px;background:#151b19ed;font-size:clamp(16px,2vw,26px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap;box-shadow:0 3px 9px #0003;will-change:transform}
+.fighter-damage[hidden]{display:none}
+@media(max-width:600px){.scorebar{gap:12px}.scorebar .win-rule{display:none}}
