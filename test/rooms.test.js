@@ -11,7 +11,8 @@ test('room lifecycle: four unique slots, readiness, authorization, reconnect, re
   const client=async()=>{const s=connect(url,{forceNew:true,reconnection:false});sockets.push(s);await waitEvent(s,'connect');return s;};
   t.after(async()=>{sockets.forEach(s=>s.disconnect());await new Promise(resolve=>io.close(resolve));});
   assert.equal((await fetch(url+'/health')).status,200);
-  for(const route of ['/','/controller','/vendor/three/three.module.js','/vendor/three/addons/loaders/GLTFLoader.js','/host/assets/characters/sir_squish.glb','/host/assets/characters/crank.glb','/host/assets/characters/nik.glb','/host/assets/characters/toast_malone.glb','/host/assets/characters/conehead.glb','/host/assets/characters/captain_bubbles.glb','/shared/config.js'])assert.equal((await fetch(url+route)).status,200);
+  for(const route of ['/','/controller','/vendor/three/three.module.js','/vendor/three/addons/loaders/GLTFLoader.js','/host/assets/characters/sir_squish.glb','/host/assets/characters/wukong.glb','/host/assets/characters/lebron.glb','/host/assets/characters/toast_malone.glb','/host/assets/characters/conehead.glb','/host/assets/characters/captain_bubbles.glb','/shared/config.js'])assert.equal((await fetch(url+route)).status,200);
+  for(const id of ['crank','nik','tung_tung_sahur'])assert.equal((await fetch(url+'/host/assets/characters/'+id+'.glb')).status,404);
   const host=await client(),created=await emit(host,'room:create',{}),roomCode=created.roomCode;
   assert.match(roomCode,/^[A-F0-9]{6}$/);
   assert.ok((await emit(host,'game:start',{})).error);

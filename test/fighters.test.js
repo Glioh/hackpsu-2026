@@ -10,6 +10,13 @@ const gltfJson = url => {
   return JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString());
 };
 
+test('active roster excludes retired fighters and uses valid defaults and arena giants',async()=>{
+  assert.deepEqual(Object.keys(FIGHTERS),['squish','bonk','toast','conehead','bubbles','wukong','lebron']);
+  assert.deepEqual(TEAM_FIGHTERS,['wukong','squish']);
+  const {SUMO_GIANTS}=await import('../host/src/sumo-map.js');
+  assert.ok(SUMO_GIANTS.every(g=>FIGHTERS[g.character]),'every giant must still load from the active roster');
+});
+
 test('every selectable fighter has the rig parts the renderer needs and the standard arm length', () => {
   assert.ok(TEAM_FIGHTERS.every(id => FIGHTERS[id]));
   for (const [id, f] of Object.entries(FIGHTERS)) {

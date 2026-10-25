@@ -9,7 +9,7 @@ original .blend/.glb files are never written. The render setup is saved to art/r
 
 Run from Blender's Python console / MCP:
     exec(open(p).read(), {"__name__": "__main__", "__file__": p, "REPO": repo})                     # everything
-    exec(open(p).read(), {"__name__": "__main__", "__file__": p, "REPO": repo, "ONLY": ["crank"]})  # one fighter
+    exec(open(p).read(), {"__name__": "__main__", "__file__": p, "REPO": repo, "ONLY": ["wukong"]})  # one fighter
 """
 import bpy, math, os
 from mathutils import Vector, Matrix, Euler
@@ -25,14 +25,14 @@ def rgb(hex_):
 # id (fighter-model.js) -> source .blend slug, part prefix, root empty, hand part name
 FIGHTERS = {
     "squish": dict(slug="sir_squish", pfx="SS_", root="SirSquish", hand="Glove"),
-    "crank": dict(slug="crank", pfx="CR_", root="Crank", hand="Hand"),
     "bonk": dict(slug="bonk3000", pfx="BK_", root="Bonk3000", hand="Hand"),
-    "nik": dict(slug="nik", pfx="NK_", root="Nik", hand="Hand"),
     # No head part: the face is on the slice, so the head icon frames everything above face_z - 0.3.
     "toast": dict(slug="toast_malone", pfx="TM_", root="ToastMalone", hand="Hand", face="Slice", face_z=0.95),
     # The cone is taller than he is: the head icon crops it at head_clip so his face still reads.
     "conehead": dict(slug="conehead", pfx="CH_", root="Conehead", hand="Hand", head_clip=1.75),
     "bubbles": dict(slug="captain_bubbles", pfx="CB_", root="CaptainBubbles", hand="Hand"),
+    "wukong": dict(slug="wukong", pfx="WK_", root="Wukong", hand="Hand"),
+    "lebron": dict(slug="lebron", pfx="LB_", root="LeBron", hand="Hand"),
 }
 # Poses. Arm targets are world directions the shoulder->wrist segment points along (+X = the fighter's left,
 # the big punching side; -Y = forward). torso/head: extra (x, y, z) rotation in radians; lift raises the whole body.
@@ -40,17 +40,17 @@ POSES = {
     "squish": {
         "portrait": dict(arms={"L": (0.55, -0.2, 1.0), "R": (-0.55, -0.55, -0.35)}, torso=(-0.08, 0.06, 0.12), head=(-0.12, -0.12, 0.08)),
     },
-    "crank": {
-        "portrait": dict(arms={"L": (0.75, -0.35, 0.75), "R": (-0.3, -1.0, 0.3)}, torso=(0.1, -0.04, 0.12), head=(0.05, 0.14, -0.1)),
-    },
     "bonk": {
         "portrait": dict(arms={"L": (0.45, -0.75, 0.55), "R": (-0.85, -0.25, 0.55)}, torso=(0.04, 0.05, 0.14), head=(0.04, -0.1, 0.12)),
     },
-    "nik": {
-        "portrait": dict(arms={"L": (0.6, -0.55, 0.75), "R": (-0.35, -0.85, 0.35)}, torso=(0.06, 0.04, 0.12), head=(-0.04, 0.08, 0.1)),
-    },
     "toast": {
         "portrait": dict(arms={"L": (0.55, -0.35, 0.8), "R": (-0.45, -0.85, 0.3)}, torso=(0.05, 0.05, 0.12)),
+    },
+    "wukong": {
+        "portrait": dict(arms={"L": (0.55, -0.6, 0.65), "R": (-0.8, 0.1, -0.35)}, torso=(0.06, 0.04, 0.1), head=(-0.08, 0.1, 0.08)),   # staff held low at his side
+    },
+    "lebron": {
+        "portrait": dict(arms={"L": (0.6, -0.5, 0.7), "R": (-0.55, -0.6, 0.1)}, torso=(0.04, 0.04, 0.1), head=(-0.04, 0.08, 0.06)),
     },
     "bubbles": {
         "portrait": dict(arms={"L": (0.6, -0.55, 0.7), "R": (-0.4, -0.85, 0.3)}, torso=(0.06, 0.04, 0.1), head=(-0.04, 0.1, 0.06),
@@ -65,7 +65,7 @@ SHOTS = {
     "portrait": dict(size=1024, view=(0.62, -1.0, 0.22), frame="upper", fill=0.82),
     "head": dict(size=512, view=(0.45, -1.0, 0.12), frame="head", fill=0.86),
 }
-VIEW_OVERRIDE = {("crank", "portrait"): (-0.75, -1.0, 0.22)}           # asymmetric: claw in profile, shell behind
+VIEW_OVERRIDE = {}
 VIEW_OVERRIDE[("conehead", "portrait")] = (0.55, -1.0, -0.12)          # from a little below, so his eyes peek out
 VIEW_OVERRIDE[("conehead", "head")] = (0.35, -1.0, -0.2)                #   from under the brim
 

@@ -1,7 +1,7 @@
 // Simulation owns targeting, timing and hits; the view only reads this state.
 export const SUMO = Object.freeze({ halfX: 9, halfZ: 7, warning: 1.5, beam: .45, cycle: 6, radius: 1.65, damage: 18 });
 export const SUMO_GIANTS = Object.freeze([
-  { character: 'crank', x: -13, z: 0, color: '#ff704f' },
+  { character: 'wukong', x: -13, z: 0, color: '#ff704f' },
   { character: 'squish', x: 0, z: -11, color: '#58cfff' },
   { character: 'bonk', x: 13, z: 0, color: '#d795ff' },
 ]);

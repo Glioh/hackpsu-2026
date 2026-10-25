@@ -105,7 +105,7 @@ export function createWinnerView(container) {
         if(token!==generation||!visible)return;
         clear();
         // Portrait fallback still identifies the selected character if WebGL fails.
-        const images=ids.filter(id=>id!=='tung').map(id=>{const img=document.createElement('img');img.src=`/host/assets/ui/portraits/${id}_portrait.png`;img.alt=FIGHTERS[id].name;img.className='winner-portrait';return img;});
+        const images=ids.map(id=>{const img=document.createElement('img');img.src=`/host/assets/ui/portraits/${id}_portrait.png`;img.alt=FIGHTERS[id].name;img.className='winner-portrait';return img;});
         container.replaceChildren(...images);
       }
     },

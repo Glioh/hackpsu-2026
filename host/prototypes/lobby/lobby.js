@@ -1,5 +1,5 @@
 const assets = '/host/assets/ui/';
-const fighters = [{id:'crank',name:'Crank',tag:'A LITTLE SHELL. A LOT OF ATTITUDE.'},{id:'squish',name:'Sir Squish',tag:'SOFT BODY. HARD FEELINGS.'},{id:'bonk',name:'Bonk-3000',tag:'BUILT DIFFERENT. MOSTLY BOLTS.'},{id:'nik',name:'Nik',tag:'ALL GLOVES. NO PLAN.'}];
+const fighters = [{id:'wukong',name:'Wukong',tag:'MONKEY BUSINESS. SERIOUS SWINGS.'},{id:'squish',name:'Sir Squish',tag:'SOFT BODY. HARD FEELINGS.'},{id:'bonk',name:'Bonk-3000',tag:'BUILT DIFFERENT. MOSTLY BOLTS.'},{id:'toast',name:'Toast Malone',tag:'READY TO GET TOASTED.'},{id:'conehead',name:'Conehead',tag:'CAUTION. CHAOS AHEAD.'},{id:'bubbles',name:'Captain Bubbles',tag:'MAKING WAVES.'},{id:'lebron',name:'LeBron James',tag:'TAKING IT TO THE RING.'}];
 let picks = [0,1], activeTeam = 0, filled = false;
 const $ = id => document.getElementById(id);
 const join = new URL('/controller',location.origin);
