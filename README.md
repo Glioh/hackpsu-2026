@@ -104,4 +104,4 @@ Joined phones show live movement, steering, jump, and uppercut commands on black
 
 ## Broadcast commentary
 
-Original two-host commentary, caption fallback, optional ElevenLabs audio and bank generation: see [setup, audition and validation](docs/commentary-implementation.md). The copied research documents are in `docs/`.
+One announcer delivers live Gemini-generated commentary with matching captions and an ElevenLabs voice. Set `GEMINI_API_KEY` in `.env` and run `npm start`; scripted commentary remains available when generation is unavailable. See [setup and implementation](docs/commentary-implementation.md).

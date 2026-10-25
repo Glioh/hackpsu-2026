@@ -160,7 +160,7 @@ for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
 socket.on('game:state',p=>{
   phase=p.phase; debug=p.debug;
   if(phase==='playing'&&!p.resumed){if(mapId==='random')sim.setMap(chooseRandomMap());else sim.reset();clearFinish();resetPoses();}
-  commentary.phase(phase,p.resumed,{map:mapId,fighters:Object.fromEntries(TEAMS.map((team,i)=>[team,picks[i]]))});
+  commentary.phase(phase,p.resumed,{map:sim.mapId,fighters:Object.fromEntries(TEAMS.map((team,i)=>[team,picks[i]]))});
   if (phase !== 'playing') clearFaceoff();
   else if (!p.resumed) showFaceoff();
   syncScreen();

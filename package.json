@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch server/index.js",
-    "start": "node server/index.js",
+    "dev": "node --env-file-if-exists=.env --watch server/index.js",
+    "start": "node --env-file-if-exists=.env server/index.js",
     "test": "node --test",
     "deploy:cloudflare": "wrangler deploy",
     "commentary:generate": "node --env-file-if-exists=.env scripts/generate-commentary.js"

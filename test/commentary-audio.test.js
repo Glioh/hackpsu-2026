@@ -24,7 +24,7 @@ function harness({ live = false, stream, dialogue } = {}) {
   const catalog = { live, dialogue: !!dialogue, clips: live ? {} : Object.fromEntries(SCRIPTS.map(script => [script.id, { url: '/clip/' + script.id }])) };
   const sandbox = { document, AudioContext, CommentaryDetector, CommentaryDirector, SCRIPTS, AbortController, setTimeout, clearTimeout, performance,
     SpeechSynthesisUtterance:class {constructor(text){this.text=text;}},speechSynthesis:{getVoices:()=>[],speak:utterance=>spoken.push(utterance),cancel(){}},
-    fetch: async (url, options) => url === '/api/commentary/catalog' ? { json: async () => catalog } : url === '/api/commentary/dialogue' ? dialogue(JSON.parse(options.body)) : url.startsWith('/clip/') ? { ok: true, arrayBuffer: async () => new ArrayBuffer(0) } : stream(url),
+    fetch: async (url, options) => url === '/api/commentary/catalog' ? { json: async () => catalog } : url === '/api/commentary/dialogue' ? dialogue(JSON.parse(options.body),options) : url.startsWith('/clip/') ? { ok: true, arrayBuffer: async () => new ArrayBuffer(0) } : stream(url),
   };
   const source = readFileSync(new URL('../host/src/commentary-audio.js', import.meta.url), 'utf8').replace(/^import .*\r?\n/gm, '').replace('export function', 'function');
   vm.runInNewContext(source, sandbox);
@@ -114,8 +114,8 @@ test('late canceled stream cannot stop newer ElevenLabs speech', async t => {
   assert.equal(h.nodes[1].stopped, undefined);
 });
 
-test('single announcer ignores two-person dialogue and uses A for every event',async t=>{
- const h=harness({dialogue:()=>assert.fail('two-person dialogue must not be requested')});
+test('scripted fallback uses A for every event',async t=>{
+ const h=harness();
  t.after(()=>h.api.phase('paused'));
  await flush();h.api.phase('playing',false,{map:'piano'});h.api.tick();await flush();
  assert.equal(h.nodes.length,1);h.nodes[0].end();await flush();
@@ -126,6 +126,33 @@ test('single announcer ignores two-person dialogue and uses A for every event',a
  }
  assert.equal(h.api.metrics.length,4);
  for(const metric of h.api.metrics)assert.equal(SCRIPTS.find(s=>s.id===metric.script).speaker,'a');
+});
+
+test('Gemini line becomes both the caption and generated speech, with one announcer and bounded generation',async t=>{
+ const requests=[],streams=[],line='The grand piano just received a strongly worded uppercut.';
+ const h=harness({live:true,dialogue:async payload=>{
+  requests.push(payload);return {ok:true,json:async()=>({provider:'gemini',turns:[{id:'gemini-line',speaker:'a',text:line}]})};
+ },stream:async url=>{streams.push(url);let read=false;return {ok:true,body:{getReader:()=>({read:async()=>read?{done:true}:(read=true,{done:false,value:Uint8Array.of(0,0)})})}};}});
+ t.after(()=>h.api.phase('paused'));
+ await flush();h.api.phase('playing',false,{map:'piano',fighters:{red:'wukong',blue:'squish'}});h.api.tick();await flush();
+ assert.equal(requests.length,1);assert.equal(requests[0].game.map,'piano');assert.equal(requests[0].game.fighters[0].character,'wukong');
+ assert.equal(requests[0].firstSpeaker,'a');assert.deepEqual(streams,['/api/commentary/live/gemini-line']);
+ assert.equal(h.elements.get('commentaryCaption').textContent,line);assert.equal(h.nodes.length,1);assert.equal(h.spoken.length,0);
+ h.nodes[0].end();await flush();h.advance(3,[{type:'hit',source:'fighter',attacker:'red',team:'blue',damage:16}]);h.api.tick();await flush();
+ assert.equal(requests.length,1,'events inside eight seconds use scripted commentary instead of another generation request');
+ assert.equal(h.nodes.length,2);
+});
+
+test('Gemini failure plays the scripted line and pause cancels pending generation',async t=>{
+ const h=harness({dialogue:async()=>({ok:false,status:503})});t.after(()=>h.api.phase('paused'));
+ await flush();h.api.phase('playing');h.api.tick();await flush();
+ assert.equal(h.nodes.length,1);assert.match(h.elements.get('commentaryStatus').textContent,/scripted commentary/);
+ assert.equal(h.api.metrics.at(-1).path,'local');
+ let aborted=false;
+ const pending=harness({dialogue:async(payload,{signal})=>new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{aborted=true;reject(Error('Aborted'));},{once:true}))});
+ t.after(()=>pending.api.phase('paused'));
+ await flush();pending.api.phase('playing');pending.api.tick();await flush();pending.api.phase('paused');await flush();
+ assert.equal(aborted,true);assert.equal(pending.nodes.length,0);assert.equal(pending.elements.get('commentaryCaption').textContent,'');
 });
 
 test('streamed voices wait for every scheduled PCM chunk to end and pause stops them', async t => {
