@@ -9,7 +9,7 @@ import { MAPS } from './maps.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
 const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
 const presentation = createPresentation($('gameScreen'));
-function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); }
+function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); draw?.resetMotion(); }
 let draw;
 try { draw = createRenderer($('arena')); } catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
 let roomCode = '', phase = 'lobby', debug = false, snapshots = new Map(), ready = false;
@@ -74,7 +74,7 @@ socket.on('game:state',p=>{
   }
   $('result').classList.toggle('hidden',phase!=='results');
   if(phase==='playing'){if(!p.resumed){sim.reset();resetPoses();}snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
-  if(phase==='results'){$('winner').textContent=p.winner==='draw'?'DOUBLE RING-OUT':p.winner.toUpperCase()+' WINS!';$('winner').className=p.winner;}
+  if(phase==='results'){$('winner').textContent=p.winner==='draw'?'DRAW':p.winner.toUpperCase()+' WINS!';$('winner').className=p.winner;$('resultType').textContent=sim.fighters.some(f=>f.health<=0)?'KNOCKOUT':'RING-OUT';}
   if(phase==='lobby')snapshots.clear();
   renderPicks();renderMaps();
   $('phase').textContent=phase==='playing'?(debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
@@ -103,7 +103,13 @@ function frame(now) {
     accumulator -= C.tick;
   }
   motions.forEach(motion => interpolateMotion(motion, phase === 'playing' ? accumulator / C.tick : 1));
-  draw?.(renderFighters, now / 1000, sim.fighters, sim.arena);
+  draw?.(renderFighters, now / 1000, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked });
+  for (const fighter of sim.fighters) {
+    const bar = $(fighter.team + 'Health'), text = $(fighter.team + 'HealthText');
+    if (bar.value !== fighter.health) bar.value = fighter.health;
+    const label = fighter.health + ' / ' + C.maxHealth;
+    if (text.textContent !== label) text.textContent = label;
+  }
   if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)}\nheading ${f.heading.toFixed(2)} grounded ${f.grounded}\nspeed ${Math.hypot(f.vx,f.vz).toFixed(2)} cooldown ${f.cooldown.toFixed(2)}`).join('\n\n');
   requestAnimationFrame(frame);
 }

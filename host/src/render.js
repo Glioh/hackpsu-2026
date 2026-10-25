@@ -17,14 +17,14 @@ export function createRenderer(container) {
   const ground = mesh(new T.PlaneGeometry(200,200),'#bac797'); ground.rotation.x=-Math.PI/2; ground.position.y=-6;
   // torsoY: rest height of the torso group (capsule fallback sits at .9, loaded characters at their feet).
   const models = ['#ff665b','#63c7ec'].map(color => { const model = createCharacter(color, mesh); scene.add(model.group); return { ...model, torsoY: model.torso.position.y }; });
-  const wobbles = models.map((_, i) => createWobble(i));
+  let wobbles = models.map((_, i) => createWobble(i));
   // Swaps team i's body to character id. The current body (capsule fallback at first) stays if loading fails,
   // and a slower earlier pick never overwrites a newer one.
   const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);m.group.clear();m.group.add(s.root);Object.assign(m,s,{head:null,torsoY:0});},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
   const resize=()=>{const w=container.clientWidth,h=container.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
   // fighters: interpolated motion poses from motion.js; bodies: raw simulation fighters (velocity, landings, hits);
   // arena: the simulation's current map (maps.js).
-  const draw = (fighters, time, bodies = [], arena = fallbackArena) => {
+  const draw = (fighters, time, bodies = [], arena = fallbackArena, { active = true, motionEnabled = true } = {}) => {
     const dt = previousTime === null ? 0 : Math.max(0, Math.min(.1, time - previousTime));
     const framing = frameFighters(fighters, camera.aspect);
     const desiredFocus = new T.Vector3(...framing.target);
@@ -45,7 +45,7 @@ export function createRenderer(container) {
       m.group.position.set(f.x, f.y + .09, f.z);
       m.group.rotation.y = f.heading;
       // Joints follow motion.js; squash & stretch and loose gear (pot, shell) come from wobble.js.
-      const extra = body ? wobbles[i](body, dt, time) : null, bob = extra?.head ?? { x: 0, y: 0, z: 0 };
+      const extra = body ? wobbles[i](body, active ? dt : 0, time, motionEnabled) : null, bob = extra?.head ?? { x: 0, y: 0, z: 0 };
       if (extra) m.group.scale.set(extra.scale.xz, extra.scale.y, extra.scale.xz);
       if (extra && m.jelly) { m.jelly.uJelly.value.set(extra.jelly.x, extra.jelly.y, extra.jelly.z); m.jelly.uFeet.value.copy(m.group.position); }
       m.torso.rotation.set(pose.torsoPitch, 0, pose.torsoRoll);
@@ -70,6 +70,7 @@ export function createRenderer(container) {
     });
     renderer.render(scene, camera);
   };
+  draw.resetMotion = () => { wobbles = models.map((_, i) => createWobble(i)); };
   draw.setFighter = setFighter;
   return draw;
 }

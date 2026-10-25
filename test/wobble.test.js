@@ -20,32 +20,35 @@ const rig = () => {
   return { f, run, dt };
 };
 
-test('fighters squash on landing, stretch on take-off, get knocked by hits, and come to rest', () => {
+test('jump and hit reactions stay subtle, bounded, and settle to rest', () => {
   const { f, run } = rig();
   run(30);
   Object.assign(f, { grounded: false, vy: 8 });
-  assert.ok(run(6).scale.y > 1.05, 'stretch after take-off');
+  const takeoff = run(6);
+  assert.ok(takeoff.scale.y > 1 && takeoff.scale.y <= 1.04, 'small stretch after take-off');
   Object.assign(f, { vy: -9 }); run(1);
   Object.assign(f, { grounded: true, vy: 0 });
-  assert.ok(run(5).scale.y < .95, 'squash after landing');
+  const landing = run(5);
+  assert.ok(landing.scale.y < 1 && landing.scale.y >= .96, 'small squash after landing');
   assert.ok(run(1).scale.xz > 1, 'squash widens to keep volume');
   f.hit = .3; const hit = run(4);
-  assert.ok(Math.hypot(hit.jelly.x, hit.jelly.z) > .05 && hit.scale.y < 1, 'hit bends the jelly body and squashes it');
+  assert.ok(Math.hypot(hit.jelly.x, hit.jelly.z) > .005 && hit.scale.y < 1, 'hit bends the jelly body and squashes it');
   f.hit = 0; const rest = run(600);
   assert.ok(Math.abs(rest.scale.y - 1) < 1e-3 && Math.hypot(rest.jelly.x, rest.jelly.z) < 1e-3 && Math.abs(rest.head.x) < .01);
 });
 
-test('walking bobs the head side to side, squishes on footfalls and sways the jelly body; it keeps bobbling after stopping', () => {
+test('walking keeps body proportions steady and secondary head sway is small', () => {
   const { f, run, dt } = rig();
   run(30);
   let headRoll = [], scales = [], sway = [];
   run(180, () => { f.vz = 4; f.z += f.vz * dt; });
   for (let i = 0; i < 120; i++) { f.vz = 4; f.z += f.vz * dt; const o = run(1); headRoll.push(o.head.z); scales.push(o.scale.y); sway.push(o.jelly.x); }
-  assert.ok(Math.max(...headRoll) > .1 && Math.min(...headRoll) < -.1, 'bobblehead swings both ways while walking');
-  assert.ok(Math.min(...scales) < .97, 'footfalls squish the body');
-  assert.ok(Math.max(...sway) - Math.min(...sway) > .05, 'body sways over the stance leg');
+  assert.ok(Math.max(...headRoll) > .01 && Math.min(...headRoll) < -.01, 'subtle head sway stays visible');
+  assert.ok(headRoll.every(v => Math.abs(v) < .12), 'head sway stays under seven degrees');
+  assert.ok(scales.every(v => Math.abs(v - 1) < .001), 'footsteps must not squash or stretch the body');
+  assert.ok(sway.every(v => Math.abs(v) < .04), 'walking sway stays under four centimetres');
   f.vz = 0; const stopped = run(20);
-  assert.ok(Math.abs(stopped.head.x) > .02 || Math.abs(stopped.head.z) > .02, 'head keeps bobbling just after stopping');
+  assert.ok(Math.abs(stopped.head.x) < .04 && Math.abs(stopped.head.z) < .04, 'head settles quickly after stopping');
 });
 
 test('renderer inputs stay compatible: motion.js poses have every channel render.js reads, wobble gets raw fighters', async () => {
@@ -56,4 +59,17 @@ test('renderer inputs stay compatible: motion.js poses have every channel render
   const out = createWobble()(fighter('red', 0, 0), 1 / 60, 1);
   const values = [out.scale.y, out.scale.xz, out.gear.x, out.gear.z, out.head.x, out.head.y, out.head.z, out.jelly.x, out.jelly.y, out.jelly.z];
   assert.ok(values.every(Number.isFinite), 'a NaN scale or offset makes the fighter vanish');
+});
+
+test('turning secondary motion off restores rigid proportions and zero wobble', () => {
+  const f = fighter('red', 0, 0), animate = createWobble();
+  animate(f, 1 / 60, 0);
+  Object.assign(f, { grounded: false, vy: 8, hit: .3 });
+  for (let i = 0; i < 120; i++) {
+    const pose = animate(f, 1 / 60, i / 60, false);
+    assert.equal(pose.scale.y, 1); assert.equal(pose.scale.xz, 1);
+    for (const channel of [pose.head, pose.gear, pose.jelly]) {
+      assert.ok(Object.values(channel).every(value => Math.abs(value) === 0));
+    }
+  }
 });

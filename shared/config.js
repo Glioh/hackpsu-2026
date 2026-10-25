@@ -3,6 +3,7 @@ export const CONFIG = Object.freeze({
   arenaX: 11, arenaZ: 8, radius: 0.62, speed: 5, acceleration: 17,
   damping: 5, turnRate: 3, gravity: 20, jump: 8, eliminationY: -5,
   punchReach: 2.15, punchCooldown: 0.65, knockback: 11,
+  maxHealth: 100, punchDamage: 12, momentumDamage: 2.4, maxPunchDamage: 32,
   deadZone: 8, saturation: 35, joltThreshold: 12, joltCooldown: 350,
 });
 export const SLOTS = ['red:legs', 'red:arm', 'blue:legs', 'blue:arm'];
