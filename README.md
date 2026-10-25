@@ -2,7 +2,7 @@
 
 **Four friends. Two bodies. Zero coordination.**
 
-A spatial browser party brawler: two phone controllers share each fighter. Legs tilt on two axes to walk and jolt to jump; Arm tilts to turn and jolts to punch. Knock the other team off the platform to win.
+A spatial browser party brawler: two phone controllers share each fighter. Legs tilt on two axes to walk and jolt to jump; Arm tilts to turn and jolts to punch. Knock out the other team or push them off the platform to win.
 
 ## Run
 
@@ -17,7 +17,9 @@ Open **http://localhost:3000** on the laptop/projector. `npm run dev` restarts a
 
 For a single-machine match, expand **Developer Playground**, then **Start keyboard / bot match**. Red: WASD body-relative movement, Q/E turn, Space jump, F punch. Blue: arrows move, J/L turn, I jump, K punch. Disable the Blue bot to use those keys. The stats toggle shows positions, speed, heading, grounded state, and cooldowns. Debug mode is labeled and does not satisfy the four-phone demo requirements.
 
-**Spring body motion** enables cosmetic torso inertia, head lag, arm follow-through, distance-driven steps, and jump/landing reactions. Compare **Subtle**, **Floppy** (default), and **Lively** in Developer Playground, or turn the checkbox off for a rigid baseline. Pose updates run at 60 Hz and interpolate with the root movement; results freeze the pose and rematches reset all motion. These are visual effects; collisions and combat still use the existing root simulation.
+Each fighter starts with **100 HP**. Punches deal damage based on punch strength plus the attacker's momentum toward the opponent at impact (capped at 32 damage). Sideways and retreating movement add no bonus. Depleting health wins by knockout; ring-outs still win. Health resets on rematch and is preserved while paused.
+
+**Spring body motion** enables cosmetic torso inertia, head lag, arm follow-through, distance-driven steps, and jump/landing reactions. Compare **Subtle** (default), **Floppy**, and **Lively** in Developer Playground, or turn the checkbox off for a rigid baseline. Pose updates run at 60 Hz and interpolate with the root movement; results freeze the pose and rematches reset all motion. The extra wobble is damped, walking no longer squashes the body, and jump/hit scaling stays within 4%. These are visual effects; collisions and combat still use the existing root simulation.
 
 Pick each team's character (Sir Squish, Crank or Bonk-3000) under **03 / Choose your fighters** on the host page. Picks swap live, are remembered per browser, and lock while a round is live. Character art and build scripts live in `art/characters/`; the browser models are `host/assets/characters/*.glb`, listed in `host/src/fighter-model.js`.
 
@@ -28,7 +30,7 @@ Pick each team's character (Sir Squish, Crank or Bonk-3000) under **03 / Choose 
 3. Scan with four separate phones. The server assigns Red Legs, Red Arm, Blue Legs, Blue Arm in that order.
 4. Tap **Enable motion sensors**, allow access, hold the phone comfortably in portrait, then **Hold neutral & calibrate**. Both orientation and acceleration streams are required.
 5. Once all four slots show ready, press **Start the brawl**. The arena enters fullscreen (or fills the browser viewport if fullscreen is unavailable). Phone calibration appears in the corner. Legs movement follows the fighter's facing, controlled by the Arm teammate.
-6. Ring-out results offer **Run it back** without rejoining. Hold phones securely and use small jolts while standing still.
+6. Knockout and ring-out results offer **Run it back** without rejoining. Hold phones securely and use small jolts while standing still.
 
 The steering flip checkbox reverses left/right; recalibration resets neutral. Rotating, backgrounding, losing sensors, or reconnecting requires recalibration. Calibration errors and controller disconnects pause normal matches in place. The corner status identifies the affected role; recalibrate on the phone, then press **Resume match** on the host once all four phones are ready. Silent controllers are marked stale after 2.5 seconds. The original controller can reclaim its role using its stored token for 30 seconds. Occupied slots cannot be replaced. After host disconnect/reload, the room expires; phones must join the new code. Results or **Return to lobby** exit fullscreen.
 

@@ -1,6 +1,6 @@
 import { CONFIG as C } from '../../shared/config.js';
 export function fighter(team, x, heading) {
-  return { team, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, punchArm: 1, hit: 0, stun: 0, landed: false };
+  return { team, health: C.maxHealth, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, punchArm: 1, hit: 0, stun: 0, landed: false };
 }
 export class Simulation {
   constructor() { this.reset(); }
@@ -32,15 +32,24 @@ export class Simulation {
       const nx = dist > 0.001 ? dx / dist : 1, nz = dist > 0.001 ? dz / dist : 0, push = (C.radius * 2 - dist) / 2;
       a.x -= nx * push; a.z -= nz * push; b.x += nx * push; b.z += nz * push;
     }
-    for (const [f, target] of [[a, b], [b, a]]) {
+    // Snapshot approach momentum before either hit applies knockback, so trades are symmetric.
+    const velocities = this.fighters.map(f => ({ x: f.vx, z: f.vz }));
+    for (const [index, [f, target]] of [[a, b], [b, a]].entries()) {
       dx = target.x - f.x; dz = target.z - f.z; dist = Math.hypot(dx, dz);
       if (f.attack > 0 && f.attack < 0.19 && !f.landed && dist < C.punchReach && Math.abs(f.y - target.y) < 1.6 && (dx * Math.sin(f.heading) + dz * Math.cos(f.heading)) / Math.max(0.001, dist) > 0.35) {
-        f.landed = true; const power = C.knockback * (0.65 + f.power * 0.6);
+        f.landed = true;
+        const punchPower = Math.max(0, Math.min(1, f.power ?? .6));
+        const velocity = velocities[index];
+        // Equal fighter masses: momentum is approach speed. Lateral/retreating motion adds no damage.
+        const momentum = Math.max(0, (velocity.x * dx + velocity.z * dz) / Math.max(.001, dist));
+        const damage = Math.min(C.maxPunchDamage, Math.round(C.punchDamage * (.65 + punchPower * .6) + momentum * C.momentumDamage));
+        target.health = Math.max(0, target.health - damage);
+        const power = C.knockback * (0.65 + punchPower * 0.6);
         target.vx += Math.sin(f.heading) * power; target.vz += Math.cos(f.heading) * power; target.vy = 3.5; target.hit = 0.3; target.stun = 0.3; hits.push(target.team);
-        this.motionEvents.push({type:'hit',team:target.team,x:Math.sin(f.heading),z:Math.cos(f.heading),strength:power});
+        this.motionEvents.push({type:'hit',team:target.team,x:Math.sin(f.heading),z:Math.cos(f.heading),strength:power,damage});
       }
     }
-    const out = this.fighters.filter(f => f.y < C.eliminationY);
+    const out = this.fighters.filter(f => f.health <= 0 || f.y < C.eliminationY);
     if (out.length) this.winner = out.length === 2 ? 'draw' : out[0].team === 'red' ? 'blue' : 'red';
     return hits;
   }
