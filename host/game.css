@@ -1,7 +1,6 @@
 .game-focus{overflow:hidden}
 .game-focus #gameScreen,#gameScreen:fullscreen{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;border:0;border-radius:0;z-index:100;background:#d8dfb2}
-#gameScreen.match-active #arena,#gameScreen:fullscreen #arena{height:calc(100dvh - 48px);width:100%}
-#gameScreen.match-active .scorebar,#gameScreen:fullscreen .scorebar{height:48px;align-items:center;padding:12px 22px}
+#gameScreen.match-active #arena,#gameScreen:fullscreen #arena{height:100dvh;width:100%}
 .arena-top{align-items:center;gap:16px;pointer-events:none}
 .arena-top .match-control{display:none;pointer-events:auto;padding:8px 12px;font-size:10px;white-space:nowrap}
 .match-active .arena-top .match-control{display:block}
@@ -12,15 +11,12 @@
 .calibration-row b{font-size:10px;letter-spacing:.07em;color:#f5f1e8}
 .calibration-row span{font-size:10px;color:#ffb28e}
 .calibration-row[data-ready=true] span{color:#d5ef78}
+.calibration-hud .kick-player{pointer-events:auto;align-self:flex-start;padding:4px 9px}
+.calibration-row{position:relative;padding-right:42px}
+.calibration-row .kick-player{position:absolute;right:0;top:7px}
 .pause-overlay{position:absolute;inset:0;z-index:6;background:#151b19e8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
 .pause-overlay h2{font-size:clamp(38px,5vw,72px);color:#d5ef78}
 .pause-overlay p{margin:0;max-width:480px;font-size:14px}
 .pause-overlay #pauseReason{color:#ffb28e}
 .pause-overlay button{min-width:190px}
-@media(max-width:700px){.calibration-hud{top:auto;bottom:60px;right:10px;width:210px;padding:10px}.calibration-row{flex-direction:row;justify-content:space-between;gap:8px}.calibration-row span{max-width:105px}.pause-overlay{justify-content:flex-start;padding-top:70px}.arena-top{font-size:8px;gap:8px}.arena-top .match-control{font-size:8px;padding:6px}.calibration-hud h3{font-size:9px}}
-
-.scorebar{gap:20px;align-items:center;min-height:48px}
-#arena{position:relative}
-.fighter-damage{position:absolute;top:0;left:0;z-index:1;pointer-events:none;padding:4px 10px;border:2px solid currentColor;border-radius:9px;background:#151b19ed;font-size:clamp(16px,2vw,26px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap;box-shadow:0 3px 9px #0003;will-change:transform}
-.fighter-damage[hidden]{display:none}
-@media(max-width:600px){.scorebar{gap:12px}.scorebar .win-rule{display:none}}
+@media(max-width:700px){.calibration-hud{top:auto;bottom:12px;right:10px;width:210px;padding:10px}.calibration-row{flex-direction:row;justify-content:space-between;gap:8px}.calibration-row span{max-width:105px}.pause-overlay{justify-content:flex-start;padding-top:70px}.arena-top{font-size:8px;gap:8px}.arena-top .match-control{font-size:8px;padding:6px}.calibration-hud h3{font-size:9px}}

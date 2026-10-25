@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="560" viewBox="0 0 820 560">
+<defs><linearGradient id="vsFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6B0"/><stop offset="0.35" stop-color="#FFD447"/><stop offset="0.7" stop-color="#FFB13D"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient><filter id="vsGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<g transform="translate(80 90) skewX(-12)">
+<g fill="#FF4FD8" stroke="#FF4FD8" stroke-width="44" stroke-linejoin="round" transform="translate(26 30)" opacity=".9" filter="url(#vsGlow)"><path d="M0 0H118L170 236L222 0H340L236 360H104Z"/><path d="M370 70Q370 0 440 0H640V92H492V132H580Q660 132 660 212V290Q660 360 590 360H370V268H538V228H450Q370 228 370 148Z"/></g>
+<g fill="#0B0C1A" stroke="#0B0C1A" stroke-width="44" stroke-linejoin="round"><path d="M0 0H118L170 236L222 0H340L236 360H104Z"/><path d="M370 70Q370 0 440 0H640V92H492V132H580Q660 132 660 212V290Q660 360 590 360H370V268H538V228H450Q370 228 370 148Z"/></g>
+<g fill="url(#vsFill)" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"><path d="M0 0H118L170 236L222 0H340L236 360H104Z"/><path d="M370 70Q370 0 440 0H640V92H492V132H580Q660 132 660 212V290Q660 360 590 360H370V268H538V228H450Q370 228 370 148Z"/></g>
+<g fill="#FFFFFF" opacity=".55"><path d="M14 10H104L112 48H24Z"/><path d="M380 70Q382 12 440 10H630V42H446Q404 42 396 76Z"/></g>
+</g>
+</svg>

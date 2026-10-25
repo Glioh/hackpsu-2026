@@ -52,6 +52,17 @@ socket.on('player:assign',applyAssignment);
 socket.on('game:state',applyGameState);
 socket.on('room:roster',applyRoster);
 socket.on('player:hit',showHit);
+socket.on('player:kicked',()=>{
+  const roomCode=assignment?.roomCode;
+  assignment=null;phase='lobby';slots=[];interruption=null;winner=null;
+  invalidate('The host removed you from the room.');
+  if(roomCode)localStorage.removeItem('brawl-token-'+roomCode);
+  $('room').value='';history.replaceState(null,'',location.pathname);
+  document.body.classList.remove('controller-joined');delete document.body.dataset.team;
+  $('controller').classList.add('hidden');$('join').classList.remove('hidden');
+  $('error').textContent='The host removed you from the room. Ask the host before joining again.';
+  $('room').focus();
+});
 socket.on('room:closed',()=>{
   phase='lobby';invalidate('Host closed the room.');assignment=null;
   document.body.classList.remove('controller-joined');

@@ -16,12 +16,46 @@ let draw, finishAge = null, visualTime = 0;
 function clearFinish() { finishAge = null; draw?.clearKO(); }
 try { draw = createRenderer($('arena'), (index, rig) => sim.setCombatRig(index, rig)); } catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
 let roomCode = '', phase = 'lobby', debug = false, snapshots = new Map(), ready = false;
+let setupStep = 0, connectedCount = 0;
+const setupPanels = ['joinStep','fighterStep','mapStep'];
+function showSetupStep(step, focus = true) {
+  setupStep = step;
+  setupPanels.forEach((id, i) => $(id).classList.toggle('hidden', i !== step));
+  document.querySelectorAll('[data-setup-step]').forEach((button, i) => {
+    button.setAttribute('aria-current', i === step ? 'step' : 'false');
+    button.disabled = i > step;
+  });
+  if (focus) $(setupPanels[step]).querySelector('h2').focus();
+}
+document.querySelectorAll('[data-setup-step]').forEach((button, i) => button.onclick = () => showSetupStep(i));
+$('chooseSprites').onclick = () => { if (connectedCount === 4) showSetupStep(1); };
+$('chooseMap').onclick = () => showSetupStep(2);
+$('backToPlayers').onclick = () => showSetupStep(0);
+$('backToSprites').onclick = () => showSetupStep(1);
+function syncScreen() {
+  const inSetup = phase === 'lobby';
+  $('setup').classList.toggle('hidden', !inSetup);
+  $('gameScreen').classList.toggle('hidden', inSetup);
+  if (inSetup) showSetupStep(0, false);
+}
+function kickButton(slot) {
+  const button = document.createElement('button');
+  button.className = 'secondary kick-player';button.textContent = 'Kick';
+  button.setAttribute('aria-label', 'Kick ' + slot.key.replace(':', ' '));
+  button.onclick = () => {
+    button.disabled = true;
+    socket.emit('player:kick', {key: slot.key}, result => {
+      if (result.error) { $('error').textContent = result.error; button.disabled = false; }
+    });
+  };
+  return button;
+}
 const keys = new Set(), edges = new Set();
 addEventListener('keydown', e => { if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); if (!keys.has(e.code)) edges.add(e.code); keys.add(e.code); });
 addEventListener('keyup', e => keys.delete(e.code)); addEventListener('blur',()=>{keys.clear();edges.clear();});
 function createRoom() { socket.emit('room:create', {}, p => { if (p.error) return $('error').textContent = p.error; roomCode = p.roomCode; $('code').textContent = roomCode; updateURL(); }); }
 socket.on('connect', createRoom);
-socket.on('disconnect',()=>{phase='lobby';clearFinish();snapshots.clear();presentation.setPhase(phase);$('pauseOverlay').classList.add('hidden');$('phase').textContent='HOST DISCONNECTED · RECONNECTING';$('start').disabled=true;$('error').textContent='Connection lost. Reconnecting creates a new room; phones must rejoin.';});
+socket.on('disconnect',()=>{phase='lobby';clearFinish();ready=false;connectedCount=0;syncScreen();$('chooseSprites').disabled=true;snapshots.clear();presentation.setPhase(phase);$('pauseOverlay').classList.add('hidden');$('phase').textContent='HOST DISCONNECTED · RECONNECTING';$('start').disabled=true;$('error').textContent='Connection lost. Reconnecting creates a new room; phones must rejoin.';});
 function updateURL() {
   let origin = $('origin').value.trim() || location.origin;
   try { const url=new URL(origin); if (!['http:','https:'].includes(url.protocol)) throw Error(); origin=url.origin; } catch { $('error').textContent='Enter a valid HTTP(S) origin.';return; }
@@ -44,14 +78,18 @@ function pickMap(id){mapId=id;localStorage.setItem('brawl-map',id);sim.setMap(id
 pickMap(mapId);
 socket.on('room:roster', p => {
   ready = p.slots.every(s=>s.connected&&s.ready);
-  $('roster').replaceChildren(...p.slots.map(s=>{const row=document.createElement('div');row.className='slot';const [team,role]=s.key.split(':');const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' / '+role.toUpperCase();const status=document.createElement('span');status.textContent=s.ready&&s.connected?'● READY':s.connected?'Calibrating…':'Waiting for phone';row.append(name,status);return row;}));
+  connectedCount = p.slots.filter(s=>s.connected).length;
+  $('playerCount').textContent = connectedCount + ' / 4 PLAYERS';
+  $('chooseSprites').disabled = connectedCount !== 4;
+  $('chooseSprites').textContent = connectedCount === 4 ? 'Choose player sprites →' : 'Waiting for ' + (4-connectedCount) + ' more phone' + (connectedCount===3?'':'s');
+  $('roster').replaceChildren(...p.slots.map(s=>{const row=document.createElement('div');row.className='slot';const [team,role]=s.key.split(':');const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' / '+role.toUpperCase();const status=document.createElement('span');status.className='slot-status';status.textContent=s.ready&&s.connected?'● READY':s.connected?'Calibrating…':s.occupied?'Disconnected · reserved':'Waiting for phone';row.append(name,status);if(s.occupied)row.append(kickButton(s));return row;}));
   $('start').disabled=!ready; $('start').textContent=ready?'Start the brawl ↗':'Waiting for four ready phones';
   $('resumeGame').disabled = !debug && !ready;
   $('calibrationRows').replaceChildren(...p.slots.map(slot => {
     const row = document.createElement('div'); row.className = 'calibration-row'; row.dataset.ready = String(slot.connected && slot.ready);
     const name = document.createElement('b'); name.textContent = slot.key.replace(':',' / ').toUpperCase();
     const status = document.createElement('span'); status.textContent = slot.message || (slot.ready ? 'Ready' : 'Calibration required');
-    row.append(name, status); return row;
+    row.append(name, status); if(slot.occupied)row.append(kickButton(slot)); return row;
   }));
   if(!p.slots.every(s=>s.connected))snapshots.clear();
 });
@@ -65,6 +103,7 @@ for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
 });
 socket.on('game:state',p=>{
   phase=p.phase; debug=p.debug;
+  syncScreen();
   if (phase === 'lobby') clearFinish();
   presentation.setPhase(phase);
   $('pauseOverlay').classList.toggle('hidden', phase !== 'paused');
@@ -88,6 +127,7 @@ $('start').onclick=()=>start(false);$('debugStart').onclick=()=>start(true);$('r
 $('resumeGame').onclick=()=>{presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
 $('leaveGame').onclick=()=>socket.emit('game:state',{phase:'lobby'});
 $('pauseLobby').onclick=$('leaveGame').onclick;
+$('resultLobby').onclick=$('leaveGame').onclick;
 $('showStats').onchange=()=> $('stats').classList.toggle('hidden',!$('showStats').checked);
 $('motionEnabled').onchange = resetPoses;
 $('motionPreset').onchange = resetPoses;
@@ -120,7 +160,7 @@ function frame(now) {
     accumulator -= C.tick;
   }
   motions.forEach(motion => interpolateMotion(motion, phase === 'playing' && finishAge === null ? accumulator / C.tick : 1));
-  draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked, finishAge });
+  if (phase !== 'lobby') draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked, finishAge });
   if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)}\nheading ${f.heading.toFixed(2)} grounded ${f.grounded}\nspeed ${Math.hypot(f.vx,f.vz).toFixed(2)} cooldown ${f.cooldown.toFixed(2)}`).join('\n\n');
   requestAnimationFrame(frame);
 }
