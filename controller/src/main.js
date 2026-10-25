@@ -2,7 +2,6 @@ import { Sensors } from './sensors.js';
 import { setupControllerPreview } from './preview.js';
 import { actionLabel, controllerScreen } from './controller-state.js';
 import { createHitFeedback } from './hit-feedback.js';
-import { requestVibration, vibrationMessage } from './vibration.js';
 import { connectSocket } from '../../shared/connection.js';
 const $=id=>document.getElementById(id);
 const previewMode=new URLSearchParams(location.search).get('preview')==='1';
@@ -87,15 +86,13 @@ $('recalibrate').onclick=()=>{
   if(preview)preview.invalidateLocal();
   $('calibrate').focus();
 };
-$('testVibration').onclick=()=>{
-  $('vibrationStatus').textContent=vibrationMessage(requestVibration());
-};
 addEventListener('orientationchange',()=>invalidate('Return to portrait, then recalibrate.','orientation-error'));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate('This phone was backgrounded. Recalibrate to rejoin.','backgrounded');});
 function inputSample(){
+  const horizontalSign=(assignment?.role==='legs'?-1:1)*($('flip').checked?-1:1);
   const simulated=preview?.sample();
-  if(simulated)return {...simulated,x:simulated.x*($('flip').checked?-1:1)};
-  const s=sensors.sample();return {valid:ready&&s.valid,x:s.x*($('flip').checked?-1:1),z:s.z};
+  if(simulated)return {...simulated,x:simulated.x*horizontalSign};
+  const s=sensors.sample();return {valid:ready&&s.valid,x:s.x*horizontalSign,z:s.z};
 }
 function send(){
   if(!assignment||!socket.connected)return;

@@ -22,6 +22,7 @@ main{max-width:1600px;margin:auto;padding:35px 36px 0}.intro{display:flex;align-
 .crew-heading h2{font-size:30px}
 #playerCount{color:var(--lime);font-size:12px;white-space:nowrap}
 .slot{gap:12px;min-height:62px;font-size:13px}
+.slot>span:first-child{font-family:'Barlow Condensed',Impact,sans-serif;font-size:clamp(24px,2.4vw,32px);font-weight:800;line-height:1.1;letter-spacing:.02em;flex-shrink:0}
 .slot .slot-status{margin-left:auto;font-size:11px;color:#a4afc5}
 .crew .kick-player,.kick-player{width:auto;margin:0;padding:7px 10px;font-size:10px;color:#ffb2a5;box-shadow:none}
 .setup-actions{display:flex;justify-content:space-between;gap:16px;margin-top:28px}

@@ -572,7 +572,7 @@ export const STATION_HULLS = [
     "x": 0,
     "z": -11.2,
     "hw": 27,
-    "hd": 3.01,
+    "hd": 3.5,
     "bottom": -0.7,
     "y": -0.37
   },
@@ -581,7 +581,7 @@ export const STATION_HULLS = [
     "x": 0,
     "z": 11.2,
     "hw": 27,
-    "hd": 3.01,
+    "hd": 3.5,
     "bottom": -0.7,
     "y": -0.37
   }

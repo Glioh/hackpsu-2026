@@ -25,10 +25,33 @@ test('Twinspire bridges support crossing while central gap and outer edges ring 
     const s=at(-5,z);run(s,140,{red:{legs:{moveX:1}}});
     assert.ok(s.fighters[0].x>4);assert.equal(s.fighters[0].grounded,true);assert.equal(s.winner,null);
   }
-  for(const [x,z,moveX,moveZ]of [[-4,0,1,0],[-18,2,-1,0],[-11,9,0,1],[18,2,1,0]]) {
+  for(const [x,z,moveX,moveZ]of [[-4,.5,1,0],[-18,2,-1,0],[-11,9,0,1],[18,2,1,0]]) {
     const s=at(x,z);run(s,180,{red:{legs:{moveX,moveZ}}});assert.equal(s.winner,'blue');
   }
   assert.equal(createArena('twinspire').floorAt(0,0),null);
+});
+
+test('Twinspire wide lanes allow two-way crossings near both fences',()=>{
+  for(const center of [-3,4])for(const offset of [-1.5,1.5])for(const direction of [-1,1]) {
+    const s=at(-5*direction,center+offset);
+    run(s,140,{red:{legs:{moveX:direction}}});
+    assert.ok(s.fighters[0].x*direction>4);
+    assert.equal(s.fighters[0].grounded,true);
+    assert.equal(s.winner,null);
+  }
+});
+
+test('Twinspire fences stop walking off either side without blocking the entrances',()=>{
+  for(const center of [-3,4])for(const direction of [-1,1]) {
+    const s=at(0,center);
+    run(s,120,{red:{legs:{moveZ:direction}}});
+    assert.ok((s.fighters[0].z-center)*direction<2.3);
+    assert.equal(s.fighters[0].y,0);
+    assert.equal(s.fighters[0].grounded,true);
+    assert.equal(s.winner,null);
+    run(s,90,{red:{legs:{moveX:1}}});
+    assert.ok(s.fighters[0].x>4,'can move along the fence and exit onto the roof');
+  }
 });
 
 test('Twinspire equipment blocks movement and service stairs climb onto the deck',()=>{

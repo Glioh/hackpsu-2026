@@ -41,3 +41,15 @@ test('stronger tilt produces faster movement and turning',()=>{
   const run=angle=>{const s=new Simulation();for(let i=0;i<20;i++)s.step({red:{legs:{moveZ:tiltAxis(angle)},arm:{turn:tiltAxis(angle)}}});return s.fighters[0];};
   const gentle=run(15),hard=run(45);assert.ok(Math.hypot(hard.vx,hard.vz)>Math.hypot(gentle.vx,gentle.vz));assert.ok(hard.heading>gentle.heading);
 });
+
+test('forward and backward tilt reach full speed at a comfortable smaller angle',()=>{
+  assert.equal(tiltAxis(5,C.forwardSaturation),0);
+  assert.equal(tiltAxis(25,C.forwardSaturation),1);
+  assert.equal(tiltAxis(-25,C.forwardSaturation),-1);
+  assert.equal(tiltAxis(55,C.forwardSaturation),1);
+  for(const angle of [10,15,20]){
+    assert.ok(tiltAxis(angle,C.forwardSaturation)>tiltAxis(angle));
+    assert.equal(tiltAxis(-angle,C.forwardSaturation),-tiltAxis(angle,C.forwardSaturation));
+  }
+  assert.ok(tiltAxis(25)<1,'horizontal tilt keeps its existing range');
+});

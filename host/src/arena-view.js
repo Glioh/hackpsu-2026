@@ -69,7 +69,7 @@ export function createArenaView(scene) {
     station(arena,fighters,camera);
     piano(arena,fighters,camera);
     archery(arena);
-    quake(arena);
+    quake(arena,time);
     mountain(arena.id === 'mountain', time, fighters, camera);
     twinspire(arena.id==='twinspire',fighters,camera);
     if (arena !== current) { build(arena); last = time; }

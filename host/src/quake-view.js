@@ -1,47 +1,51 @@
 import * as T from 'three';
-import {SUMMIT_RIM} from '../../shared/quake-layout.js';
 
-export function createQuakeView(scene){
-  const root=new T.Group(),mountain=new T.Group();root.name='Earthquake Summit';mountain.name='Shaking mountain';root.add(mountain);scene.add(root);root.visible=false;
-  const mesh=(geometry,color,parent=mountain)=>{
-    const m=new T.Mesh(geometry,new T.MeshStandardMaterial({color,roughness:1,flatShading:true}));
-    m.castShadow=m.receiveShadow=true;parent.add(m);return m;
+// Each rock shelf follows its physical floor, including the open fault below it.
+export function createQuakeView(scene) {
+  const root=new T.Group();root.name='Earthquake / fractured mountain';root.visible=false;scene.add(root);
+  const materials=new Map();
+  const mat=color=>{if(!materials.has(color))materials.set(color,new T.MeshStandardMaterial({color,roughness:1,flatShading:true}));return materials.get(color);};
+  const mesh=(parent,name,geometry,color,x,y,z)=>{
+    const m=new T.Mesh(geometry,mat(color));m.name=name;m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;parent.add(m);return m;
   };
-  const shape=new T.Shape(SUMMIT_RIM.map(([x,z])=>new T.Vector2(x,-z)));
-  const top=mesh(new T.ShapeGeometry(shape),'#b6ab8b');top.name='Summit floor';top.rotation.x=-Math.PI/2;
-  // Layered rock faces descend far below the playable summit, without a raised fence.
-  const layers=[[1,0],[1.12,-2],[1.6,-10],[2.1,-24],[2.8,-42]],positions=[],colors=[];
-  const palette=['#777f80','#89908a','#626e76','#96968a'];
-  for(let layer=0;layer<layers.length-1;layer++)for(let i=0;i<SUMMIT_RIM.length;i++){
-    const j=(i+1)%SUMMIT_RIM.length;
-    const point=(index,l)=>{const [scale,y]=layers[l],[x,z]=SUMMIT_RIM[index];return [x*scale,y,z*scale];};
-    const a=point(i,layer),b=point(j,layer),c=point(i,layer+1),d=point(j,layer+1);
-    const color=new T.Color(palette[(i+layer)%palette.length]);
-    for(const p of [a,b,c,b,d,c]){positions.push(...p);colors.push(color.r,color.g,color.b);}
+  const shelves=new T.Group();root.add(shelves);
+  let current=null,items=[];
+  // Jagged distant peaks sit below the summit, leaving the playable edges clear.
+  for(let i=0;i<16;i++){
+    const angle=i*2.399,r=34+i%4*7,h=12+i*7%18;
+    const peak=mesh(root,'Distant rocky peak',new T.ConeGeometry(6+i%3,h,5),'#71877c',Math.cos(angle)*r,-24+h/2,Math.sin(angle)*r);
+    peak.rotation.y=i;peak.scale.z=.7;
   }
-  const rock=new T.BufferGeometry();rock.setAttribute('position',new T.Float32BufferAttribute(positions,3));rock.setAttribute('color',new T.Float32BufferAttribute(colors,3));rock.computeVertexNormals();
-  const cliffs=mesh(rock,'#ffffff');cliffs.name='Summit cliffs';cliffs.material.vertexColors=true;
-  // Thin fissures pulse amber before and during tremors; these are solid stone.
-  const cracks=[];
-  for(let i=0;i<7;i++){
-    const crack=mesh(new T.BoxGeometry(.055,.012,2.2+i%3),'#655848');
-    crack.position.set(Math.cos(i*2.4)*(2+i%3),.015,Math.sin(i*2.4)*(1+i%3));crack.rotation.y=i*1.7;cracks.push(crack);
+  function build(arena){
+    shelves.traverse(m=>m.geometry?.dispose());shelves.clear();
+    items=arena.pieces.map((p,i)=>{
+      const group=new T.Group();shelves.add(group);
+      mesh(group,'Summit stone shelf',new T.BoxGeometry(p.hw*2,.55,p.hd*2),i%2?'#b4ad91':'#a6a48b',0,-.275,0);
+      // Taper each shelf to a crag rather than supporting it with a flat slab.
+      const rock=mesh(group,'Broken mountain face',new T.CylinderGeometry(1,.38,17,7),i%2?'#68796a':'#78816e',0,-9,0);
+      rock.scale.set(p.hw,1,p.hd);rock.rotation.y=i*.4;
+      for(let layer=0;layer<4;layer++){
+        const ledge=mesh(group,'Weathered rock strata',new T.BoxGeometry(p.hw*2*(1-layer*.12),.7,p.hd*2*(1-layer*.12)),'#858b75',0,-1-layer*2.4,0);
+        ledge.rotation.y=(i%2?1:-1)*.025;
+      }
+      // Low angular stone patches add relief without hiding the fault openings.
+      for(let k=0;k<7;k++){
+        const patch=mesh(group,'Summit rock texture',new T.CylinderGeometry(.45+k%3*.15,.6,.025,5),k%2?'#969d80':'#c0b79b',Math.sin(k*7+i)*p.hw*.78,.015,Math.cos(k*5+i)*p.hd*.78);
+        patch.rotation.y=k;
+      }
+      const faultMaterial=new T.MeshStandardMaterial({color:'#e1a95e',emissive:'#bf642d',emissiveIntensity:0,roughness:1});
+      const warning=new T.Mesh(new T.BoxGeometry(.09,.025,p.hd*2),faultMaterial);warning.name='Fault warning';warning.position.set(-p.sx*(p.hw-.06),.025,0);group.add(warning);
+      const cross=new T.Mesh(new T.BoxGeometry(p.hw*2,.025,.09),faultMaterial);cross.position.set(0,.025,-p.sz*(p.hd-.06));group.add(cross);
+      return {p,group,faultMaterial,warning,cross};
+    });current=arena;
   }
-  // Distant snowy peaks and a low cloud belt establish the height of the summit.
-  for(let i=0;i<9;i++){
-    const angle=i*Math.PI*2/9,x=Math.cos(angle)*38,z=Math.sin(angle)*38;
-    const peak=mesh(new T.ConeGeometry(10+i%3,24+i%4*3,5),'#7f96a6',root);peak.position.set(x,-19,z);
-    const snow=mesh(new T.ConeGeometry(3.1,7.5,5),'#eff4eb',root);snow.position.set(x,peak.position.y+(24+i%4*3)/2-3.7,z);
-  }
-  for(let i=0;i<14;i++){
-    const angle=i*Math.PI/7,puff=mesh(new T.SphereGeometry(3.5,12,8),'#e3edf0',root);
-    puff.position.set(Math.cos(angle)*(17+i%3*3),-9-i%3,Math.sin(angle)*(17+i%3*3));puff.scale.set(1.8,.3,1);puff.castShadow=false;
-  }
-  return arena=>{
+  return (arena,time=0)=>{
     root.visible=arena.id==='quake';if(!root.visible)return;
-    const s=arena.shake,t=arena.time;
-    mountain.position.set(Math.sin(t*43)*s*.1,Math.sin(t*51)*s*.04,Math.cos(t*47)*s*.1);
-    mountain.rotation.z=Math.sin(t*39)*s*.006;
-    for(const crack of cracks){crack.material.emissive.set(arena.warning||s>.5?'#ffad49':'#000000');crack.material.emissiveIntensity=(.5+.5*Math.sin(t*12))*s;}
+    if(current!==arena)build(arena);
+    for(const {p,group,faultMaterial,warning,cross} of items){
+      group.position.set(p.x,p.y,p.z);
+      warning.visible=cross.visible=arena.warning||arena.fracture>0;
+      faultMaterial.emissiveIntensity=arena.warning?.4+.4*Math.sin(time*18):.2;
+    }
   };
 }

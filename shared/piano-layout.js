@@ -17,7 +17,8 @@ export function pianoSpan(z){
  return xs.length?[Math.min(...xs),Math.max(...xs)]:null;
 }
 export const PIANO_LAYOUT=[{name:'Navigation bounds',x:0,z:-7,hw:42,hd:37,y:0,bottom:-1.5,solid:false}];
-for(let z=-43.75;z<16.5;z+=.5){const span=pianoSpan(z);if(span)PIANO_LAYOUT.push({name:'Soundboard',x:(span[0]+span[1])/2,z,hw:(span[1]-span[0])/2,hd:.25,y:0,bottom:-1.5});}
+// The soundboard is scenery; only the keyboard is playable.
+export const PIANO_BACK_WALL_Z=16.025; // Front face of the fallboard.
 // Cosmetic seams between white keys must not become holes under fighters.
 PIANO_LAYOUT.push(...PIANO_KEYS.map(k=>({...k,hw:k.black?k.hw:k.hw+.025})));
 export const PIANO_SPAWNS=[[-3.5,25],[3.5,25]];

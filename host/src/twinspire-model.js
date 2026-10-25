@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {TWINSPIRE_LAYOUT} from '../../shared/twinspire-layout.js';
+import {TWINSPIRE_LAYOUT,TWINSPIRE_BRIDGES} from '../../shared/twinspire-layout.js';
 
 // Standalone review model. Roof level is Y=0; dimensions are meters.
 export function createTwinspire({includePlayers=true}={}) {
@@ -37,12 +37,25 @@ export function createTwinspire({includePlayers=true}={}) {
       box('Fighter visor',spawn.x+(team==='red'?.29:-.29),1.4,0,.08,.16,.36,dark);
     }
   }
-  // Six-meter void; two distinct crossing lanes with exposed sides.
-  for(const z of [-3,4]){
-    box('Skybridge grating',0,.025,z,6.4,.05,2.15,'#a5b4ac');
-    for(const dz of [-1.02,1.02])box('Bridge caution edge',0,.07,z+dz,6.4,.04,.12,gold);
-    for(let x=-3;x<=3;x+=.4)box('Bridge transverse tread',x,.06,z,.035,.02,1.8,'#607b7c');
-    for(const x of [-2,0,2])box('Bridge underslung brace',x,-.6,z,.18,.8,1.8,'#536e73');
+  // Wide crossings with continuous physical fences and clear, open approaches.
+  const {centers,length,width,fenceHeight,fenceThickness}=TWINSPIRE_BRIDGES;
+  for(const z of centers){
+    box('Skybridge grating',0,.025,z,length,.05,width-fenceThickness*2,'#a5b4ac');
+    for(const side of [-1,1]){
+      const edge=z+side*(width/2-fenceThickness/2);
+      box('Bridge caution edge',0,.07,edge-side*.18,length,.04,.12,gold);
+      box('Fence top rail',0,fenceHeight,edge,length,.1,.18,gold);
+      for(let x=-length/2;x<=length/2+.01;x+=.4)box('Fence upright',x,fenceHeight/2,edge,.06,fenceHeight,.18,dark);
+    }
+    for(let x=-3;x<=3;x+=.4)box('Bridge transverse tread',x,.06,z,.035,.02,width-.6,'#607b7c');
+    for(const x of [-2,0,2])box('Bridge underslung brace',x,-.6,z,.18,.8,width-.5,'#536e73');
+    for(const side of [-1,1]){
+      box('Bridge approach marking',side*4.3,.09,z,1.8,.04,.16,gold);
+      for(const dz of [-.3,.3]){
+        const arrow=box('Crossing direction chevron',side*3.65,.09,z+dz,.7,.04,.12,gold);
+        arrow.rotation.y=side*Math.sign(dz)*Math.PI/4;
+      }
+    }
   }
   root.userData={spawns,roofHeight:0,gapWidth:6,prototype:true};
   return {root,spawns};

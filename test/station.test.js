@@ -50,6 +50,31 @@ test('Crossline terrace stairs and bridge stairs are traversable at their actual
   const s=new Simulation('station');Object.assign(s.fighters[0],{x:2.8,z:1,y:.58});run(s,40);
   assert.equal(s.fighters[0].y,.58,'walking underneath does not snap onto bridge');
 });
+
+test('Crossline track beds support players at both platform seams',()=>{
+  for(const side of [-1,1])for(const z of [7.71,8,8.18,11.2,14.25]){
+    const s=new Simulation('station');
+    Object.assign(s.fighters[0],{x:0,z:side*z,y:.58,grounded:false});
+    run(s,90);
+    assert.equal(s.winner,null,`no fall-through at z=${side*z}`);
+    assert.equal(s.fighters[0].y,-.37);
+    assert.ok(s.fighters[0].grounded);
+  }
+});
+
+test('Crossline players can walk off either platform edge and land on the tracks',()=>{
+  for(const side of [-1,1]){
+    const s=new Simulation('station');
+    Object.assign(s.fighters[0],{x:0,z:side*7.4,y:.58,heading:0});
+    run(s,35,{red:{legs:{moveZ:side}}});
+    run(s,60);
+    assert.equal(s.winner,null);
+    assert.ok(Math.abs(s.fighters[0].z)>7.7);
+    assert.equal(s.fighters[0].y,-.37);
+    assert.ok(s.fighters[0].grounded);
+    assert.equal(s.arena.floorAt(27.01,side*11.2),null,'track ends remain open');
+  }
+});
 test('Crossline trains have independent random gaps, three-second warnings, and reproducible seeds',()=>{
   const a=createArena('station',91),b=createArena('station',91),c=createArena('station',92);
   assert.deepEqual(a.trains,b.trains);assert.notDeepEqual(a.trains,c.trains);

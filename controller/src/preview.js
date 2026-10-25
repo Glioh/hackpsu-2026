@@ -1,4 +1,4 @@
-import { SLOTS } from '../../shared/config.js';
+import { SLOTS, CONFIG as C } from '../../shared/config.js';
 import { tiltAxis } from './sensors.js';
 
 // Uses production screen state and feedback without connecting to a live room.
@@ -57,7 +57,7 @@ export function setupControllerPreview({applyAssignment,applyGameState,applyRost
   $('previewRecover').onclick=()=>{$('previewCalibration').value='healthy';calibration();};
   assign();
   return {
-    sample(){return $('previewMotion').value==='live'?null:{valid:localReady,x:tiltAxis(Number($('previewHorizontal').value)),z:tiltAxis(-Number($('previewVertical').value))};},
+    sample(){return $('previewMotion').value==='live'?null:{valid:localReady,x:tiltAxis(Number($('previewHorizontal').value)),z:tiltAxis(-Number($('previewVertical').value),C.forwardSaturation)};},
     recalibrate(){
       if($('previewMotion').value==='live')return false;
       localReady=true;failed.delete(ownKey());setCalibration(true);roster();

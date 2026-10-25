@@ -1,9 +1,9 @@
 import { CONFIG as C } from '../../shared/config.js';
-export function tiltAxis(degrees) { return Math.sign(degrees) * Math.pow(Math.min(1,Math.max(0,Math.abs(degrees)-C.deadZone)/(C.saturation-C.deadZone)), 1.25); }
+export function tiltAxis(degrees, saturation = C.saturation) { return Math.sign(degrees) * Math.pow(Math.min(1,Math.max(0,Math.abs(degrees)-C.deadZone)/(saturation-C.deadZone)), 1.25); }
 export class Sensors {
   constructor(onImpulse) {
     this.onImpulse=onImpulse;this.raw=null;this.neutral=null;this.x=0;this.z=0;this.magnitude=0;this.lastJolt=-Infinity;this.lastOrientation=0;this.lastMotion=0;this.fallbackGravity=null;this.enabled=false;
-    this.orientation=e=>{if(!Number.isFinite(e.beta)||!Number.isFinite(e.gamma))return;this.raw={beta:e.beta,gamma:e.gamma};this.lastOrientation=performance.now();if(this.neutral){this.x+=.2*(tiltAxis(e.gamma-this.neutral.gamma)-this.x);this.z+=.2*(tiltAxis(this.neutral.beta-e.beta)-this.z);}};
+    this.orientation=e=>{if(!Number.isFinite(e.beta)||!Number.isFinite(e.gamma))return;this.raw={beta:e.beta,gamma:e.gamma};this.lastOrientation=performance.now();if(this.neutral){this.x+=.2*(tiltAxis(e.gamma-this.neutral.gamma)-this.x);this.z+=.2*(tiltAxis(this.neutral.beta-e.beta,C.forwardSaturation)-this.z);}};
     this.motion=e=>{let a=e.acceleration;const now=performance.now();if(!a||![a.x,a.y,a.z].every(Number.isFinite)){const g=e.accelerationIncludingGravity;if(!g||![g.x,g.y,g.z].every(Number.isFinite))return;const current=[g.x,g.y,g.z];if(!this.fallbackGravity)this.fallbackGravity=[...current];a={};['x','y','z'].forEach((key,i)=>{this.fallbackGravity[i]+=.08*(current[i]-this.fallbackGravity[i]);a[key]=current[i]-this.fallbackGravity[i];});}this.lastMotion=now;this.magnitude=Math.hypot(a.x,a.y,a.z);if(this.neutral&&this.magnitude>C.joltThreshold&&now-this.lastJolt>C.joltCooldown){this.lastJolt=now;this.onImpulse(Math.min(1,this.magnitude/35));}};
   }
   async enable() {

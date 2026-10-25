@@ -27,8 +27,6 @@ export function createMountainView(scene) {
     }
   }
   // A warm stone court with joints and a carved circular sparring medallion.
-  for(let x=-12;x<=12;x+=2)box('Stone joint',x,.012,3,.025,.008,13,'#969e87');
-  for(let z=-2;z<=9;z+=2)box('Stone joint',0,.013,z,25,.008,.025,'#969e87');
   const medallion=mesh('Sparring circle',new T.RingGeometry(2.1,2.18,64),'#d8cb9b',0,.023,4.4);medallion.rotation.x=-Math.PI/2;
   const disc=(name,r,x,z,color,start=0,length=Math.PI*2,y=.026)=>{
     const m=mesh(name,new T.CircleGeometry(r,48,start,length),color,x,y,z);m.rotation.x=-Math.PI/2;return m;

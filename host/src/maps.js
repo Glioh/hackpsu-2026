@@ -11,16 +11,15 @@ import { configureMountain } from './mountain-map.js';
 import {configureStation} from './station-map.js';
 import {configureTwinspire} from './twinspire-map.js';
 import {configureArchery} from './archery-map.js';
-import {onSummit} from '../../shared/quake-layout.js';
 
 export const MAPS = [
   { id: 'classic', name: 'Classic Ring', tier: 'Early', blurb: 'Solid floor. Learn to shove.' },
   { id: 'ice', name: 'Ice Rink', tier: 'Early', blurb: 'No grip. Momentum carries you off the edge.' },
-  { id: 'quake', name: 'Earthquake Summit', tier: 'Early', blurb: 'Brawl atop a rocky mountain above the clouds. Glowing fissures warn of tremors. Watch the open cliffs!' },
+  { id: 'quake', name: 'Earthquake Arena', tier: 'Early', blurb: 'A fractured mountain summit. Watch for tremors as the rock shelves pull apart beneath your feet.' },
   { id: 'skyline', name: 'Skyline Rooftop', tier: 'Mid', blurb: 'Climb ramps and stairs, brawl around rooftop utilities, and knock rivals off open edges.' },
   { id: 'station', name: 'Crossline Station', tier: 'Mid', blurb: 'Climb the terraces and transfer bridge. Trains sweep the front and rear tracks at random intervals—watch the warning signals.' },
   { id: 'mountain', name: 'Cloudpeak Dojo', tier: 'Mid', blurb: 'Kung fu above the clouds. Climb stone terraces, weave through training obstacles, and send rivals over the cliffs.' },
-  {id:'twinspire',name:'Twinspire',tier:'Mid',blurb:'Spawn on opposite skyscrapers. Cross two narrow skybridges and knock your rival into the city below.'},
+  {id:'twinspire',name:'Twinspire',tier:'Mid',blurb:'Spawn on opposite skyscrapers. Cross two wide, fenced skybridges and battle across both rooftops.'},
   {id:'piano',name:'Forte Grand Piano',tier:'Mid',blurb:'88 playable keys on a giant concert grand. Jump onto the sharps, play notes with your feet, and knock rivals off the case.'},
   { id: 'archery', name: 'Bullseye Brawl', tier: 'Mid', blurb: 'Brawl on a giant target! Dodge the marked circles before sky-high arrows land. Open edges mean ring-outs.' },
   { id: 'tiles', name: 'Disappearing Tiles', tier: 'Mid', blurb: 'Blinking tiles drop out, then come back.' },
@@ -98,8 +97,10 @@ export function createArena(id = 'classic', seed = 1) {
       break;
 
     case 'quake': {
-      arena.pieces = [piece(0, 0, 9.4, 7.3, { kind: 'quake' })];
-      arena.floorAt=(x,z,maxY=Infinity)=>maxY>=0&&onSummit(x,z)?arena.pieces[0]:null;
+      // Four rock shelves meet at rest and separate along a cross-shaped fault.
+      arena.pieces = [-1,1].flatMap(sx=>[-1,1].map(sz=>piece(sx*C.arenaX/2,sz*C.arenaZ/2,C.arenaX/2,C.arenaZ/2,{kind:'quake',sx,sz,y:sz<0?.24:0})));
+      arena.spawn=[[-3,3],[3,3]];
+      let opening=0;
       let wait = 3 + rng() * 2, quake = 0, jolt = 0;
       arena.update = (dt, fighters, events) => {
         if (quake > 0) {
@@ -107,6 +108,13 @@ export function createArena(id = 'classic', seed = 1) {
           if ((jolt -= dt) <= 0) { jolt = .3; for (const f of fighters) if (f.grounded) shove(f, rng() * 2 * Math.PI, 3 + rng() * 3, 2.5 + rng() * 1.5, events, 6); }
           if (quake <= 0) wait = 4 + rng() * 3;
         } else if ((wait -= dt) <= 0) { quake = 1.8; jolt = 0; }
+        const target=quake>0?1.8:0,previous=opening;
+        opening+=Math.max(-dt*.8,Math.min(dt*1.8,target-opening));
+        for(const p of arena.pieces){
+          p.x=p.sx*(C.arenaX/2+opening/2);p.z=p.sz*(C.arenaZ/2+opening/2);
+          p.vx=p.sx*(opening-previous)/dt/2;p.vz=p.sz*(opening-previous)/dt/2;
+        }
+        arena.fracture=opening/1.8;
         arena.warning = quake <= 0 && wait < 1;
         arena.shake = quake > 0 ? 1 : arena.warning ? .25 : Math.max(0, arena.shake - dt * 4);
       };
