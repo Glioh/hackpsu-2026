@@ -25,6 +25,10 @@ Combat uses each selected GLB model's part bounds and swept hand volumes along t
 
 Pick each team's character (Sir Squish, Crank or Bonk-3000) under **03 / Choose your fighters** on the host page. Picks swap live, are remembered per browser, and lock while a round is live. Character art and build scripts live in `art/characters/`; the browser models are `host/assets/characters/*.glb`, listed in `host/src/fighter-model.js`.
 
+## Skyline rooftop map
+
+Choose **Skyline Rooftop** in the host map picker under **Mid**. The compact rooftop has ramps, stairs, raised terraces, collidable rooftop utilities, and open edges for ring-outs. The approved prototype is saved separately in `art/prototypes/rooftop/approved-v1/`. See [Skyline map notes](docs/skyline-rooftop.md) for assets, rebuilding, and checks.
+
 ## Preview the mobile controller
 
 Open `/controller?preview=1` on the local server or deployed HTTPS origin, or select **Preview mobile controller** on the phone join page. No room, host, or other phones are required. The preview uses the real controller UI with a disconnected socket, so it never joins or sends inputs to a match.

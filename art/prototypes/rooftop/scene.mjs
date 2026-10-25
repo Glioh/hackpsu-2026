@@ -12,16 +12,16 @@ export function createRooftop() {
     const m=new T.Mesh(new T.CylinderGeometry(r2,r,h,24),material(color));m.name=name;m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
   }
   const concrete='#aeb7b0', dark='#35474c', teal='#4e8f88', orange='#ec9e55';
-  box('Tower facade',0,-10.2,0,30,20,24,'#687a80');
+  box('Tower facade',0,-10.2,.65,30,20,22.7,'#687a80');
   for(let y=-18;y<-1;y+=2.3) for(let x=-13;x<14;x+=2.5) {
     box('Front recessed window',x,y,12.025,1.35,1.25,.08,'#a5c9bd');
-    box('Rear recessed window',x,y,-12.025,1.35,1.25,.08,'#a5c9bd');
+    box('Rear recessed window',x,y,-10.725,1.35,1.25,.08,'#a5c9bd');
   }
   for(let y=-18;y<-1;y+=2.3) for(let z=-10;z<11;z+=2.5) for(const x of [-15.025,15.025]) box('Side window',x,y,z,.08,1.25,1.35,'#a5c9bd');
-  box('Oversailing roof slab',0,-.25,0,31,.65,25,concrete);
-  box('Roof membrane',0,.105,0,29.9,.08,23.9,'#788c88');
+  box('Oversailing roof slab',0,-.25,.9,31,.65,23.2,concrete);
+  box('Roof membrane',0,.105,.625,29.9,.08,22.65,'#788c88');
   // Roof structure is the arena: staggered terraces with routes through and over utilities.
-  for(let x=-14;x<=14;x+=2) box('Membrane seam',x,.151,0,.025,.008,23,'#637c76');
+  for(let x=-14;x<=14;x+=2) box('Membrane seam',x,.151,.9,.025,.008,21.4,'#637c76');
   for(let z=-10;z<=10;z+=2) box('Membrane seam',0,.152,z,29,.008,.025,'#637c76');
   function terrace(name,x,z,w,d,top) {
     box(name,x,(top+.15)/2,z,w,top-.15,d,'#7b918c');
@@ -74,12 +74,19 @@ export function createRooftop() {
     cylinder('Exhaust obstacle',x,1.15,z,.48,1.3,'#a7bbb2');
     cylinder('Mushroom vent cap',x,1.85,z,.8,.18,concrete);
   }
-  for(const x of [-14.9,14.9]) box('Side parapet',x,.64,0,.35,1.1,24,concrete);
-  box('Rear parapet',0,.64,-11.9,30,1.1,.35,concrete);
-  // Broken front parapet makes the height and ring-out edge readable.
-  for(const x of [-11.6,11.6]) box('Front parapet wing',x,.64,11.9,6.6,1.1,.35,concrete);
-  box('Exposed ring-out lip',0,.15,11.9,16,.18,.45,orange);
-  for(let x=-7.5;x<8;x+=.8) {const m=box('Warning stripe',x,.25,11.9,.24,.015,.42,dark);m.rotation.y=.45;}
+  // Flush markings only: all four roof edges remain open for ring-outs.
+  for(const z of [-10.55,12.05]) {
+    box('Flush edge warning',0,.15,z,30,.025,.3,orange);
+    for(let x=-14.5;x<15;x+=.8) {
+      const stripe=box('Edge caution stripe',x,.17,z,.23,.015,.3,dark);stripe.rotation.y=.45;
+    }
+  }
+  for(const x of [-15.05,15.05]) {
+    box('Flush edge warning',x,.15,.75,.3,.025,22.5,orange);
+    for(let z=-10.3;z<12;z+=.8) {
+      const stripe=box('Edge caution stripe',x,.17,z,.3,.015,.23,dark);stripe.rotation.y=.45;
+    }
+  }
   box('Service penthouse',-8.5,2.25,-8.1,8.5,4.2,5.2,'#b8b9a4');
   box('Penthouse roof coping',-8.5,4.43,-8.1,9,.25,5.7,concrete);
   box('Access door',-7.5,1.65,-5.47,1.6,2.9,.1,teal);
@@ -87,7 +94,13 @@ export function createRooftop() {
   cylinder('Door handle',-6.97,1.5,-5.28,.055,.25,orange);
   box('Exit light',-7.5,3.4,-5.35,1,.25,.22,'#d8e8ad');
   for(let i=0;i<5;i++) box('Access stair',-3.1,.2+i*.18,-7.8+i*.6,2.1,.25+i*.36,.6,concrete);
-  box('Raised service deck',7.8,.7,-8.2,9,1.1,5.2,dark);
+  // Back edge is flush with a continuous raised service spine: no rear corridor.
+  box('Raised service deck',7.8,.7,-8.1,9,1.1,5.2,dark);
+  box('Connecting rear service plinth',-.475,.7,-8.1,7.55,1.1,5.2,dark);
+  box('Rear plinth top',-.475,1.29,-8.1,7.55,.08,5.2,concrete);
+  // Fill the narrow end gaps so neither end creates a concealed back route.
+  box('West rear roof shoulder',-14,.7,-8.1,2.5,1.1,5.2,dark);
+  box('East rear roof shoulder',13.65,.7,-8.1,2.7,1.1,5.2,dark);
   for(const x of [5.2,8.4]) {
     box('HVAC housing',x,1.9,-8.3,2.55,1.5,3,'#b6c6bb');
     cylinder('Fan rim',x,2.69,-8.3,.92,.12,dark);
@@ -104,29 +117,21 @@ export function createRooftop() {
   cylinder('Tank conical roof',-9.7,8.95,-8,2.02,.85,dark,0);
   for(let y=4.7;y<8.6;y+=.38)box('Ladder rung',-11.62,y,-8,.08,.065,.7,dark);
   for(const z of [-8.38,-7.62])box('Ladder rail',-11.62,6.55,z,.07,4.2,.07,dark);
-  // Social / maintenance dressing outside the fighting lane.
-  for(const z of [-1.5,3.2,7.9]) {
-    box('Planter trough',-12.6,.65,z,1.65,1,3,'#bdad8e');
-    box('Soil',-12.6,1.17,z,1.4,.06,2.75,'#4f6053');
-    for(let i=0;i<5;i++) {const bush=new T.Mesh(new T.IcosahedronGeometry(.62,1),material(i%2?'#6e976c':'#91a574'));bush.position.set(-12.6,1.5,z-1+i*.5);bush.scale.y=.7;root.add(bush);}
-  }
-  for(const z of [0,5]) {
-    box('Bench seat',12.5,.8,z,1.2,.18,2.8,'#b88859');
-    for(const zz of [z-.9,z+.9])box('Bench footing',12.5,.43,zz,.8,.6,.16,dark);
-  }
-  for(const x of [-13.7,13.7])for(const z of [-10.8,10.8]) {
-    cylinder('Roof light mast',x,2.6,z,.06,5,dark);
-    box('Area luminaire',x,5.1,z,.75,.15,.45,'#f2dcac');
-  }
+  // Clear perimeter lanes: omit benches, planters and corner poles.
   cylinder('Antenna mast',-5.9,6,-9.8,.045,3.2,dark);
   for(const y of [5.2,5.8,6.4])box('Antenna crossbar',-5.9,y,-9.8,1.8,.045,.045,dark);
-  for(const z of [-3,7]) {cylinder('Vent stack',13.1,.65,z,.25,.9,dark);cylinder('Vent cap',13.1,1.15,z,.4,.12,concrete);}
   // Stylized scale references, not playable fighters.
   for(const [x,color] of [[-4,'#ea7865'],[4,'#78b9ce']]) {
     const body=new T.Mesh(new T.CapsuleGeometry(.38,.65,4,10),material(color));body.position.set(x,1.25+(x<0?1.5:0),x<0?1.5:7.5);body.name='Fighter scale mannequin';root.add(body);
     cylinder('Mannequin head',x,2+(x<0?1.5:0),x<0?1.5:7.5,.29,.45,color);
     for(const dx of [-.22,.22])box('Mannequin leg',x+dx,.53+(x<0?1.5:0),x<0?1.5:7.5,.22,.6,.25,dark);
   }
+  // Compact the footprint by 28% per axis (48% less area), keeping fighter size.
+  for(const mesh of root.children) {
+    mesh.position.x*=.72;mesh.position.z*=.72;
+    if(!/mannequin/i.test(mesh.name))mesh.scale.set(.72,1,.72);
+  }
+  root.userData={prototype:true,roofWidth:22.32,roofDepth:16.704,openEdges:4,rearWalkway:false};
   return root;
 }
 

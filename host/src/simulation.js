@@ -13,6 +13,7 @@ export class Simulation {
     this.arena = createArena(this.mapId, this.seed++);
     const [[rx, rz], [bx, bz]] = this.arena.spawn;
     this.fighters = [Object.assign(fighter('red', rx, Math.PI / 2), { z: rz }), Object.assign(fighter('blue', bx, -Math.PI / 2), { z: bz })];
+    if (this.arena.resolveMotion) for (const f of this.fighters) f.y = this.arena.floorAt(f.x, f.z)?.y ?? 0;
     this.winner = null; this.motionEvents = [];
   }
   step(inputs, dt = C.tick) {
@@ -36,9 +37,14 @@ export class Simulation {
       previousAttacks.push(f.attack);
       f.attack = Math.max(0, f.attack - dt);
       if (floor) { f.x += floor.vx * dt; f.z += floor.vz * dt; } // moving platforms and conveyor belts carry you
+      const previous = { x: f.x, z: f.z, y: f.y, grounded: f.grounded };
       f.x += f.vx * dt; f.z += f.vz * dt;
-      const support = this.arena.floorAt(f.x, f.z), top = support ? support.y : 0;
       f.vy -= C.gravity * dt; f.y += f.vy * dt;
+      if (this.arena.resolveMotion) {
+        this.arena.resolveMotion(f, previous, this.rigs[this.fighters.indexOf(f)].radius, this.motionEvents);
+        continue;
+      }
+      const support = this.arena.floorAt(f.x, f.z), top = support ? support.y : 0;
       if (support && f.y <= top && f.y > top - 0.5 && f.vy <= 0) { if (!f.grounded) this.motionEvents.push({type:'landing',team:f.team,speed:-f.vy}); f.y = top; f.vy = 0; f.grounded = true; } else f.grounded = false;
     }
     const [a, b] = this.fighters;
@@ -46,7 +52,9 @@ export class Simulation {
     const contact = this.rigs[0].radius + this.rigs[1].radius;
     if (dist < contact && Math.abs(a.y-b.y) < 1.5) {
       const nx = dist > .001 ? dx/dist : 1, nz = dist > .001 ? dz/dist : 0, push = (contact-dist)/2;
+      const before = this.fighters.map(f => ({ x:f.x, z:f.z, y:f.y, grounded:f.grounded }));
       a.x -= nx*push; a.z -= nz*push; b.x += nx*push; b.z += nz*push;
+      if (this.arena.resolveMotion) this.fighters.forEach((f,i) => this.arena.resolveMotion(f,before[i],this.rigs[i].radius,this.motionEvents));
     }
     // Resolve contacts before applying either launch so simultaneous uppercuts trade fairly.
     const contacts = this.fighters.map((f,index) => !f.landed && previousAttacks[index] > 0 &&
