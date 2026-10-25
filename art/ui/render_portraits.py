@@ -28,6 +28,8 @@ FIGHTERS = {
     "crank": dict(slug="crank", pfx="CR_", root="Crank", hand="Hand"),
     "bonk": dict(slug="bonk3000", pfx="BK_", root="Bonk3000", hand="Hand"),
     "nik": dict(slug="nik", pfx="NK_", root="Nik", hand="Hand"),
+    # No head part: the face is on the slice, so the head icon frames everything above face_z - 0.3.
+    "toast": dict(slug="toast_malone", pfx="TM_", root="ToastMalone", hand="Hand", face="Slice", face_z=0.95),
 }
 # Poses. Arm targets are world directions the shoulder->wrist segment points along (+X = the fighter's left,
 # the big punching side; -Y = forward). torso/head: extra (x, y, z) rotation in radians; lift raises the whole body.
@@ -43,6 +45,9 @@ POSES = {
     },
     "nik": {
         "portrait": dict(arms={"L": (0.6, -0.55, 0.75), "R": (-0.35, -0.85, 0.35)}, torso=(0.06, 0.04, 0.12), head=(-0.04, 0.08, 0.1)),
+    },
+    "toast": {
+        "portrait": dict(arms={"L": (0.55, -0.35, 0.8), "R": (-0.45, -0.85, 0.3)}, torso=(0.05, 0.05, 0.12)),
     },
 }
 # Shots: camera view direction (from subject towards the camera), which parts to frame, lens fill and size.
@@ -127,7 +132,7 @@ def append_character(fid, spec):
         rest[o.name] = (o.location.copy(), o.rotation_euler.copy(), o.scale.copy())
     by_part = lambda name: next(o for o in objs if o.name.split(".")[0] == spec["pfx"] + name)
     root = next(o for o in objs if o.name.split(".")[0] == spec["root"])
-    return dict(coll=coll, objs=objs, rest=rest, part=by_part, root=root)
+    return dict(coll=coll, objs=objs, rest=rest, part=by_part, root=root, spec=spec)
 
 def reset(ch):
     for o in ch["objs"]:
@@ -146,7 +151,7 @@ def pose(fid, ch, shot):
     reset(ch)
     p, part = dict(POSES[fid]["portrait"]), ch["part"]
     if shot == "head": p["arms"] = {}                                 # keep hands out of the HUD icon
-    torso, head = part("Torso"), part("Head")
+    torso, head = part("Torso"), part(ch["spec"].get("face", "Head"))
     torso.rotation_euler = Vector(torso.rotation_euler) + Vector(p.get("torso", (0, 0, 0)))
     head.rotation_euler = Vector(head.rotation_euler) + Vector(p.get("head", (0, 0, 0)))
     ch["root"].location.z += p.get("lift", 0)
@@ -156,7 +161,9 @@ def pose(fid, ch, shot):
 
 def frame_points(ch, what):
     dg = bpy.context.evaluated_depsgraph_get(); pts = []
-    head = ch["part"]("Head")
+    head = ch["part"](ch["spec"].get("face", "Head"))
+    if what == "head" and "face_z" in ch["spec"]:
+        return [p for p in frame_points(ch, "all") if p.z > ch["spec"]["face_z"] - 0.3]
     for o in ch["objs"]:
         if o.type != "MESH": continue
         if what == "head" and not (o == head or o.parent == head): continue

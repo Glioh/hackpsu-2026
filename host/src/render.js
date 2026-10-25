@@ -9,6 +9,8 @@ import { createArenaView } from './arena-view.js';
 import { createArena } from './maps.js';
 import { createKOEffects } from './ko-effects.js';
 import { createHitEffects, createHitFlash } from './hit-effects.js';
+import { createJiggle } from './jiggle.js';
+import { createCrumbs } from './crumbs.js';
 export function createRenderer(container, onCombatRig = () => {}) {
   const scene = new T.Scene();
   const quality = QUALITY[new URLSearchParams(location.search).get('quality')] ?? QUALITY.medium;
@@ -33,6 +35,9 @@ export function createRenderer(container, onCombatRig = () => {}) {
   const models = ['#ff665b','#63c7ec'].map(color => { const model = createCharacter(color, mesh); scene.add(model.group); return { ...model, torsoY: model.torso.position.y }; });
   let flashes = models.map(m => createHitFlash(m.group));
   let clumsies = models.map((_, i) => createClumsy(i));
+  // Per-fighter extras that only some characters opt into: jiggling gear and crumbs on impacts.
+  let jiggles = models.map(() => createJiggle());
+  const crumbs = createCrumbs(scene), landings = [null, null];
   // 1 when the floor ends within reach of a grounded fighter (map edge, tile hole, platform edge): time to teeter.
   const edgeNear = (arena, f) => {
     if (!f.grounded) return 0;
@@ -50,6 +55,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
     renderer.domElement.style.filter = finishAge === null ? '' : `grayscale(${Math.min(1, finishAge / .22)}) contrast(1.15)`;
     ko.update(finishAge ?? 0);
     hitEffects.update(bodies, active ? dt : 0);
+    crumbs.update(active ? dt : 0, (x, z) => { const floor = arena.floorAt?.(x, z); return floor ? floor.y + .04 : undefined; });
     const piano=arena.id==='piano';
     const factory=arena.id==='conveyor';
     const twinspire=arena.id==='twinspire';
@@ -92,8 +98,15 @@ export function createRenderer(container, onCombatRig = () => {}) {
         arm.rotation.x = pose[`arm${j}Action`] + (body?.attack > 0 ? 0 : pose[`arm${j}Pitch`] + k.arms[j].x);
         arm.rotation.z = body?.attack > 0 ? (j ? -1 : 1)*.6 : (j ? 1 : -1)*.12 + pose[`arm${j}Roll`] + k.arms[j].z;
       });
-      m.wobbly?.forEach(({ node, kind, rest, restY, maxTilt, lift }) => {
-        if (kind === 'head') node.rotation.set(rest.x + pose.headPitch + k.head.x, rest.y + pose.headYaw, rest.z + pose.headRoll + k.head.z);
+      if (body && m.impactFx === 'crumbs') {                                   // hard landings shed crumbs too
+        const was = landings[i];
+        if (was && !was.grounded && body.grounded && was.vy < -9) crumbs.burst(body, 14, .7);
+        landings[i] = { grounded: body.grounded, vy: body.vy };
+      }
+      const j = body && m.wobbly?.some(w => w.kind === 'jiggle') ? jiggles[i](body, active ? dt : 0, motionEnabled) : null;
+      m.wobbly?.forEach(({ node, kind, rest, restY, restScale, maxTilt, lift }) => {
+        if (kind === 'jiggle') { if (j) { node.scale.set(restScale.x * j.xz, restScale.y * j.y, restScale.z * j.xz); node.rotation.set(rest.x, rest.y, rest.z + j.tilt); } }
+        else if (kind === 'head') node.rotation.set(rest.x + pose.headPitch + k.head.x, rest.y + pose.headYaw, rest.z + pose.headRoll + k.head.z);
         else {
           const x = Math.max(-maxTilt, Math.min(maxTilt, k.gear.x)), z = Math.max(-maxTilt, Math.min(maxTilt, k.gear.z));
           node.rotation.set(rest.x + x, rest.y, rest.z + z);
@@ -105,11 +118,15 @@ export function createRenderer(container, onCombatRig = () => {}) {
     if(materialArena!==arena){enrichMaterials(scene);materialArena=arena;}
     renderer.render(scene, camera);
   };
-  draw.resetMotion = () => { hitEffects.clear(); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); };
+  draw.resetMotion = () => { hitEffects.clear(); crumbs.clear(); landings.fill(null); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); jiggles = models.map(() => createJiggle()); };
   draw.setFighter = setFighter;
   draw.dispose = () => { resizeObserver.disconnect(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
-  draw.hit = body => { const index = body.team === 'red' ? 0 : 1; hitAges[index] = 0; hitEffects.hit(body); };
+  draw.hit = body => {
+    const index = body.team === 'red' ? 0 : 1; hitAges[index] = 0; hitEffects.hit(body);
+    // Heavy knockback sprays crumbs everywhere; light taps shed a few.
+    if (models[index].impactFx === 'crumbs') { const heavy = Math.hypot(body.vx, body.vz) > 7; crumbs.burst(body, heavy ? 32 : 6, heavy ? 1.2 : .6); }
+  };
   draw.startKO = fighters => ko.trigger(fighters);
   draw.clearKO = () => { ko.clear(); renderer.domElement.style.filter = ''; };
   return draw;
