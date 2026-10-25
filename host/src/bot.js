@@ -1,5 +1,6 @@
 import {CONFIG as C} from '../../shared/config.js';
 import {createTerrainNavigator} from './bot-navigation.js';
+import {worldToLegInput} from '../../shared/movement.js';
 
 export function createBotController() {
   let arena=null,radius=null,navigator=null,path=[],goal=null,nextPlan=0,lastPosition=null,stuck=0;
@@ -28,10 +29,10 @@ export function createBotController() {
     const clearApproach=!sim.arena.navigation||range>2.4||navigator.canTravel(f,{x:target.x,z:target.z,y:target.y});
     const stop=range<1.5&&Math.abs(target.y-f.y)<.8&&clearApproach;
     const speed=stop||d<.08?0:Math.min(.75,d*2.5);
-    // Convert desired world motion back into the fighter's body-relative inputs.
+    // Bots use the same arena-relative leg axes as phones and keyboards.
     const vx=d>0?wx/d*speed:0,vz=d>0?wz/d*speed:0;
     return {
-      legs:{moveX:vx*Math.cos(f.heading)-vz*Math.sin(f.heading),moveZ:vx*Math.sin(f.heading)+vz*Math.cos(f.heading),
+      legs:{...worldToLegInput(vx,vz),
         jump:sim.arena.navigation?false:f.grounded&&(Math.abs(f.x)>C.arenaX-1||Math.abs(f.z)>C.arenaZ-1)},
       arm:{turn:Math.max(-1,Math.min(1,diff*2)),punch:range<2.1&&clearApproach&&Math.abs(target.y-f.y)<1.5&&Math.abs(diff)<.5,power:.8},
     };

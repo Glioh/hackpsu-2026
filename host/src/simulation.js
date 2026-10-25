@@ -2,6 +2,7 @@ import { CONFIG as C } from '../../shared/config.js';
 import { fallbackCombatRig, uppercutHits } from './combat-rig.js';
 import { createArena } from './maps.js';
 import { createWeapons } from './weapons.js';
+import { legInputToWorld } from '../../shared/movement.js';
 export function fighter(team, x, heading) {
   return { team, damage: 0, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, hit: 0, stun: 0, landed: false };
 }
@@ -27,8 +28,7 @@ export class Simulation {
       const i = inputs[f.team] || {}, legs = i.legs || {}, arm = i.arm || {};
       f.cooldown = Math.max(0, f.cooldown - dt); f.hit = Math.max(0, f.hit - dt); f.stun = Math.max(0, f.stun - dt);
       f.heading += (arm.turn || 0) * C.turnRate * dt;
-      let mx = legs.moveX || 0, mz = legs.moveZ || 0, len = Math.max(1, Math.hypot(mx, mz)); mx /= len; mz /= len;
-      const x = mx * Math.cos(f.heading) + mz * Math.sin(f.heading), z = -mx * Math.sin(f.heading) + mz * Math.cos(f.heading);
+      const { x, z } = legInputToWorld(legs.moveX || 0, legs.moveZ || 0);
       // Brief hitstun preserves launch momentum; ordinary movement regains control smoothly.
       const floor = f.grounded ? this.arena.floorAt(f.x, f.z) : null, grip = floor?.grip ?? 1;
       const damping = f.stun > 0 ? C.launchDamping : C.damping * grip, drive = f.stun > 0 ? 0 : 1;

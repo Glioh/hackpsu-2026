@@ -18,20 +18,20 @@ test('Cloudpeak spawns on stable ground and resets as a separate map',()=>{
 
 test('Cloudpeak stairs and incline lead onto distinct raised terraces',()=>{
   for(const [x,z,height]of [[0,2,1.8],[-9,7.5,.9]]) {
-    const s=at(x,z);run(s,70,{red:{legs:{moveZ:-1}}});
+    const s=at(x,z);run(s,70,{red:{legs:{moveZ:1}}});
     assert.ok(Math.abs(s.fighters[0].y-height)<.001);assert.equal(s.fighters[0].grounded,true);
   }
 });
 
 test('Cloudpeak training dummies and boulders obstruct walking',()=>{
-  const dummy=at(4,5.3);run(dummy,45,{red:{legs:{moveZ:-1}}});
+  const dummy=at(4,5.3);run(dummy,45,{red:{legs:{moveZ:1}}});
   assert.ok(dummy.fighters[0].z>4.2);assert.ok(dummy.fighters[0].y<.4);
-  const boulder=at(8.5,4);run(boulder,50,{red:{legs:{moveZ:-1}}});assert.ok(boulder.fighters[0].z>2.8);
+  const boulder=at(8.5,4);run(boulder,50,{red:{legs:{moveZ:1}}});assert.ok(boulder.fighters[0].z>2.8);
 });
 
 test('Cloudpeak has open cliff ring-outs on all four sides',()=>{
   for(const [x,z,y,moveX,moveZ]of [[-12.7,5,0,-1,0],[12.7,5,0,1,0],[0,9.7,0,0,1],[0,-9.7,1.8,0,-1]]) {
-    const s=at(x,z,y);run(s,120,{red:{legs:{moveX,moveZ}}});assert.equal(s.winner,'blue');
+    const s=at(x,z,y);run(s,120,{red:{legs:{moveX,moveZ:-moveZ}}});assert.equal(s.winner,'blue');
   }
 });
 

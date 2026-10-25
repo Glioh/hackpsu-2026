@@ -40,7 +40,7 @@ test('Crossline is selectable, spawns safely, and uses the enlarged solid layout
 });
 test('Crossline terrace stairs and bridge stairs are traversable at their actual elevations',()=>{
   for(const [x,z,y,n,legs,height] of [
-    [-12.6,6.6,.58,110,{moveZ:-1},1.89],
+    [-12.6,6.6,.58,110,{moveZ:1},1.89],
     [-9.5,-4.9,1.89,145,{moveX:1},4.86],
     [6.5,2.52,.58,70,{moveX:1},1.4],
   ]){
@@ -66,7 +66,7 @@ test('Crossline players can walk off either platform edge and land on the tracks
   for(const side of [-1,1]){
     const s=new Simulation('station');
     Object.assign(s.fighters[0],{x:0,z:side*7.4,y:.58,heading:0});
-    run(s,35,{red:{legs:{moveZ:side}}});
+    run(s,35,{red:{legs:{moveZ:-side}}});
     run(s,60);
     assert.equal(s.winner,null);
     assert.ok(Math.abs(s.fighters[0].z)>7.7);

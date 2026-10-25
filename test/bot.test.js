@@ -41,7 +41,7 @@ test('rooftop bot uses its selected character radius for obstacle clearance',()=
   chase([-1.4,4,0],[2.2,4,0],{radius:.8});
 });
 
-test('bot resets navigation after map changes and rematches, and outputs finite body-relative controls',()=>{
+test('bot resets navigation after map changes and rematches, and outputs finite arena-relative controls',()=>{
   const sim=new Simulation('classic'),bot=createBotController();
   for(const map of ['classic','skyline','ice','skyline']) {
     sim.setMap(map);

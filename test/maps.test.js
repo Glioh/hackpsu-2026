@@ -1,12 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MAPS, createArena } from '../host/src/maps.js';
+import { MAPS, createArena, chooseRandomMap } from '../host/src/maps.js';
 import { Simulation } from '../host/src/simulation.js';
 import { CONFIG as C } from '../shared/config.js';
 
 const run = (sim, seconds, inputs = () => ({})) => { for (let i = 0; i < Math.round(seconds / C.tick); i++) sim.step(inputs()); };
 // Keep blue parked far away so it does not interfere.
 const solo = (map, seed = 1) => { const s = new Simulation(map, seed); return s; };
+
+test('random selection covers every existing map without generating a new map type',()=>{
+  assert.equal(chooseRandomMap(()=>0),MAPS[0].id);
+  assert.equal(chooseRandomMap(()=>.999999),MAPS.at(-1).id);
+  assert.deepEqual(MAPS.map((_,i)=>chooseRandomMap(()=>(i+.5)/MAPS.length)),MAPS.map(m=>m.id));
+  assert.ok(!MAPS.some(m=>m.id==='random'));
+});
 
 test('maps stay in early / mid / late order, each building a floor the fighters spawn on', () => {
   const tiers=MAPS.map(m=>['Early','Mid','Late'].indexOf(m.tier));
@@ -21,7 +28,7 @@ test('maps stay in early / mid / late order, each building a floor the fighters 
 });
 
 test('ice rink: momentum carries much further once you let go', () => {
-  const slide = map => { const s = solo(map); const red = s.fighters[0]; run(s, 3, () => ({ red: { legs: { moveZ: 1 } } })); const x0 = red.x; run(s, 1); return red.x - x0; };
+  const slide = map => { const s = solo(map); const red = s.fighters[0]; run(s, 3, () => ({ red: { legs: { moveX: 1 } } })); const x0 = red.x; run(s, 1); return red.x - x0; };
   assert.ok(slide('ice') > slide('classic') * 3);
 });
 

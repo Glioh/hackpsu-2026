@@ -100,6 +100,9 @@ export function fitSunShadow(sun, arena) {
 }
 
 export function createEnvironment(scene, renderer, sun, hemisphere) {
+  // Broad cool backlight separates silhouettes without another shadow-map pass.
+  const rim = new T.DirectionalLight('#b8dfff', .9);
+  rim.name = 'Arena rim light'; scene.add(rim, rim.target);
   const generator=new T.PMREMGenerator(renderer), cache=new Map();
   const geometry=new T.SphereGeometry(220,32,16), sky=new T.Mesh(geometry);
   sky.name='Atmosphere sky';sky.frustumCulled=false;sky.renderOrder=-100;scene.add(sky);scene.background=null;
@@ -129,13 +132,19 @@ export function createEnvironment(scene, renderer, sun, hemisphere) {
         renderer.toneMappingExposure=p.exposure;
         sun.color.set(p.key);sun.intensity=p.power;sun.position.set(...p.sun);
         hemisphere.color.set(p.fill);hemisphere.groundColor.set(p.bounce);hemisphere.intensity=p.ambient;
+        rim.color.set(p.fill);rim.intensity=p.indoor?1.1:.85;
         current=key;currentArena=null;
       }
-      if(currentArena!==arena){sun.position.set(...p.sun);fitSunShadow(sun,arena);currentArena=arena;}
+      if(currentArena!==arena){
+        sun.position.set(...p.sun);fitSunShadow(sun,arena);
+        rim.target.position.copy(sun.target.position);
+        rim.position.copy(rim.target.position).add(new T.Vector3(18, 16, -24));
+        currentArena=arena;
+      }
       // A camera-centered dome always stays inside the existing 500m far plane.
       sky.position.copy(camera.position);
     },
     get cacheSize(){return cache.size;},
-    dispose(){for(const target of cache.values())target.dispose();cache.clear();generator.dispose();geometry.dispose();sky.material.dispose();scene.remove(sky);scene.environment=null;},
+    dispose(){for(const target of cache.values())target.dispose();cache.clear();generator.dispose();geometry.dispose();sky.material.dispose();scene.remove(sky,rim,rim.target);scene.environment=null;},
   };
 }

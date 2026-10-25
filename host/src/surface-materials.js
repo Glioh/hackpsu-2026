@@ -17,7 +17,13 @@ export function enrichMaterials(root) {
       if(!m?.isMeshStandardMaterial||m.userData.surfaceEnriched)continue;
       m.userData.surfaceEnriched=true;
       // Preserve authored lacquer, metals, glass, maps, alpha and sightline state.
-      if(m.metalness<.5 && m.roughness>=.65 && !m.roughnessMap) {m.roughnessMap=surfaceGrain();m.needsUpdate=true;}
+      if(m.metalness<.5 && m.roughness>=.65 && !m.roughnessMap) {
+        m.roughnessMap=surfaceGrain();
+        // Subtle tactile grain catches the key/rim on otherwise default matte surfaces.
+        // Authored normal/bump maps, glass and polished metal retain their finish.
+        if(!m.normalMap && !m.bumpMap && !m.transparent) {m.bumpMap=surfaceGrain();m.bumpScale=.035;}
+        m.needsUpdate=true;
+      }
     }
   });
 }

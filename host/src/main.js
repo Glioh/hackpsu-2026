@@ -1,3 +1,4 @@
+import { createWinnerView } from './winner-view.js';
 import { createCombatAudio } from './combat-audio.js';
 import { createCommentary } from './commentary-audio.js';
 import { Simulation } from './simulation.js';
@@ -7,7 +8,7 @@ import { connectSocket } from '../../shared/connection.js';
 import { createMotion, resetMotion, stepMotion, interpolateMotion } from './motion.js';
 import { createPresentation } from './presentation.js';
 import { FIGHTERS, TEAM_FIGHTERS } from './fighter-model.js';
-import { MAPS } from './maps.js';
+import { MAPS, chooseRandomMap } from './maps.js';
 import { createBotController } from './bot.js';
 import { FINISH_DURATION, FINISH_TIME_SCALE, stepFinish } from './ko-finish.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
@@ -15,6 +16,7 @@ const commentary = createCommentary(socket), combatAudio = createCombatAudio();
 $('combatSoundEnabled').onchange = e => { combatAudio.setEnabled(e.target.checked); draw?.weaponAudio.setEnabled(e.target.checked); };
 $('combatSoundVolume').oninput = e => { combatAudio.setVolume(Number(e.target.value)); draw?.weaponAudio.setVolume(Number(e.target.value)); };
 const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
+const winnerView = createWinnerView($('winnerSprite'));
 const presentation = createPresentation($('gameScreen'));
 function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); draw?.resetMotion(); }
 let draw, finishAge = null, visualTime = 0;
@@ -62,6 +64,8 @@ function clearFaceoff(){
   faceoffActive=false;$('faceoff').classList.add('hidden');combatAudio.stop();
 }
 function syncScreen() {
+  $('gameScreen').classList.toggle('showing-results',phase==='results');
+  if(phase!=='results')winnerView.hide();
   const inSetup = phase === 'lobby' && !faceoffActive;
   $('setup').classList.toggle('hidden', !inSetup);
   $('gameScreen').classList.toggle('hidden', inSetup);
@@ -133,10 +137,10 @@ document.querySelectorAll('[data-pick-team]').forEach(b=>b.onclick=()=>{pickingT
 function pickFighter(i,id){picks[i]=id;localStorage.setItem('brawl-fighter-'+TEAMS[i],id);draw?.setFighter(i,id);renderPicks();}
 picks.forEach((id,i)=>draw?.setFighter(i,id));renderPicks();
 // Arena select: grouped Early / Mid / Late, remembered per browser, locked while a round is live.
-let mapId=MAPS.some(m=>m.id===localStorage.getItem('brawl-map'))?localStorage.getItem('brawl-map'):MAPS[0].id;
-const nextMapId=()=>MAPS[(MAPS.findIndex(m=>m.id===mapId)+1)%MAPS.length].id;
-function renderMaps(){const locked=phase==='playing'||phase==='paused',map=MAPS.find(m=>m.id===mapId);$('mapPicks').replaceChildren(...['Early','Mid','Late'].map(tier=>{const group=document.createElement('div');group.className='tier';const label=document.createElement('small');label.textContent=tier;const choices=document.createElement('div');choices.append(...MAPS.filter(m=>m.tier===tier).map(m=>{const b=document.createElement('button');b.className='secondary';b.textContent=m.name;b.title=m.blurb;b.setAttribute('aria-pressed',m.id===mapId);b.disabled=locked;b.onclick=()=>pickMap(m.id);return b;}));group.append(label,choices);return group;}));$('mapBlurb').textContent=map.blurb;$('mapName').textContent=map.name.toUpperCase();$('nextMap').textContent='Next: '+MAPS.find(m=>m.id===nextMapId()).name+' ↗';}
-function pickMap(id){mapId=id;localStorage.setItem('brawl-map',id);sim.setMap(id);clearFinish();resetPoses();renderMaps();}
+const mapChoices=[{id:'random',name:'Random Map',tier:'Early',blurb:'Choose one of the existing arenas at random each round.'},...MAPS];
+let mapId=mapChoices.some(m=>m.id===localStorage.getItem('brawl-map'))?localStorage.getItem('brawl-map'):MAPS[0].id;
+function renderMaps(){const locked=phase==='playing'||phase==='paused',map=mapChoices.find(m=>m.id===mapId);$('mapPicks').replaceChildren(...['Early','Mid','Late'].map(tier=>{const group=document.createElement('div');group.className='tier';const label=document.createElement('small');label.textContent=tier;const choices=document.createElement('div');choices.append(...mapChoices.filter(m=>m.tier===tier).map(m=>{const b=document.createElement('button');b.className='secondary';b.textContent=m.name;b.title=m.blurb;b.setAttribute('aria-pressed',m.id===mapId);b.disabled=locked;b.onclick=()=>pickMap(m.id);return b;}));group.append(label,choices);return group;}));$('mapBlurb').textContent=map.blurb;$('mapName').textContent=(mapId==='random'?'RANDOM / ':'')+MAPS.find(m=>m.id===sim.mapId).name.toUpperCase();}
+function pickMap(id){mapId=id;localStorage.setItem('brawl-map',id);sim.setMap(id==='random'?chooseRandomMap():id);clearFinish();resetPoses();renderMaps();}
 pickMap(mapId);
 socket.on('room:roster', p => {
   ready = p.slots.every(s=>s.connected&&s.ready);
@@ -182,8 +186,8 @@ socket.on('game:state',p=>{
     $('resumeGame').focus();
   }
   $('result').classList.toggle('hidden',phase!=='results');
-  if(phase==='playing'){if(!p.resumed){sim.reset();clearFinish();resetPoses();}snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
-  if(phase==='results'){$('winner').textContent=p.winner==='draw'?'DRAW':p.winner.toUpperCase()+' WINS!';$('winner').className=p.winner;$('resultType').textContent='RING-OUT';}
+  if(phase==='playing'){if(!p.resumed){if(mapId==='random')sim.setMap(chooseRandomMap());else sim.reset();clearFinish();resetPoses();}snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
+  if(phase==='results'){const index=p.winner==='blue'?1:0;$('winner').textContent=p.winner==='draw'?'Draw!':FIGHTERS[picks[index]].name+' wins!';$('winner').className=p.winner;void winnerView.show(p.winner,picks);$('rematch').focus();}
   if(phase==='lobby')snapshots.clear();
   renderPicks();renderMaps();
   $('phase').textContent=phase==='playing'?(mapPreview?'MAP PREVIEW / IDLE BOTS':debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
@@ -222,7 +226,7 @@ function showFaceoff(){
   faceoffTimers.push(setTimeout(()=>{$('faceoff').classList.add('hidden');faceoffTimers.length=0;},FACEOFF_DURATION));
 }
 function cap(s){return s[0].toUpperCase()+s.slice(1);}
-$('start').onclick=()=>start(mapPreview);$('debugStart').onclick=()=>{mapPreview=false;syncPreviewControls();start(true);};$('rematch').onclick=()=>start(debug);$('nextMap').onclick=()=>{pickMap(nextMapId());start(debug);};
+$('start').onclick=()=>start(mapPreview);$('debugStart').onclick=()=>{mapPreview=false;syncPreviewControls();start(true);};$('rematch').onclick=()=>start(debug);
 $('resumeGame').onclick=()=>{commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
 
 $('leaveGame').onclick=()=>socket.emit('game:state',{phase:'lobby'});
