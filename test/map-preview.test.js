@@ -16,7 +16,7 @@ test('dev button skips crew, survives roster updates, previews idle teams and re
     replaceChildren(...items){this.children=items;},querySelector(){return {focus(){}};}};}
   for(const m of html.matchAll(/id="([^"]+)"/g))elements.set(m[1],element());
   const $=id=>{assert.ok(elements.has(id),'Missing DOM element '+id);return elements.get(id);};
-  const handlers={},emitted=[],steps=[element(),element(),element()];let frame,clock=0,lastInputs,activeSim;const randomChoices=['ice','conveyor','classic'];let randomCalls=0;
+  const handlers={},emitted=[],steps=[element(),element(),element()];let frame,clock=0,lastInputs,activeSim,winnerShown,winnerHidden=0;const randomChoices=['ice','conveyor','classic'];let randomCalls=0;
   const socket={on:(event,fn)=>handlers[event]=fn,emit:(event,payload,ack)=>{
     emitted.push({event,payload});ack?.({});
   }};
@@ -26,6 +26,7 @@ test('dev button skips crew, survives roster updates, previews idle teams and re
   }
   const draw=()=>{};draw.setFighter=draw.clearKO=draw.resetMotion=()=>{};
   const context={...motion,createCombatAudio,Simulation:TrackedSimulation,MAPS,C,SLOTS:[],chooseRandomMap:()=>randomChoices[randomCalls++],
+    createWinnerView:()=>({show(winner,picks){winnerShown={winner,picks};},hide(){winnerHidden++;}}),
     document:{getElementById:$,querySelectorAll:()=>steps,createElement:element,addEventListener(){},hidden:false},
     createCommentary:()=>({unlock(){},phase(){},tick(){},step(){}}),
     connectSocket:()=>socket,createRenderer:()=>draw,createPresentation:()=>({request(){},setPhase(){}}),
@@ -57,4 +58,18 @@ test('dev button skips crew, survives roster updates, previews idle teams and re
   assert.equal(activeSim.arena,arena,'resume keeps the same chosen arena');assert.equal(randomCalls,2);
   handlers['game:state']({phase:'playing',debug:true});
   assert.equal(activeSim.arena.id,'classic');assert.equal(randomCalls,3,'rematch chooses another existing arena');
+  context.pickMap('classic');
+  handlers['game:state']({phase:'results',debug:true,winner:'red'});
+  assert.equal($('winner').textContent,'Dummy wins!');assert.equal(winnerShown.winner,'red');
+  assert.equal(JSON.stringify(winnerShown.picks),'["dummy","dummy"]');
+  assert.equal($('gameScreen').classList.contains('showing-results'),true);
+  const resultHtml=html.slice(html.indexOf('<div id="result"'),html.indexOf('</section>',html.indexOf('<div id="result"')));
+  assert.equal((resultHtml.match(/<button/g)||[]).length,2);
+  assert.match(resultHtml,/>Play again</);assert.match(resultHtml,/>Return to Lobby</);
+  $('rematch').onclick();assert.equal(emitted.at(-1).event,'game:start');
+  const hiddenBefore=winnerHidden;handlers['game:state']({phase:'playing',debug:true});
+  assert.ok(winnerHidden>hiddenBefore);assert.equal($('gameScreen').classList.contains('showing-results'),false);
+  handlers['game:state']({phase:'results',debug:true,winner:'draw'});assert.equal($('winner').textContent,'Draw!');
+  assert.equal(winnerShown.winner,'draw');
+  $('resultLobby').onclick();assert.equal(emitted.at(-1).payload.phase,'lobby');
 });

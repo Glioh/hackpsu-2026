@@ -25,3 +25,17 @@
 
 .game-settings summary{cursor:pointer;font-weight:700;letter-spacing:.12em;font-size:12px}
 .game-settings h3{font-size:22px;margin:24px 0 12px}.game-settings .commentary-controls{font-size:13px;gap:20px}.commentary-controls input[type=checkbox]{width:auto;accent-color:var(--lime)}.commentary-controls input[type=range]{padding:0;accent-color:var(--lime)}.commentary-controls small{flex-basis:100%}
+
+/* The round ends inside the game viewport with just the winner and two actions. */
+.showing-results>.arena-top,.showing-results>.calibration-hud,.showing-results>.commentary-caption{visibility:hidden;pointer-events:none}
+.result{z-index:20;background:rgba(0,0,0,.28);padding:24px;gap:12px}
+.result h2{font-size:clamp(32px,5vw,64px);margin:0;text-align:center;flex-shrink:0;line-height:1.1;text-shadow:0 2px 8px #000b}
+.winner-sprite{width:min(85vw,580px);height:48dvh;flex:0 1 440px;min-height:100px;display:flex;align-items:center;justify-content:center}
+.winner-sprite canvas{display:block;width:100%;height:100%}
+.result .actions{flex-shrink:0;gap:12px}
+.result .actions button{min-width:160px}
+.winner-portrait{max-width:50%;max-height:100%;object-fit:contain;animation:victory-bounce 1s ease-in-out infinite}
+@keyframes victory-bounce{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-12px) rotate(3deg)}}
+@media(max-width:500px){.result{padding:16px;gap:8px}.result .actions button{min-width:0;padding:14px 18px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){.winner-portrait{animation:none}}
+

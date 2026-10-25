@@ -1,4 +1,5 @@
 import * as T from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {createArcheryView} from './archery-view.js';
 import {createQuakeView} from './quake-view.js';
 import {createPianoView} from './piano-view.js';
@@ -28,7 +29,7 @@ function beltTexture() {
 }
 
 export function createArenaView(scene) {
-  const root = new T.Group(), box = new T.BoxGeometry(1, 1, 1), belt = beltTexture();
+  const root = new T.Group(), box = new RoundedBoxGeometry(1, 1, 1, 2, .025), belt = beltTexture();
   scene.add(root);
   const rooftop = createRooftopView(scene);
   const station=createStationView(scene);
@@ -49,8 +50,8 @@ export function createArenaView(scene) {
     root.clear();
     if (arena.id === 'sumo' || arena.id === 'quake' || arena.id === 'archery' || arena.id === 'skyline' || arena.id === 'mountain' || arena.id === 'piano' || arena.id === 'twinspire' || arena.id === 'station') { items = []; current = arena; return; }
     items = arena.pieces.map(p => {
-      const base = new T.Mesh(box, new T.MeshStandardMaterial({ color: BASE[p.kind] ?? '#737e59', roughness: .85 }));
-      const top = new T.Mesh(box, new T.MeshStandardMaterial({ color: TOP[p.kind] ?? TOP.floor, roughness: p.kind === 'ice' ? .18 : p.kind === 'belt' ? .55 : .85, metalness: p.kind === 'ice' ? .12 : p.kind === 'belt' ? .35 : 0 }));
+      const base = new T.Mesh(box, new T.MeshStandardMaterial({ color: BASE[p.kind] ?? '#526079', roughness: .78, metalness: .08 }));
+      const top = new T.Mesh(box, new T.MeshStandardMaterial({ color: TOP[p.kind] ?? TOP.floor, roughness: p.kind === 'ice' ? .18 : p.kind === 'belt' ? .55 : .78, metalness: p.kind === 'ice' ? .12 : p.kind === 'belt' ? .35 : 0 }));
       if (p.kind === 'belt') top.material.map = Object.assign(belt.clone(), { needsUpdate: true });
       for (const m of [base, top]) { m.castShadow = m.receiveShadow = true; root.add(m); }
       return { p, base, top, scroll: 0 };

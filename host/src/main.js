@@ -1,3 +1,4 @@
+import { createWinnerView } from './winner-view.js';
 import { createCombatAudio } from './combat-audio.js';
 import { createCommentary } from './commentary-audio.js';
 import { Simulation } from './simulation.js';
@@ -15,6 +16,7 @@ const commentary = createCommentary(socket), combatAudio = createCombatAudio();
 $('combatSoundEnabled').onchange = e => { combatAudio.setEnabled(e.target.checked); draw?.weaponAudio.setEnabled(e.target.checked); };
 $('combatSoundVolume').oninput = e => { combatAudio.setVolume(Number(e.target.value)); draw?.weaponAudio.setVolume(Number(e.target.value)); };
 const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
+const winnerView = createWinnerView($('winnerSprite'));
 const presentation = createPresentation($('gameScreen'));
 function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); draw?.resetMotion(); }
 let draw, finishAge = null, visualTime = 0;
@@ -56,6 +58,8 @@ $('chooseMap').onclick = () => showSetupStep(2);
 $('backToPlayers').onclick = () => showSetupStep(0);
 $('backToSprites').onclick = () => showSetupStep(1);
 function syncScreen() {
+  $('gameScreen').classList.toggle('showing-results',phase==='results');
+  if(phase!=='results')winnerView.hide();
   const inSetup = phase === 'lobby';
   $('setup').classList.toggle('hidden', !inSetup);
   $('gameScreen').classList.toggle('hidden', inSetup);
@@ -96,8 +100,7 @@ picks.forEach((id,i)=>draw?.setFighter(i,id));renderPicks();
 // Arena select: grouped Early / Mid / Late, remembered per browser, locked while a round is live.
 const mapChoices=[{id:'random',name:'Random Map',tier:'Early',blurb:'Choose one of the existing arenas at random each round.'},...MAPS];
 let mapId=mapChoices.some(m=>m.id===localStorage.getItem('brawl-map'))?localStorage.getItem('brawl-map'):MAPS[0].id;
-const nextMapId=()=>MAPS[(MAPS.findIndex(m=>m.id===sim.mapId)+1)%MAPS.length].id;
-function renderMaps(){const locked=phase==='playing'||phase==='paused',map=mapChoices.find(m=>m.id===mapId);$('mapPicks').replaceChildren(...['Early','Mid','Late'].map(tier=>{const group=document.createElement('div');group.className='tier';const label=document.createElement('small');label.textContent=tier;const choices=document.createElement('div');choices.append(...mapChoices.filter(m=>m.tier===tier).map(m=>{const b=document.createElement('button');b.className='secondary';b.textContent=m.name;b.title=m.blurb;b.setAttribute('aria-pressed',m.id===mapId);b.disabled=locked;b.onclick=()=>pickMap(m.id);return b;}));group.append(label,choices);return group;}));$('mapBlurb').textContent=map.blurb;$('mapName').textContent=(mapId==='random'?'RANDOM / ':'')+MAPS.find(m=>m.id===sim.mapId).name.toUpperCase();$('nextMap').textContent=mapId==='random'?'Random arena \u2197':'Next: '+MAPS.find(m=>m.id===nextMapId()).name+' \u2197';}
+function renderMaps(){const locked=phase==='playing'||phase==='paused',map=mapChoices.find(m=>m.id===mapId);$('mapPicks').replaceChildren(...['Early','Mid','Late'].map(tier=>{const group=document.createElement('div');group.className='tier';const label=document.createElement('small');label.textContent=tier;const choices=document.createElement('div');choices.append(...mapChoices.filter(m=>m.tier===tier).map(m=>{const b=document.createElement('button');b.className='secondary';b.textContent=m.name;b.title=m.blurb;b.setAttribute('aria-pressed',m.id===mapId);b.disabled=locked;b.onclick=()=>pickMap(m.id);return b;}));group.append(label,choices);return group;}));$('mapBlurb').textContent=map.blurb;$('mapName').textContent=(mapId==='random'?'RANDOM / ':'')+MAPS.find(m=>m.id===sim.mapId).name.toUpperCase();}
 function pickMap(id){mapId=id;localStorage.setItem('brawl-map',id);sim.setMap(id==='random'?chooseRandomMap():id);clearFinish();resetPoses();renderMaps();}
 pickMap(mapId);
 socket.on('room:roster', p => {
@@ -144,13 +147,13 @@ socket.on('game:state',p=>{
   }
   $('result').classList.toggle('hidden',phase!=='results');
   if(phase==='playing'){if(!p.resumed){if(mapId==='random')sim.setMap(chooseRandomMap());else sim.reset();clearFinish();resetPoses();}snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
-  if(phase==='results'){$('winner').textContent=p.winner==='draw'?'DRAW':p.winner.toUpperCase()+' WINS!';$('winner').className=p.winner;$('resultType').textContent='RING-OUT';}
+  if(phase==='results'){const index=p.winner==='blue'?1:0;$('winner').textContent=p.winner==='draw'?'Draw!':FIGHTERS[picks[index]].name+' wins!';$('winner').className=p.winner;void winnerView.show(p.winner,picks);$('rematch').focus();}
   if(phase==='lobby')snapshots.clear();
   renderPicks();renderMaps();
   $('phase').textContent=phase==='playing'?(mapPreview?'MAP PREVIEW / IDLE BOTS':debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
 });
 function start(isDebug){commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:start',{debug:isDebug},p=>{if(p.error){$('error').textContent=p.error;presentation.setPhase(phase);}});}
-$('start').onclick=()=>start(mapPreview);$('debugStart').onclick=()=>{mapPreview=false;syncPreviewControls();start(true);};$('rematch').onclick=()=>start(debug);$('nextMap').onclick=()=>{if(mapId!=='random')pickMap(nextMapId());start(debug);};
+$('start').onclick=()=>start(mapPreview);$('debugStart').onclick=()=>{mapPreview=false;syncPreviewControls();start(true);};$('rematch').onclick=()=>start(debug);
 $('resumeGame').onclick=()=>{commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
 
 $('leaveGame').onclick=()=>socket.emit('game:state',{phase:'lobby'});

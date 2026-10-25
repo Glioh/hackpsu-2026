@@ -13,6 +13,7 @@ import { createJiggle } from './jiggle.js';
 import { createFishbowl } from './fishbowl.js';
 import { createWeaponView } from './weapon-view.js';
 import { createCrumbs } from './crumbs.js';
+import { createContactShadows } from './contact-shadows.js';
 export function createRenderer(container, onCombatRig = () => {}) {
   const scene = new T.Scene();
   const quality = QUALITY[new URLSearchParams(location.search).get('quality')] ?? QUALITY.medium;
@@ -30,6 +31,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
   sun.shadow.bias = -.00015;sun.shadow.normalBias = .035;
   scene.add(hemisphere, sun, sun.target);
   const environment = createEnvironment(scene, renderer, sun, hemisphere);
+  const contactShadows = createContactShadows(scene);
   function mesh(geometry, color, parent = scene) { const m = new T.Mesh(geometry, new T.MeshStandardMaterial({ color, roughness: 0.85 })); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; }
   const drawArena = createArenaView(scene), fallbackArena = createArena('classic');
   const ground = mesh(new T.PlaneGeometry(1000,1000),'#bac797'); ground.rotation.x=-Math.PI/2; ground.position.y=-6; ground.castShadow=false;
@@ -81,6 +83,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
     camera.lookAt(cameraFocus);
     if (arena.shake) camera.position.add(new T.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(.45 * arena.shake)); // quake
     drawArena(arena, time, arena.id==='piano'?bodies:fighters, camera);
+    contactShadows.update(fighters, arena);
     previousTime = time;
 
     fighters.forEach((f, i) => {
@@ -140,8 +143,8 @@ export function createRenderer(container, onCombatRig = () => {}) {
   draw.resetMotion = () => { hitEffects.clear(); weaponView.clear(); crumbs.clear(); landings.fill(null); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); jiggles = models.map(() => createJiggle()); bowls = models.map(() => createFishbowl()); };
   draw.setFighter = setFighter;
   draw.weaponAudio = weaponView.audio;                                    // grenade sounds (weapon-audio.js)
-  draw.dispose = () => { resizeObserver.disconnect(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
-  draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
+  draw.dispose = () => { resizeObserver.disconnect(); ko.clear(); contactShadows.dispose(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+  draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, geometries:renderer.info.memory.geometries, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
   draw.hit = (body, impact) => {
     const index = body.team === 'red' ? 0 : 1; hitAges[index] = 0; hitEffects.hit(body, impact);
     if (models[index].impactFx === 'crumbs') { const heavy = Math.hypot(body.vx, body.vz) > 7; crumbs.burst(body, heavy ? 24 : 6, heavy ? 1.2 : .6, impact); }
