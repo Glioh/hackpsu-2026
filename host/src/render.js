@@ -22,6 +22,15 @@ export function createRenderer(container, onCombatRig = () => {}) {
   // torsoY: rest height of the torso group (capsule fallback sits at .9, loaded characters at their feet).
   const models = ['#ff665b','#63c7ec'].map(color => { const model = createCharacter(color, mesh); scene.add(model.group); return { ...model, torsoY: model.torso.position.y }; });
   let flashes = models.map(m => createHitFlash(m.group));
+  const damageLabels = ['red', 'blue'].map(team => {
+    const label = document.createElement('output');
+    label.className = `fighter-damage ${team}`;
+    label.setAttribute('aria-label', `${team} team damage`);
+    label.textContent = '0%'; label.hidden = true;
+    container.appendChild(label);
+    return label;
+  });
+  const headBounds = new T.Box3(), labelAnchor = new T.Vector3();
   let clumsies = models.map((_, i) => createClumsy(i));
   // 1 when the floor ends within reach of a grounded fighter (map edge, tile hole, platform edge): time to teeter.
   const edgeNear = (arena, f) => {
@@ -89,6 +98,22 @@ export function createRenderer(container, onCombatRig = () => {}) {
       });
     });
     renderer.render(scene, camera);
+    // Project the animated head into screen space so labels follow jumps,
+    // head sway, character selection, and camera pans without rotating text.
+    fighters.forEach((fighter, i) => {
+      const model = models[i], label = damageLabels[i];
+      const head = model.head || model.wobbly?.find(part => part.kind === 'head')?.node || model.group;
+      headBounds.setFromObject(head);
+      headBounds.getCenter(labelAnchor); labelAnchor.y = headBounds.max.y + .28;
+      labelAnchor.project(camera);
+      label.hidden = !model.group.visible || labelAnchor.z < -1 || labelAnchor.z > 1 || Math.abs(labelAnchor.x) > 1 || Math.abs(labelAnchor.y) > 1;
+      if (label.hidden) return;
+      const text = `${Math.round(bodies[i]?.damage ?? 0)}%`;
+      if (label.textContent !== text) label.textContent = text;
+      const x = (labelAnchor.x + 1) * .5 * container.clientWidth;
+      const y = (1 - labelAnchor.y) * .5 * container.clientHeight;
+      label.style.transform = `translate3d(${x}px,${y}px,0) translate(-50%,-100%)`;
+    });
   };
   draw.resetMotion = () => { hitEffects.clear(); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); };
   draw.setFighter = setFighter;
