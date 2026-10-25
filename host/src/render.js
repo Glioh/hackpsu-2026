@@ -17,15 +17,6 @@ export function createRenderer(container, onCombatRig = () => {}) {
   const ground = mesh(new T.PlaneGeometry(200,200),'#bac797'); ground.rotation.x=-Math.PI/2; ground.position.y=-6;
   // torsoY: rest height of the torso group (capsule fallback sits at .9, loaded characters at their feet).
   const models = ['#ff665b','#63c7ec'].map(color => { const model = createCharacter(color, mesh); scene.add(model.group); return { ...model, torsoY: model.torso.position.y }; });
-  const damageLabels = ['red', 'blue'].map(team => {
-    const label = document.createElement('output');
-    label.className = `fighter-damage ${team}`;
-    label.setAttribute('aria-label', `${team} team damage`);
-    label.textContent = '0%'; label.hidden = true;
-    container.appendChild(label);
-    return label;
-  });
-  const headBounds = new T.Box3(), labelAnchor = new T.Vector3();
   let clumsies = models.map((_, i) => createClumsy(i));
   // 1 when the floor ends within reach of a grounded fighter (map edge, tile hole, platform edge): time to teeter.
   const edgeNear = (arena, f) => {
@@ -36,7 +27,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
   // Swaps team i's body to character id. The current body (capsule fallback at first) stays if loading fails,
   // and a slower earlier pick never overwrites a newer one.
   const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);m.group.clear();m.group.add(s.root);Object.assign(m,s,{head:null,torsoY:0});onCombatRig(i,s.combatRig);},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
-  const resize=()=>{const w=container.clientWidth,h=container.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
+  const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
   // fighters: interpolated motion poses from motion.js; bodies: raw simulation fighters (velocity, landings, hits);
   // arena: the simulation's current map (maps.js).
   const draw = (fighters, time, bodies = [], arena = fallbackArena, { active = true, motionEnabled = true } = {}) => {
@@ -80,22 +71,6 @@ export function createRenderer(container, onCombatRig = () => {}) {
       });
     });
     renderer.render(scene, camera);
-    // Project the animated head into screen space so labels follow jumps,
-    // head sway, character selection, and camera pans without rotating text.
-    fighters.forEach((fighter, i) => {
-      const model = models[i], label = damageLabels[i];
-      const head = model.head || model.wobbly?.find(part => part.kind === 'head')?.node || model.group;
-      headBounds.setFromObject(head);
-      headBounds.getCenter(labelAnchor); labelAnchor.y = headBounds.max.y + .28;
-      labelAnchor.project(camera);
-      label.hidden = labelAnchor.z < -1 || labelAnchor.z > 1 || Math.abs(labelAnchor.x) > 1 || Math.abs(labelAnchor.y) > 1;
-      if (label.hidden) return;
-      const text = `${Math.round(bodies[i]?.damage ?? 0)}%`;
-      if (label.textContent !== text) label.textContent = text;
-      const x = (labelAnchor.x + 1) * .5 * container.clientWidth;
-      const y = (1 - labelAnchor.y) * .5 * container.clientHeight;
-      label.style.transform = `translate3d(${x}px,${y}px,0) translate(-50%,-100%)`;
-    });
   };
   draw.resetMotion = () => { clumsies = models.map((_, i) => createClumsy(i)); };
   draw.setFighter = setFighter;

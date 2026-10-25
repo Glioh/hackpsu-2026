@@ -33,7 +33,7 @@ export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500
     io.to(room.code).emit('room:roster', { slots: SLOTS.map(key => {
       const p = room.players.get(key);
       const status = p ? p.status : 'waiting';
-      return { key, connected: !!p?.socketId, ready: !!p?.ready, status, message: CALIBRATION[status] };
+      return { key, occupied: !!p, connected: !!p?.socketId, ready: !!p?.ready, status, message: CALIBRATION[status] };
     }) });
   }
   function state(room, phase, winner = null, interruption = null, resumed = false) {
@@ -64,7 +64,7 @@ export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500
       if (socket.data.room) return reply(ack, { error: 'Already in a room.' });
       let code;
       do { code = randomBytes(3).toString('hex').toUpperCase(); } while (rooms.has(code));
-      const room = { code, host: socket.id, players: new Map(), phase: 'lobby', debug: false };
+      const room = { code, host: socket.id, players: new Map(), revokedTokens: new Set(), phase: 'lobby', debug: false };
       rooms.set(code, room); socket.data.room = code; socket.data.host = true; socket.join(code);
       reply(ack, { roomCode: code }); roster(room);
     });
@@ -72,6 +72,7 @@ export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500
       if (socket.data.room) return reply(ack, { error: 'Already assigned. Reload to reconnect.' });
       const room = rooms.get(String(payload?.roomCode || '').toUpperCase());
       if (!room) return reply(ack, { error: 'Room not found. Check the code or ask the host.' });
+      if (room.revokedTokens.has(payload?.clientToken)) return reply(ack, { error: 'The host removed this controller. Ask the host before joining again.' });
       const now = Date.now();
       for (const [key, p] of room.players) if (!p.socketId && now - p.leftAt > CONFIG.reconnectMs) room.players.delete(key);
       let entry = [...room.players].find(([, p]) => p.token === payload?.clientToken);
@@ -88,6 +89,24 @@ export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500
       const assignment = { team, role, clientToken: p.token, roomCode: room.code };
       reply(ack, assignment); socket.emit('player:assign', assignment);
       socket.emit('game:state', { phase: room.phase, debug: room.debug, interruption: room.interruption }); roster(room);
+    });
+    socket.on('player:kick', (payload, ack) => {
+      const room = rooms.get(socket.data.room);
+      if (room?.host !== socket.id) return reply(ack, { error: 'Only the host can remove players.' });
+      const key = payload?.key, player = room.players.get(key);
+      if (!player) return reply(ack, { error: 'That player has already left.' });
+      const client = io.sockets.sockets.get(player.socketId);
+      room.revokedTokens.add(player.token);
+      room.players.delete(key);
+      if (client) {
+        client.leave(room.code); client.data = {};
+        client.emit('player:kicked');
+      }
+      roster(room);
+      if (['playing', 'paused'].includes(room.phase) && !room.debug) {
+        state(room, 'paused', null, { key, status: 'kicked', message: 'The host removed this player. Join and calibrate a replacement phone to continue.' });
+      }
+      reply(ack, { ok: true });
     });
     socket.on('player:ready', ready => {
       const room = rooms.get(socket.data.room), p = room?.players.get(socket.data.key);
