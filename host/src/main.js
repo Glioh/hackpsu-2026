@@ -16,7 +16,25 @@ let draw, finishAge = null, visualTime = 0;
 function clearFinish() { finishAge = null; draw?.clearKO(); }
 try { draw = createRenderer($('arena'), (index, rig) => sim.setCombatRig(index, rig)); } catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
 let roomCode = '', phase = 'lobby', debug = false, snapshots = new Map(), ready = false;
-let setupStep = 0, connectedCount = 0;
+let setupStep = 0, connectedCount = 0, mapPreview = false;
+function syncPreviewControls() {
+  $('start').disabled = !mapPreview && !ready;
+  $('start').textContent = mapPreview ? 'Preview selected map' : ready ? 'Start the brawl' : 'Waiting for four ready phones';
+  $('mapHelp').textContent = mapPreview ? 'No phones needed. Both teams use idle dummy bots. Arena hazards remain active.' : 'Pick an arena. All four phones must be calibrated before the brawl.';
+  $('devMode').setAttribute('aria-pressed', String(mapPreview));
+  $('devMode').textContent = mapPreview ? 'Exit dev mode' : 'Dev mode: preview maps with idle bots';
+  $('leaveGame').textContent = mapPreview ? 'Choose another map' : 'Return to lobby';
+  if (mapPreview) $('calibrationRows').replaceChildren(...['red','blue'].map(team => {
+    const row = document.createElement('div'); row.className = 'calibration-row'; row.dataset.ready = 'true';
+    row.textContent = team.toUpperCase() + ' / IDLE DUMMY BOT'; return row;
+  }));
+}
+$('devMode').onclick = () => {
+  mapPreview = !mapPreview;
+  keys.clear(); edges.clear(); snapshots.clear();
+  syncPreviewControls();
+  showSetupStep(mapPreview ? 2 : 0);
+};
 const setupPanels = ['joinStep','fighterStep','mapStep'];
 function showSetupStep(step, focus = true) {
   setupStep = step;
@@ -36,7 +54,7 @@ function syncScreen() {
   const inSetup = phase === 'lobby';
   $('setup').classList.toggle('hidden', !inSetup);
   $('gameScreen').classList.toggle('hidden', inSetup);
-  if (inSetup) showSetupStep(0, false);
+  if (inSetup) showSetupStep(mapPreview ? 2 : 0, false);
 }
 function kickButton(slot) {
   const button = document.createElement('button');
@@ -83,7 +101,6 @@ socket.on('room:roster', p => {
   $('chooseSprites').disabled = connectedCount !== 4;
   $('chooseSprites').textContent = connectedCount === 4 ? 'Choose player sprites →' : 'Waiting for ' + (4-connectedCount) + ' more phone' + (connectedCount===3?'':'s');
   $('roster').replaceChildren(...p.slots.map(s=>{const row=document.createElement('div');row.className='slot';const [team,role]=s.key.split(':');const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' / '+role.toUpperCase();const status=document.createElement('span');status.className='slot-status';status.textContent=s.ready&&s.connected?'● READY':s.connected?'Calibrating…':s.occupied?'Disconnected · reserved':'Waiting for phone';row.append(name,status);if(s.occupied)row.append(kickButton(s));return row;}));
-  $('start').disabled=!ready; $('start').textContent=ready?'Start the brawl ↗':'Waiting for four ready phones';
   $('resumeGame').disabled = !debug && !ready;
   $('calibrationRows').replaceChildren(...p.slots.map(slot => {
     const row = document.createElement('div'); row.className = 'calibration-row'; row.dataset.ready = String(slot.connected && slot.ready);
@@ -92,6 +109,7 @@ socket.on('room:roster', p => {
     row.append(name, status); if(slot.occupied)row.append(kickButton(slot)); return row;
   }));
   if(!p.slots.every(s=>s.connected))snapshots.clear();
+  syncPreviewControls();
 });
 for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
   let s=snapshots.get(p.key);
@@ -107,7 +125,8 @@ socket.on('game:state',p=>{
   if (phase === 'lobby') clearFinish();
   presentation.setPhase(phase);
   $('pauseOverlay').classList.toggle('hidden', phase !== 'paused');
-  $('calibrationMode').textContent = debug ? 'KEYBOARD / BOT MODE' : 'PHONE CALIBRATION';
+  $('calibrationMode').textContent = mapPreview ? 'MAP PREVIEW / IDLE BOTS' : debug ? 'KEYBOARD / BOT MODE' : 'PHONE CALIBRATION';
+  syncPreviewControls();
   $('resumeGame').disabled = !debug && !ready;
   if(phase==='paused') {
     snapshots.clear();keys.clear();edges.clear();
@@ -120,10 +139,10 @@ socket.on('game:state',p=>{
   if(phase==='results'){$('winner').textContent=p.winner==='draw'?'DRAW':p.winner.toUpperCase()+' WINS!';$('winner').className=p.winner;$('resultType').textContent='RING-OUT';}
   if(phase==='lobby')snapshots.clear();
   renderPicks();renderMaps();
-  $('phase').textContent=phase==='playing'?(debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
+  $('phase').textContent=phase==='playing'?(mapPreview?'MAP PREVIEW / IDLE BOTS':debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
 });
 function start(isDebug){presentation.request();socket.emit('game:start',{debug:isDebug},p=>{if(p.error){$('error').textContent=p.error;presentation.setPhase(phase);}});}
-$('start').onclick=()=>start(false);$('debugStart').onclick=()=>start(true);$('rematch').onclick=()=>start(debug);$('nextMap').onclick=()=>{pickMap(nextMapId());start(debug);};
+$('start').onclick=()=>start(mapPreview);$('debugStart').onclick=()=>{mapPreview=false;syncPreviewControls();start(true);};$('rematch').onclick=()=>start(debug);$('nextMap').onclick=()=>{pickMap(nextMapId());start(debug);};
 $('resumeGame').onclick=()=>{presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
 $('leaveGame').onclick=()=>socket.emit('game:state',{phase:'lobby'});
 $('pauseLobby').onclick=$('leaveGame').onclick;
@@ -149,7 +168,7 @@ function frame(now) {
   accumulator += frameDt;
   while (accumulator >= C.tick) {
     if (phase === 'playing' && finishAge === null && !document.hidden) {
-      const inputs = debug ? {red:keyboard('red'),blue:$('bot').checked?bot(sim):keyboard('blue')} : {red:phone('red',now),blue:phone('blue',now)};
+      const inputs = mapPreview ? {} : debug ? {red:keyboard('red'),blue:$('bot').checked?bot(sim):keyboard('blue')} : {red:phone('red',now),blue:phone('blue',now)};
       for (const team of sim.step(inputs)) {
         socket.emit('player:hit', {team});
         draw?.hit(sim.fighters.find(f => f.team === team));
