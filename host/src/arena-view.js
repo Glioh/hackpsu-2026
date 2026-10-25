@@ -7,6 +7,7 @@ import { createRooftopView } from './rooftop-view.js';
 import { createMountainView } from './mountain-view.js';
 import {createStationView} from './station-view.js';
 import {createTwinspireView} from './twinspire-view.js';
+import {createFactoryView} from './factory-view.js';
 
 // Draws the current arena (maps.js) from its live state: each floor piece is a dark base plus a coloured top,
 // moved/hidden/recoloured every frame (blinking warnings, glowing lava, scrolling belts, falling tiles).
@@ -35,6 +36,7 @@ export function createArenaView(scene) {
   const piano=createPianoView(scene);
   const archery=createArcheryView(scene);
   const quake=createQuakeView(scene);
+  const factory=createFactoryView(scene);
   let current = null, items = [], last = 0;
 
   function build(arena) {
@@ -72,6 +74,7 @@ export function createArenaView(scene) {
     quake(arena,time);
     mountain(arena.id === 'mountain', time, fighters, camera);
     twinspire(arena.id==='twinspire',fighters,camera);
+    factory(arena);
     if (arena !== current) { build(arena); last = time; }
     const dt = Math.max(0, Math.min(.1, time - last)); last = time;
     const blink = Math.sin(time * 18) > 0, pulse = .5 + .5 * Math.sin(time * 6);

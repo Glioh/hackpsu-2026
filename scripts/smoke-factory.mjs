@@ -1,0 +1,23 @@
+﻿import {writeFile} from 'node:fs/promises';
+// Run against a local server and a headless Chrome remote-debugging endpoint.
+const origin=process.argv[2]||'http://localhost:3017',cdp=process.argv[3]||'http://localhost:9367';
+const tabs=await(await fetch(cdp+'/json')).json();
+const ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
+await new Promise(r=>ws.onopen=r);
+let id=0;const pending=new Map(),errors=[];
+ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails);if(m.id){pending.get(m.id)(m.result);pending.delete(m.id);}};
+const send=(method,params={})=>new Promise(r=>{pending.set(++id,r);ws.send(JSON.stringify({id,method,params}));});
+const ev=async expression=>{const r=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
+await send('Runtime.enable');await send('Page.enable');
+await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+await send('Page.navigate',{url:origin});
+await ev(`new Promise(r=>{const check=()=>document.querySelector('#mapPicks button')?r():setTimeout(check,100);check()})`);
+await ev(`[...document.querySelectorAll('#mapPicks button')].find(b=>b.textContent.includes('Conveyor')).click()`);
+await ev(`document.querySelector('#bot').checked=false;document.querySelector('#debugStart').click()`);
+await ev(`new Promise(r=>setTimeout(r,1200))`);
+const status=await ev(`({phase:document.querySelector('#phase').textContent,canvas:!!document.querySelector('#arena canvas'),map:localStorage.getItem('brawl-map')})`);
+if(!status.canvas||status.map!=='conveyor'||!status.phase.includes('DEBUG MATCH'))throw Error(JSON.stringify(status));
+console.log(status);
+await writeFile(process.argv[4]||'factory-qa.png',Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+console.log({errors});ws.close();
+if(errors.length)process.exitCode=1;
