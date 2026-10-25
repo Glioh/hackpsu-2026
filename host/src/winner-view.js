@@ -84,7 +84,7 @@ export function createWinnerView(container) {
     container.replaceChildren(...(renderer?[renderer.domElement]:[]));
   }
   return {
-    async show(winner,picks,characters) {
+    async show(winner,picks,characters,colors) {
       hide();visible=true;const token=generation;
       const indices=winner==='draw'?[0,1]:[winner==='blue'?1:0];
       const ids=characters || indices.map(i=>picks[i]);
@@ -95,7 +95,7 @@ export function createWinnerView(container) {
         if(token!==generation||!visible)return;
         models=factories.map((make,i)=>{
           const teamIndex=characters?(winner==='blue'?1:0):indices[i];
-          const model=make(teamIndex===0?'#ff7964':'#69dbe8');
+          const model=make(colors?.[i] || (teamIndex===0?'#ff7964':'#69dbe8'));
           const rings=[];
           model.root.traverse(node=>{if(node.geometry?.type==='RingGeometry')rings.push(node);});
           for(const ring of rings){ring.removeFromParent();ring.geometry.dispose();ring.material.dispose();}

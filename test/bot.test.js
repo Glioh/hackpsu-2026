@@ -53,3 +53,15 @@ test('bot resets navigation after map changes and rematches, and outputs finite 
     sim.reset();assert.equal(sim.winner,null);assert.ok(bot(sim));
   }
 });
+
+test('bots in asymmetric matches target the nearest live enemy, never an ally',()=>{
+  const sim=new Simulation('classic'),match={mode:'daddy',count:3,lives:1,daddyId:'daddy',mapId:'classic',fighters:[
+    {id:'daddy',side:'daddy',color:'#f6b73c',scale:1.5},{id:'child-1',side:'children',color:'#5ad5ff',scale:1},{id:'child-2',side:'children',color:'#5ad5ff',scale:1},
+  ]};
+  sim.configureMatch(match);const [daddy,child,ally]=sim.fighters;
+  Object.assign(daddy,{x:0,z:0});Object.assign(child,{x:2,z:0,heading:-Math.PI/2});Object.assign(ally,{x:2.4,z:0});
+  const input=createBotController()(sim,1);
+  assert.equal(input.arm.punch,true,'nearby Daddy is a valid target even with a closer ally nearby');
+  daddy.lives=0;const idle=createBotController()(sim,1);
+  assert.equal(idle.arm.punch,false);assert.deepEqual({x:idle.legs.moveX,z:idle.legs.moveZ},{x:0,z:0});
+});

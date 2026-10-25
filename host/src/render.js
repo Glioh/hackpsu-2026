@@ -85,7 +85,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
     const framingOptions=lava?{minDistance:Math.max(24,25/camera.aspect),padding:1.2}:piano?{minDistance:7,padding:1.08}:undefined;
     ensureModels(fighters.length);
     models.forEach((m, i) => { if (i >= fighters.length) m.group.visible = false; });
-    const visibleFighters = fighters.filter((_, i) => !bodies[i] || bodies[i].lives > 0 && !bodies[i].respawnRemaining);
+    const visibleFighters = fighters.map((f,i)=>({...f,scale:bodies[i]?.scale??1})).filter((_, i) => !bodies[i] || bodies[i].lives > 0 && !bodies[i].respawnRemaining);
     const framed = visibleFighters.length ? visibleFighters : fighters.slice(0, 1);
     const framing = frameFighters(framed, camera.aspect, undefined, elevated, framingOptions);
     const desiredFocus = new T.Vector3(...framing.target);
@@ -99,15 +99,16 @@ export function createRenderer(container, onCombatRig = () => {}) {
     camera.lookAt(cameraFocus);
     if (arena.shake) camera.position.add(new T.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(.45 * arena.shake)); // quake
     drawArena(arena, time, arena.id==='piano'?bodies:fighters, camera);
-    contactShadows.update(fighters, arena);
+    contactShadows.update(fighters.map((f,i)=>({...f,scale:bodies[i]?.scale??1})), arena);
     previousTime = time;
 
     fighters.forEach((f, i) => {
       const m = models[i], pose = f.pose, body = bodies[i];
+      const fighterScale = body?.scale ?? 1; m.group.scale.setScalar(fighterScale);
       if (m.marker) {
         m.marker.visible = m.label.visible = !body?.respawnRemaining && body?.lives !== 0;
         m.marker.position.set(f.x, f.y + .04, f.z);
-        m.label.position.set(f.x, f.y + 3.25, f.z);
+        m.marker.scale.setScalar(fighterScale); m.label.position.set(f.x, f.y + 3.25 * fighterScale, f.z);
       }
       if (active) hitAges[i] += dt;
       const age = hitAges[i];

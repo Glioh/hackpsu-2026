@@ -91,3 +91,37 @@ test('keep playing retains matchup and pauses safely when a phone needs calibrat
     }
   }
 });
+
+test('Daddy mode requires six phones, assigns factions, and rotates Daddy on keep playing', async t => {
+  const small = await lobby(t, 4);
+  assert.match((await emit(small.host, 'game:start', { mode: 'daddy' })).error, /at least 6/i);
+
+  const c = await lobby(t, 6), final = await startMatch(c, { mode: 'daddy' });
+  assert.equal(final.match.mode, 'daddy'); assert.equal(final.match.lives, 1);
+  const previousDaddy = final.match.daddyId, pairs = final.match.fighters.map(f => [...f.players]), characters = final.match.fighters.map(f => f.character);
+  assert.equal(final.match.fighters.filter(f => f.side === 'daddy').length, 1);
+  assert.equal(final.match.fighters.filter(f => f.side === 'children').length, 2);
+  for (const phone of c.phones) {
+    const fighter = final.match.fighters.find(f => f.id === phone.assignment.fighterId);
+    assert.equal(phone.assignment.team, fighter.side); assert.equal(phone.assignment.fighterLabel, fighter.label);
+  }
+
+  const results = event(c.host, 'game:state', s => s.phase === 'results');
+  c.host.emit('game:state', { phase: 'results', winner: 'children' }); await results;
+  const next = event(c.host, 'game:state', s => s.phase === 'playing');
+  assert.equal((await emit(c.host, 'game:start')).ok, true);
+  const rematch = await next;
+  assert.notEqual(rematch.match.daddyId, previousDaddy);
+  assert.deepEqual(rematch.match.fighters.map(f => f.players), pairs);
+  assert.deepEqual(rematch.match.fighters.map(f => f.character), characters);
+  assert.ok(c.phones.every(phone => phone.assignment.team === rematch.match.fighters.find(f => f.id === phone.assignment.fighterId).side));
+});
+
+test('developer Daddy preview accepts Daddy and Children results without phone assignments', async t => {
+  const c = await lobby(t, 0);
+  assert.equal((await emit(c.host, 'game:start', { debug:true, debugMode:'daddy' })).ok, true);
+  assert.equal(c.room.debugMode, 'daddy'); assert.equal(c.room.phase, 'playing');
+  const results = event(c.host, 'game:state', s => s.phase === 'results');
+  c.host.emit('game:state', { phase:'results', winner:'children' });
+  assert.equal((await results).winner, 'children');
+});

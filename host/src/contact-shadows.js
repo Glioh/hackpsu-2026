@@ -11,15 +11,17 @@ export function createContactShadows(scene, count = 2) {
   const texture = new T.DataTexture(data, size, size);
   texture.magFilter = T.LinearFilter; texture.needsUpdate = true;
   const geometry = new T.PlaneGeometry(1, 1);
-  const shadows = Array.from({ length: count }, () => {
+  const makeShadow = () => {
     const material = new T.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     const mesh = new T.Mesh(geometry, material);
     mesh.name = 'Fighter contact shadow'; mesh.rotation.x = -Math.PI / 2;
     mesh.visible = false; scene.add(mesh); return mesh;
-  });
+  };
+  const shadows = Array.from({ length: count }, makeShadow);
   return {
     update(fighters, arena) {
+      while (shadows.length < fighters.length) shadows.push(makeShadow());
       shadows.forEach((mesh, i) => {
         const f = fighters[i], floor = f && arena.floorAt(f.x, f.z, f.y + .1);
         const height = floor ? f.y - floor.y : Infinity;
@@ -28,7 +30,7 @@ export function createContactShadows(scene, count = 2) {
         mesh.position.set(f.x, floor.y + .065, f.z);
         mesh.rotation.x = -Math.PI / 2 - Math.atan(floor.slopeZ || 0);
         // Keep the quad inside its supporting piece rather than over the void.
-        let radius = .85 + Math.max(0, height) * .16;
+        let radius = (.85 + Math.max(0, height) * .16) * (f.scale ?? 1);
         if (floor.kind === 'target') radius = Math.min(radius, Math.max(0, (floor.hw - Math.hypot(f.x, f.z)) / Math.SQRT2));
         const halfX = Math.min(radius, floor.hw - Math.abs(f.x - floor.x));
         const halfZ = Math.min(radius, floor.hd - Math.abs(f.z - floor.z));

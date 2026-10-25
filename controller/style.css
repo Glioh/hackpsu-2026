@@ -6,6 +6,7 @@ html,body{background:#000;color:#fff}header{height:76px;padding:0 20px}.brand{fo
 .controller-joined button{box-shadow:none}.controller-joined a{color:#fff}
 .controller-joined[data-team=red]{--team-bar:#ff3030}
 .controller-joined[data-team=blue]{--team-bar:#2684ff}
+.controller-joined[data-team=daddy]{--team-bar:#f6b73c}.controller-joined[data-team=children]{--team-bar:#5ad5ff}
 .controller-joined::before,.controller-joined::after{content:'';position:fixed;left:0;right:0;background:var(--team-bar);z-index:110;pointer-events:none}
 .controller-joined::before{top:0;height:calc(8px + env(safe-area-inset-top))}
 .controller-joined::after{bottom:0;height:calc(8px + env(safe-area-inset-bottom))}

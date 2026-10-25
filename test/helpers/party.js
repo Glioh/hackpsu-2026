@@ -27,10 +27,10 @@ export async function lobby(t, count = 4, options = {}) {
   return { ...app, url, client, host, phones, roomCode, room: app.rooms.get(roomCode) };
 }
 
-export async function startMatch(context, { characters, maps, calibrate = true } = {}) {
+export async function startMatch(context, { characters, maps, calibrate = true, mode } = {}) {
   const { host, phones } = context;
   if (calibrate) for (const phone of phones) phone.emit('player:ready', true);
-  const started = await emit(host, 'game:start');
+  const started = await emit(host, 'game:start', mode ? { mode } : {});
   if (started.error) throw Error(started.error);
   const mapVote = event(host, 'game:state', state => state.phase === 'map-vote');
   for (let i = 0; i < phones.length; i++) await emit(phones[i], 'character:vote', { id: characters?.[i] || 'squish' });

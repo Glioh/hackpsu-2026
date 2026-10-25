@@ -15,12 +15,15 @@ import { FINISH_DURATION, FINISH_TIME_SCALE, stepFinish } from './ko-finish.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
 const commentary = createCommentary(socket), combatAudio = createCombatAudio(), presentation = createPresentation($('gameScreen'));
 let draw, motions = [], renderFighters = [];
-let roomCode = '', phase = 'lobby', debug = false, match = null, selection = null, slots = [], ready = false;
+let roomCode = '', phase = 'lobby', debug = false, debugMode = 'standard', match = null, selection = null, slots = [], ready = false;
+let selectedMode = 'standard';
 let serverOffset = 0, mapPreview = false, finishAge = null, visualTime = 0, introUntil = 0, lastCountdown = '';
 const winnerView = createWinnerView($('winnerSprite'));
-const snapshots = new Map(), keys = new Set(), edges = new Set(), bot = createBotController();
+const snapshots = new Map(), keys = new Set(), edges = new Set();
+let debugBots = [];
 let previous = performance.now(), accumulator = 0;
 const ITEM_NAMES={spring:'SPRING GLOVE',sword:'SWORD',grenade:'GRENADE'},ITEM_COLORS={spring:'#ff6677',sword:'#48d7ff',grenade:'#b6ef6c'};
+const DADDY_MIN_PLAYERS=6;
 function announceItem(event){
   const banner=$('itemSpawnBanner');banner.textContent=`${ITEM_NAMES[event.weapon]||event.weapon.toUpperCase()} SPAWNED`;banner.style.color=ITEM_COLORS[event.weapon]||'#ffffff';
   banner.classList.remove('show');void banner.offsetWidth;banner.classList.add('show');
@@ -31,6 +34,21 @@ function debugFighters(){return [
   {id:'red',label:'Red',character:$('devPlayerCharacter').value||'wukong',color:'#ff665b'},
   {id:'blue',label:'Blue',character:$('devBotCharacter').value||'squish',color:'#63c7ec'},
 ];}
+function debugDaddyMatch() {
+  const playerDaddy = $('devDaddyRole').value !== 'child';
+  const fighters = [
+    {id:'debug-player',character:$('devPlayerCharacter').value||'wukong'},
+    {id:'debug-bot-1',character:$('devBotCharacter').value||'squish'},
+    {id:'debug-bot-2',character:$('devBotCharacter').value||'squish'},
+  ];
+  const daddyId = playerDaddy ? 'debug-player' : 'debug-bot-1'; let child = 0;
+  for (const fighter of fighters) {
+    const daddy = fighter.id === daddyId;
+    Object.assign(fighter, { side:daddy?'daddy':'children', label:daddy?'Daddy':`Child ${++child}`,
+      color:daddy?'#f6b73c':'#5ad5ff', scale:daddy?1.5:1, players:[] });
+  }
+  return {mode:'daddy',count:3,lives:1,daddyId,mapId:sim.mapId,fighters};
+}
 try { draw = createRenderer($('arena'), (i, rig) => sim.setCombatRig(i, rig)); }
 catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
 function resetPoses() { motions = sim.fighters.map(createMotion); renderFighters = motions.map(m => m.output); draw?.resetMotion(); }
@@ -61,10 +79,15 @@ function kickButton(slot) {
 }
 function renderRoster() {
   const count = slots.filter(s => s.connected).length, valid = count >= 4 && count % 2 === 0;
+  if (count < DADDY_MIN_PLAYERS && selectedMode === 'daddy') {
+    selectedMode = 'standard'; $('standardMode').checked = true;
+  }
+  $('modePicker').classList.toggle('hidden', count < DADDY_MIN_PLAYERS);
+  const modeValid = valid && (selectedMode !== 'daddy' || count >= DADDY_MIN_PLAYERS);
   $('playerCount').textContent = `${count} ${count === 1 ? 'PLAYER' : 'PLAYERS'}`;
-  $('start').disabled = !valid || !socket.connected;
-  $('start').textContent = valid ? 'Everybody in? Start' : count >= 4 ? 'One more player needed' : 'Waiting for players';
-  $('lobbyHint').textContent = valid ? (() => { const r = matchRules(count); return r.mode === 'ffa' ? `${r.count} duos. Free-for-all. One life. Last duo standing wins.` : `${r.count / 2} ${r.count === 2 ? 'duo' : 'duos'} per team. ${r.lives} shared lives each. Pairings revealed after Start.`; })()
+  $('start').disabled = !modeValid || !socket.connected;
+  $('start').textContent = modeValid ? selectedMode === 'daddy' ? 'Start Daddy vs Children' : 'Everybody in? Start' : count >= 4 ? 'One more player needed' : 'Waiting for players';
+  $('lobbyHint').textContent = modeValid ? selectedMode === 'daddy' ? `${count / 2} duos. One random Daddy against ${count / 2 - 1} Children. One life each.` : (() => { const r = matchRules(count); return r.mode === 'ffa' ? `${r.count} duos. Free-for-all. One life. Last duo standing wins.` : `${r.count / 2} ${r.count === 2 ? 'duo' : 'duos'} per team. ${r.lives} shared lives each. Pairings revealed after Start.`; })()
     : count >= 4 ? 'Odd player out! Invite one more friend so everyone has a partner.' : 'Bring at least 4 players. Everyone needs a partner.';
   $('roster').replaceChildren(...slots.map(slot => {
     const tile = document.createElement('div'); tile.className = 'player-tile';
@@ -83,7 +106,7 @@ function syncScreen() {
   if (phase !== 'results') winnerView.hide();
   $('joinStep').classList.toggle('hidden', phase !== 'lobby'); $('preparationStage').classList.toggle('hidden', phase === 'lobby');
   $('joinBanner').classList.toggle('hidden', phase !== 'lobby'); $('pauseOverlay').classList.toggle('hidden', phase !== 'paused'); $('result').classList.toggle('hidden', phase !== 'results');
-  $('phase').textContent = phase === 'playing' ? debug ? 'DEVELOPER MATCH' : match?.mode === 'ffa' ? 'FREE-FOR-ALL / LAST DUO STANDING' : 'RED VS BLUE / SHARED LIVES' : phase.toUpperCase();
+  $('phase').textContent = phase === 'playing' ? debug ? debugMode === 'daddy' ? 'DADDY VS CHILDREN / BOT TEST' : 'DEVELOPER MATCH' : match?.mode === 'ffa' ? 'FREE-FOR-ALL / LAST DUO STANDING' : match?.mode === 'daddy' ? 'DADDY VS CHILDREN / ONE LIFE' : 'RED VS BLUE / SHARED LIVES' : phase.toUpperCase();
 }
 function renderPreparation() {
   const characterStage = phase.startsWith('character');
@@ -133,37 +156,39 @@ function tickSelection() {
   }
 }
 socket.on('game:state', p => {
-  const oldPhase = phase; phase = p.phase; debug = p.debug; match = p.match; selection = p.selection;
+  const oldPhase = phase; phase = p.phase; debug = p.debug; debugMode = p.debugMode || 'standard'; match = debug && debugMode === 'daddy' ? debugDaddyMatch() : p.match; selection = p.selection;
   serverOffset = p.serverTime ? p.serverTime - Date.now() : 0; syncScreen();
   if (phase === 'playing' && oldPhase !== 'playing') {
     if (!p.resumed) {
-      sim.configureMatch(debug ? null : match); clearFinish(); resetPoses();
+      sim.configureMatch(debug && debugMode !== 'daddy' ? null : match); clearFinish(); resetPoses(); debugBots = sim.fighters.map(() => createBotController());
       draw?.configure(match?.fighters||debugFighters());
       $('mapName').textContent = MAPS.find(m => m.id === sim.mapId)?.name.toUpperCase();
       introUntil = mapPreview ? 0 : performance.now() + 4150; lastCountdown = '';
       $('faceoffCountdown').textContent = '3';
-      $('faceoffTitle').textContent = match?.mode === 'ffa' ? `${match.count} DUOS. ONE SURVIVOR.` : 'RED. BLUE. BRAWL.';
+      $('faceoffTitle').textContent = match?.mode === 'ffa' ? `${match.count} DUOS. ONE SURVIVOR.` : match?.mode === 'daddy' ? `${match.count - 1} CHILDREN. ONE DADDY.` : 'RED. BLUE. BRAWL.';
       $('faceoffMap').textContent = MAPS.find(m => m.id === sim.mapId)?.name; $('faceoff').classList.toggle('hidden', !introUntil);
-      if (match?.mode !== 'ffa') commentary.phase('playing', false, { map: sim.mapId });
+      if (!match || match.mode === 'teams') commentary.phase('playing', false, { map: sim.mapId });
     }
     snapshots.clear(); keys.clear(); edges.clear(); accumulator = 0; previous = performance.now(); error(''); presentation.setPhase(phase); $('gameScreen').focus();
-    if (p.resumed && match?.mode !== 'ffa') commentary.phase('playing', true);
+    if (p.resumed && (!match || match.mode === 'teams')) commentary.phase('playing', true);
   } else if (phase !== 'playing') { introUntil = 0; combatAudio.stop?.(); draw?.clearDropEffects?.(); clearItemAnnouncement(); $('faceoff').classList.add('hidden'); presentation.setPhase(phase); commentary.phase(phase); }
   if (phase === 'paused') { snapshots.clear(); keys.clear(); edges.clear(); $('pauseReason').textContent = `${p.interruption?.key || ''} ${p.interruption?.message || 'Recalibrate every phone to continue.'}`; }
   if (phase === 'results') {
     const winner = match?.fighters.find(f => f.id === p.winner); $('winner').textContent = p.winner === 'draw' ? 'DRAW' : `${winner?.label || p.winner.toUpperCase()} WINS!`;
     const roster=match?.fighters||debugFighters();
     const winners = roster.filter(f => p.winner === 'draw' || (match?.mode === 'ffa' ? f.id : f.side||f.id) === p.winner);
-    void winnerView.show(p.winner, roster.map(f=>f.character), winners.length ? winners.map(f => f.character) : undefined);
-    $('winner').style.color = winner?.color || (p.winner === 'red' ? '#ff665b' : '#63c7ec');
+    void winnerView.show(p.winner, roster.map(f=>f.character), winners.length ? winners.map(f => f.character) : undefined, winners.map(f=>f.color));
+    $('winner').style.color = winner?.color || (p.winner === 'red' ? '#ff665b' : p.winner === 'daddy' ? '#f6b73c' : p.winner === 'children' ? '#5ad5ff' : '#63c7ec');
   }
   if (phase === 'lobby') { clearFinish(); snapshots.clear(); renderRoster(); }
   if (!['lobby', 'playing', 'paused', 'results'].includes(phase)) renderPreparation();
 });
-function start(isDebug = false) { commentary.unlock(); combatAudio.unlock(); presentation.request(); socket.emit('game:start', { debug: isDebug }, result => { if (result.error) { error(result.error); presentation.setPhase(phase); } }); }
+function start(isDebug = false, requestedDebugMode = 'standard') { commentary.unlock(); combatAudio.unlock(); presentation.request(); socket.emit('game:start', { debug: isDebug, debugMode: requestedDebugMode, mode: selectedMode }, result => { if (result.error) { error(result.error); presentation.setPhase(phase); } }); }
 $('start').onclick = () => { mapPreview = false; start(); };
-$('debugStart').onclick = () => { mapPreview = false; sim.setMap($('devMap').value); start(true); };
-$('devMode').onclick = () => { mapPreview = true; sim.setMap($('devMap').value); start(true); };
+for (const id of ['standardMode', 'daddyMode']) $(id).onchange = () => { selectedMode = $(id).value; renderRoster(); };
+$('debugStart').onclick = () => { mapPreview = false; sim.setMap($('devMap').value); start(true, 'standard'); };
+$('debugDaddyStart').onclick = () => { mapPreview = false; sim.setMap($('devMap').value); start(true, 'daddy'); };
+$('devMode').onclick = () => { mapPreview = true; sim.setMap($('devMap').value); start(true, 'standard'); };
 $('devMap').replaceChildren(...MAPS.map(m => { const option = document.createElement('option'); option.value = m.id; option.textContent = m.name; return option; }));
 for(const [id,fallback] of [['devPlayerCharacter','wukong'],['devBotCharacter','squish']]){
   $(id).replaceChildren(...CHARACTERS.map(character=>{const option=document.createElement('option');option.value=character.id;option.textContent=character.name;return option;}));$(id).value=fallback;
@@ -172,7 +197,7 @@ const lobby = () => socket.emit('game:state', { phase: 'lobby' });
 for (const id of ['cancelSetup', 'leaveGame', 'pauseLobby', 'resultLobby']) $(id).onclick = lobby;
 $('rematch').onclick = () => {
   if(debug){const choices=MAPS.filter(map=>map.id!==sim.mapId);const next=choices[Math.floor(Math.random()*choices.length)];if(next)sim.setMap(next.id);}
-  start(debug);
+  start(debug, debugMode);
 };
 $('resumeGame').onclick = () => { combatAudio.unlock(); presentation.request(); socket.emit('game:resume', {}, p => { if (p.error) $('pauseReason').textContent = p.error; }); };
 $('combatSoundEnabled').onchange = e => { combatAudio.setEnabled(e.target.checked); draw?.weaponAudio.setEnabled(e.target.checked); };
@@ -185,9 +210,11 @@ addEventListener('keydown', e => {
   if (!keys.has(e.code)) edges.add(e.code); keys.add(e.code);
 });
 addEventListener('keyup', e => keys.delete(e.code)); addEventListener('blur', () => { keys.clear(); edges.clear(); });
+$('arena').onpointerdown = e => { if (e.button !== 0) return; e.preventDefault?.(); edges.add('Mouse0'); $('gameScreen').focus(); };
 function keyboard(team) {
   const red = team === 'red', has = k => +keys.has(k), edge = k => { const hit = edges.has(k); edges.delete(k); return hit; };
-  return { legs: { moveX: red ? has('KeyD') - has('KeyA') : has('ArrowRight') - has('ArrowLeft'), moveZ: red ? has('KeyW') - has('KeyS') : has('ArrowUp') - has('ArrowDown'), jump: edge(red ? 'Space' : 'KeyI') }, arm: { turn: red ? has('KeyE') - has('KeyQ') : has('KeyL') - has('KeyJ'), punch: edge(red ? 'KeyF' : 'KeyK'), power: 1 } };
+  const punch = edge(red ? 'KeyF' : 'KeyK'), mousePunch = red && edge('Mouse0');
+  return { legs: { moveX: red ? has('KeyD') - has('KeyA') : has('ArrowRight') - has('ArrowLeft'), moveZ: red ? has('KeyW') - has('KeyS') : has('ArrowUp') - has('ArrowDown'), jump: edge(red ? 'Space' : 'KeyI') }, arm: { turn: red ? has('KeyE') - has('KeyQ') : has('KeyL') - has('KeyJ'), punch: punch || mousePunch, power: 1 } };
 }
 for (const role of ['legs', 'arm']) socket.on('input:' + role, p => {
   const s = snapshots.get(p.key) || { seq: -1, lastAction: 0, actions: [], p: {}, at: 0 }; if (p.seq <= s.seq) return;
@@ -204,6 +231,20 @@ function phone(id, now) {
 function livesHUD() {
   if (!['playing', 'paused', 'results'].includes(phase)) return;
   $('livesHud').classList.toggle('hidden', match?.mode === 'ffa'); if (match?.mode === 'ffa') return;
+  const hudMode = match?.mode || 'debug';
+  if ($('livesHud').dataset.mode !== hudMode) { $('livesHud').dataset.mode = hudMode; $('livesHud').replaceChildren(); }
+  if (match?.mode === 'daddy') {
+    const daddy = sim.fighters.find(f => f.team === match.daddyId), children = sim.fighters.filter(f => f.side === 'children');
+    const alive = children.filter(f => f.lives > 0).length;
+    for (const [id, value, color, aria] of [
+      ['daddyLives', `DADDY  ${daddy?.lives > 0 ? '●' : '○'}`, '#f6b73c', `Daddy ${daddy?.lives > 0 ? 'alive' : 'eliminated'}`],
+      ['childrenLives', `CHILDREN  ${alive}/${children.length}`, '#5ad5ff', `${alive} of ${children.length} children remaining`],
+    ]) {
+      let label = $(id); if (!label) { label = document.createElement('span'); label.id = id; label.setAttribute('role', 'status'); $('livesHud').append(label); }
+      label.style.color = color; label.textContent = value; label.setAttribute('aria-label', aria);
+    }
+    $('livesHud').setAttribute('aria-label', 'Daddy and Children remaining'); return;
+  }
   const max = match?.lives || C.lives;
   for (const side of ['red', 'blue']) {
     let label = $(side + 'Lives'); if (!label) { label = document.createElement('span'); label.id = side + 'Lives'; label.className = side; label.setAttribute('role', 'status'); $('livesHud').append(label); }
@@ -217,7 +258,7 @@ function frame(now) {
   if (introUntil && phase === 'playing') {
     const remaining = introUntil - now, elapsed = 4150 - remaining;
     const beat = Math.min(3, Math.floor(elapsed / 1200)), text = ['3', '2', '1', 'START!'][beat];
-    if (lastCountdown !== text) { $('faceoffCountdown').textContent = text; lastCountdown = text; combatAudio.countdown(beat === 3); if (beat === 3) commentary.fight(); if (match?.mode !== 'ffa') commentary.countdown(beat); }
+    if (lastCountdown !== text) { $('faceoffCountdown').textContent = text; lastCountdown = text; combatAudio.countdown(beat === 3); if (beat === 3 && (!match || match.mode === 'teams')) commentary.fight(); if (!match || match.mode === 'teams') commentary.countdown(beat); }
     if (remaining <= 0) { introUntil = 0; $('faceoff').classList.add('hidden'); snapshots.clear(); accumulator = 0; }
   }
   const scale = finishAge === null ? 1 : FINISH_TIME_SCALE;
@@ -229,13 +270,16 @@ function frame(now) {
   accumulator += frameDt;
   while (accumulator >= C.tick) {
     if (phase === 'playing' && !introUntil && finishAge === null && !document.hidden) {
-      const inputs = mapPreview ? {} : debug ? { red: keyboard('red'), blue: $('bot').checked ? bot(sim) : keyboard('blue') } : Object.fromEntries(sim.fighters.map(f => [f.team, phone(f.team, now)]));
+      const inputs = mapPreview ? {} : debug ? debugMode === 'daddy'
+        ? Object.fromEntries(sim.fighters.map((f,i) => [f.team, f.team === 'debug-player' ? keyboard('red') : debugBots[i](sim,i)]))
+        : { red: keyboard('red'), blue: $('bot').checked ? debugBots[1](sim,1) : keyboard('blue') }
+        : Object.fromEntries(sim.fighters.map(f => [f.team, phone(f.team, now)]));
       for (const id of sim.step(inputs)) { socket.emit('player:hit', { team: id }); draw?.hit(sim.fighters.find(f => f.team === id), sim.motionEvents.find(e => e.type === 'hit' && e.team === id)); }
       playCombatEvents(sim.motionEvents);
       for(const event of sim.motionEvents)if(event.type==='weapon_drop'){draw?.weaponDrop?.(event);announceItem(event);}
       const ringouts = sim.motionEvents.filter(e => e.type === 'ringout'); if (ringouts.length) draw?.startKO(ringouts);
       for (const event of sim.motionEvents) if (event.type === 'respawn') { const i = sim.fighters.findIndex(f => f.team === event.team); resetMotion(motions[i], sim.fighters[i]); }
-      if (debug || match?.mode === 'teams') {
+      if (debug && debugMode === 'standard' || match?.mode === 'teams') {
         const side = id => sim.fighters.find(f => f.team === id)?.side || id;
         commentary.step(match ? { ...sim, fighters: ['red', 'blue'].map(team => {
           const fighters = sim.fighters.filter(f => f.side === team);

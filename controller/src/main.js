@@ -158,7 +158,7 @@ function renderParty() {
   }
   $('phoneSelectionEyebrow').textContent = character ? 'ONE BODY. TWO OPINIONS.' : 'YOUR VOTE COUNTS';
   $('phoneSelectionTitle').textContent = character ? 'PICK YOUR FIGHTER.' : 'PICK YOUR ARENA.';
-  $('partnerName').textContent = character ? `Your other half: ${assignment.partner || 'your teammate'}` : `${partyState.match.mode === 'ffa' ? 'Free-for-all' : 'Red vs Blue'} / ${partyState.match.count} characters`;
+  $('partnerName').textContent = character ? `Your other half: ${assignment.partner || 'your teammate'}` : `${partyState.match.mode === 'ffa' ? 'Free-for-all' : partyState.match.mode === 'daddy' ? 'Daddy vs Children' : 'Red vs Blue'} / ${partyState.match.count} characters`;
   $('phoneSelectionHint').textContent = character ? 'Pick together. Matching picks lock in. Different picks get a roll.' : 'Pick one of six. Most votes wins. Ties get a roll.';
   tickParty();
 }

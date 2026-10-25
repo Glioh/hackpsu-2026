@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { CONFIG, validInput } from '../shared/config.js';
 import { CALIBRATION, validCalibration } from '../shared/calibration.js';
-import { CHARACTERS, makeMatch, shuffled, voteLeaders, makeRoll, SELECTION_MS } from '../shared/party.js';
+import { CHARACTERS, makeMatch, rotateDaddy, shuffled, voteLeaders, makeRoll, SELECTION_MS } from '../shared/party.js';
 import { MAPS } from '../shared/maps.js';
 
 export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIntervalMs = 500, selectionMs = SELECTION_MS, rollScale = 1, random = Math.random } = {}) {
@@ -21,7 +21,7 @@ export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIn
     return choices[Math.floor(random()*choices.length)]?.id??current;
   };
   function publicState(room) {
-    return { phase: room.phase, winner: room.winner, debug: room.debug, interruption: room.interruption,
+    return { phase: room.phase, winner: room.winner, debug: room.debug, debugMode: room.debugMode, interruption: room.interruption,
       match: room.match, selection: room.selection, serverTime: Date.now() };
   }
   function broadcast(room, resumed = false) { io.to(room.code).emit('game:state', { ...publicState(room), resumed }); }
@@ -79,7 +79,7 @@ export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIn
     }, roll.duration);
   }
   function returnLobby(room) {
-    clearTimers(room); room.match = null; room.selection = null; room.debug = false; room.winner = null;
+    clearTimers(room); room.match = null; room.selection = null; room.debug = false; room.debugMode = null; room.winner = null;
     for (const [id, p] of room.players) {
       if (!p.socketId) { room.players.delete(id); continue; }
       p.side = p.role = p.fighterId = null; assign(room, p);
@@ -102,7 +102,7 @@ export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIn
     socket.on('room:create', (_, ack) => {
       if (socket.data.room) return reply(ack, { error: 'Already in a room.' });
       let code; do { code = randomBytes(3).toString('hex').toUpperCase(); } while (rooms.has(code));
-      const room = { code, host: socket.id, players: new Map(), revokedTokens: new Set(), phase: 'lobby', debug: false, match: null, selection: null };
+      const room = { code, host: socket.id, players: new Map(), revokedTokens: new Set(), phase: 'lobby', debug: false, debugMode: null, match: null, selection: null };
       rooms.set(code, room); socket.data.room = code; socket.data.host = true; socket.join(code);
       reply(ack, { roomCode: code }); roster(room); broadcast(room);
     });
@@ -161,6 +161,13 @@ export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIn
       if (!['lobby', 'results'].includes(room.phase)) return reply(ack, { error: 'Return to the lobby before starting again.' });
       if (room.phase === 'results' && room.match && payload?.debug !== true) {
         clearTimers(room); room.winner = null;
+        if (room.match.mode === 'daddy') {
+          rotateDaddy(room.match, random);
+          for (const fighter of room.match.fighters) for (const id of fighter.players) {
+            const p = room.players.get(id); p.side = fighter.side; assign(room, p);
+          }
+          roster(room);
+        }
         room.match.mapId=differentMap(room.match.mapId);
         const ready = allReady(room);
         phase(room, 'playing');
@@ -168,13 +175,18 @@ export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIn
         return reply(ack, { ok: true });
       }
       if (payload?.debug === true) {
-        clearTimers(room); room.debug = true; room.match = null; room.selection = null; room.winner = null;
+        const debugMode = payload?.debugMode ?? 'standard';
+        if (!['standard', 'daddy'].includes(debugMode)) return reply(ack, { error: 'Unknown developer mode.' });
+        clearTimers(room); room.debug = true; room.debugMode = debugMode; room.match = null; room.selection = null; room.winner = null;
         phase(room, 'playing'); return reply(ack, { ok: true });
       }
       const players = [...room.players.values()].filter(p => p.socketId);
       if (players.length < 4 || players.length % 2) return reply(ack, { error: 'Need an even number of connected players, at least 4.' });
+      const requestedMode = payload?.mode ?? 'standard';
+      if (!['standard', 'daddy'].includes(requestedMode)) return reply(ack, { error: 'Unknown game mode.' });
+      if (requestedMode === 'daddy' && players.length < 6) return reply(ack, { error: 'Daddy vs Children needs at least 6 connected players.' });
       clearTimers(room); for (const [id, p] of room.players) if (!p.socketId) room.players.delete(id);
-      room.match = makeMatch(players.map(p => p.id)); room.debug = false; room.winner = null;
+      room.match = makeMatch(players.map(p => p.id), random, requestedMode); room.debug = false; room.debugMode = null; room.winner = null;
       for (const f of room.match.fighters) f.players.forEach((id, i) => {
         const p = room.players.get(id); p.fighterId = f.id; p.side = f.side; p.role = i ? 'arm' : 'legs'; p.seq = -1;
         const client = io.sockets.sockets.get(p.socketId); if (client) client.data.key = `${f.id}:${p.role}`;
@@ -198,7 +210,7 @@ export function installParty(io, rooms, { controllerTimeoutMs = 2500, watchdogIn
     socket.on('game:state', payload => {
       const room = roomFor(); if (room?.host !== socket.id) return;
       if (payload?.phase === 'lobby') return returnLobby(room);
-      const winners = room.match?.mode === 'ffa' ? room.match.fighters.map(f => f.id) : ['red', 'blue'];
+      const winners = room.debugMode === 'daddy' ? ['daddy', 'children'] : room.match?.mode === 'ffa' ? room.match.fighters.map(f => f.id) : room.match?.mode === 'daddy' ? ['daddy', 'children'] : ['red', 'blue'];
       if (payload?.phase !== 'results' || room.phase !== 'playing' || ![...winners, 'draw'].includes(payload.winner)) return;
       room.winner = payload.winner; phase(room, 'results');
     });

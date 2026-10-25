@@ -1,4 +1,5 @@
 import { CONFIG as C } from '../../shared/config.js';
+import { scaledDamage, scaledLaunch } from './combat-stats.js';
 
 // Weapon pickups (simulation side; rendering in weapon-view.js). Two or three times a round a weapon drops somewhere on
 // the floor, spinning like a dropped item; walk over it to pick it up. While holding one, the arm player's punch
@@ -184,10 +185,12 @@ export function createWeapons(seed = 1) {
 // Same damage and knockback rules as a fist (simulation.js), scaled per weapon.
 function strike(f, target, nx, nz, damage, knockback, weapon, events) {
   const before = { x: target.x, y: target.y, z: target.z, vx: target.vx, vy: target.vy, vz: target.vz, grounded: target.grounded };
+  damage = scaledDamage(f, target, damage);
   target.damage += damage;
   const growth = Math.min(1, target.damage / C.knockbackSoftCap);
-  const power = Math.min(C.maxKnockback * knockback, C.knockback * knockback * (1 + growth * C.knockbackGrowth));
-  target.vx = nx * power; target.vz = nz * power; target.vy = C.uppercutLift + growth * 1.5;
+  const power = scaledLaunch(f, target, C.knockback * knockback * (1 + growth * C.knockbackGrowth), C.maxKnockback * knockback);
+  const lift = scaledLaunch(f, target, C.uppercutLift + growth * 1.5);
+  target.vx = nx * power; target.vz = nz * power; target.vy = lift;
   target.grounded = false; target.hit = .3; target.stun = .22 + growth * .14;
   events.push({ type: 'hit', source: 'fighter', weapon, attacker: f.team, before, team: target.team, x: nx, z: nz, strength: power, damage,
     after: { x: target.x, y: target.y, z: target.z, vx: target.vx, vy: target.vy, vz: target.vz, grounded: target.grounded } });

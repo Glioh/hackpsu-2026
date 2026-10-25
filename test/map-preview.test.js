@@ -79,3 +79,26 @@ test('intro holds combat, begins after countdown, and cancels on pause or discon
   handlers['game:state']({phase:'paused',debug:true});assert.equal($('faceoff').classList.contains('hidden'),true);
   handlers['game:state']({phase:'playing',debug:true,resumed:true});handlers.disconnect();assert.equal($('setup').classList.contains('hidden'),false);
 });
+test('Daddy mode picker appears for three duos and HUD tracks both factions',()=>{
+  const h=hostHarness(),{$,handlers}=h;
+  const slots=Array.from({length:4},(_,i)=>({id:String(i),name:'Player '+i,connected:true,ready:false}));
+  handlers['room:roster']({slots});assert.equal($('modePicker').classList.contains('hidden'),true);
+  slots.push({id:'4',name:'Player 4',connected:true,ready:false},{id:'5',name:'Player 5',connected:true,ready:false});
+  handlers['room:roster']({slots});assert.equal($('modePicker').classList.contains('hidden'),false);
+  $('daddyMode').value='daddy';$('daddyMode').onchange();assert.match($('lobbyHint').textContent,/One random Daddy/);
+  const match={...makeMatch(slots.map(s=>s.id),()=>.5,'daddy'),mapId:'classic'};
+  handlers['game:state']({phase:'playing',debug:false,match});h.advance(4200);
+  assert.match($('daddyLives').textContent,/DADDY/);assert.match($('childrenLives').textContent,/2\/2/);
+});
+test('developer Daddy preview builds three fighters and fills both open slots with bots',()=>{
+  const h=hostHarness(),{$,handlers}=h;
+  $('devMap').value='classic';$('devPlayerCharacter').value='toast';$('devBotCharacter').value='conehead';$('devDaddyRole').value='daddy';
+  $('debugDaddyStart').onclick();assert.equal(JSON.stringify(h.emitted.at(-1).payload),JSON.stringify({debug:true,debugMode:'daddy',mode:'standard'}));
+  handlers['game:state']({phase:'playing',debug:true,debugMode:'daddy'});
+  assert.equal(h.sim.fighters.length,3);assert.equal(h.sim.match.mode,'daddy');
+  assert.equal(h.sim.fighters.find(f=>f.team==='debug-player').side,'daddy');
+  assert.equal(h.sim.fighters.filter(f=>f.side==='children').length,2);
+  assert.deepEqual(Array.from(h.configured,f=>f.character),['toast','conehead','conehead']);
+  h.advance(4200);assert.deepEqual(Object.keys(h.lastInputs).sort(),['debug-bot-1','debug-bot-2','debug-player']);
+  $('arena').onpointerdown({button:0,preventDefault(){}});h.advance(4217);assert.equal(h.lastInputs['debug-player'].arm.punch,true);
+});
