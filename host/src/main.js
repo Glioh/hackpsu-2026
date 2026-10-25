@@ -1,3 +1,4 @@
+import { createCombatAudio } from './combat-audio.js';
 import { createCommentary } from './commentary-audio.js';
 import { Simulation } from './simulation.js';
 import { createRenderer } from './render.js';
@@ -10,7 +11,9 @@ import { MAPS } from './maps.js';
 import { createBotController } from './bot.js';
 import { FINISH_DURATION, FINISH_TIME_SCALE, stepFinish } from './ko-finish.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
-const commentary = createCommentary(socket);
+const commentary = createCommentary(socket), combatAudio = createCombatAudio();
+$('combatSoundEnabled').onchange = e => combatAudio.setEnabled(e.target.checked);
+$('combatSoundVolume').oninput = e => combatAudio.setVolume(Number(e.target.value));
 const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
 const presentation = createPresentation($('gameScreen'));
 function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); draw?.resetMotion(); }
@@ -124,6 +127,7 @@ for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
 socket.on('game:state',p=>{
   phase=p.phase; debug=p.debug;
   commentary.phase(phase,p.resumed);
+  if (phase !== 'playing') combatAudio.stop();
   syncScreen();
   if (phase === 'lobby') clearFinish();
   presentation.setPhase(phase);
@@ -144,9 +148,9 @@ socket.on('game:state',p=>{
   renderPicks();renderMaps();
   $('phase').textContent=phase==='playing'?(mapPreview?'MAP PREVIEW / IDLE BOTS':debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
 });
-function start(isDebug){commentary.unlock();presentation.request();socket.emit('game:start',{debug:isDebug},p=>{if(p.error){$('error').textContent=p.error;presentation.setPhase(phase);}});}
+function start(isDebug){commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:start',{debug:isDebug},p=>{if(p.error){$('error').textContent=p.error;presentation.setPhase(phase);}});}
 $('start').onclick=()=>start(mapPreview);$('debugStart').onclick=()=>{mapPreview=false;syncPreviewControls();start(true);};$('rematch').onclick=()=>start(debug);$('nextMap').onclick=()=>{pickMap(nextMapId());start(debug);};
-$('resumeGame').onclick=()=>{commentary.unlock();presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
+$('resumeGame').onclick=()=>{commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
 
 $('leaveGame').onclick=()=>socket.emit('game:state',{phase:'lobby'});
 $('pauseLobby').onclick=$('leaveGame').onclick;
@@ -175,8 +179,9 @@ function frame(now) {
       const inputs = mapPreview ? {} : debug ? {red:keyboard('red'),blue:$('bot').checked?bot(sim):keyboard('blue')} : {red:phone('red',now),blue:phone('blue',now)};
       for (const team of sim.step(inputs)) {
         socket.emit('player:hit', {team});
-        draw?.hit(sim.fighters.find(f => f.team === team));
+        draw?.hit(sim.fighters.find(f => f.team === team), sim.motionEvents.find(e => e.type === 'hit' && e.team === team));
       }
+      for (const event of sim.motionEvents) combatAudio.event(event);
       commentary.step(sim,C.tick);
       motions.forEach((motion, i) => stepMotion(motion, sim.fighters[i], sim.motionEvents, C.tick, $('motionPreset').value, $('motionEnabled').checked));
       if (sim.winner) { finishAge = 0; draw?.startKO(sim.fighters.filter(f => f.y < C.eliminationY)); }
@@ -192,4 +197,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 // HTTP activity also keeps the cloud container awake during long matches.
 setInterval(() => { if (['playing','paused'].includes(phase) && !document.hidden) fetch('/health', {cache:'no-store'}).catch(() => {}); }, 60000);
-document.addEventListener('visibilitychange',()=>{previous=performance.now();accumulator=0;if(document.hidden&&['playing','paused'].includes(phase)){commentary.phase('paused');phase='paused';socket.emit('game:pause',{});snapshots.clear();keys.clear();edges.clear();}});
+document.addEventListener('visibilitychange',()=>{previous=performance.now();accumulator=0;if(document.hidden&&['playing','paused'].includes(phase)){commentary.phase('paused');combatAudio.stop();phase='paused';socket.emit('game:pause',{});snapshots.clear();keys.clear();edges.clear();}});

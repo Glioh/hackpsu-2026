@@ -83,7 +83,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
       const m = models[i], pose = f.pose, body = bodies[i];
       if (active) hitAges[i] += dt;
       const age = hitAges[i];
-      flashes[i](age < .075 ? 1 : age < .13 ? .15 : age < .19 ? .8 * (1 - (age - .13) / .06) : 0);
+      flashes[i](age < .075 ? 1 : age < .13 ? .15 : age < .19 ? .8 * (1 - (age - .13) / .06) : 0, body?.damage ?? 0);
       m.group.visible = !(finishAge !== null && body?.y < -5);
       m.group.position.set(f.x, f.y + .09, f.z);
       m.group.rotation.y = f.heading;
@@ -127,10 +127,9 @@ export function createRenderer(container, onCombatRig = () => {}) {
   draw.setFighter = setFighter;
   draw.dispose = () => { resizeObserver.disconnect(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
-  draw.hit = body => {
-    const index = body.team === 'red' ? 0 : 1; hitAges[index] = 0; hitEffects.hit(body);
-    // Heavy knockback sprays crumbs everywhere; light taps shed a few.
-    if (models[index].impactFx === 'crumbs') { const heavy = Math.hypot(body.vx, body.vz) > 7; crumbs.burst(body, heavy ? 32 : 6, heavy ? 1.2 : .6); }
+  draw.hit = (body, impact) => {
+    const index = body.team === 'red' ? 0 : 1; hitAges[index] = 0; hitEffects.hit(body, impact);
+    if (models[index].impactFx === 'crumbs') { const heavy = Math.hypot(body.vx, body.vz) > 7; crumbs.burst(body, heavy ? 24 : 6, heavy ? 1.2 : .6, impact); }
   };
   draw.startKO = fighters => ko.trigger(fighters);
   draw.clearKO = () => { ko.clear(); renderer.domElement.style.filter = ''; };

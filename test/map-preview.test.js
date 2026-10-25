@@ -6,6 +6,7 @@ import {Simulation} from '../host/src/simulation.js';
 import {MAPS} from '../host/src/maps.js';
 import {CONFIG as C} from '../shared/config.js';
 import * as motion from '../host/src/motion.js';
+import {createCombatAudio} from '../host/src/combat-audio.js';
 
 test('dev button skips crew, survives roster updates, previews idle teams and returns to map selection',()=>{
   const html=readFileSync(new URL('../host/index.html',import.meta.url),'utf8'),elements=new Map();
@@ -21,7 +22,7 @@ test('dev button skips crew, survives roster updates, previews idle teams and re
   }};
   class TrackedSimulation extends Simulation {step(inputs,dt){lastInputs=inputs;return super.step(inputs,dt);}}
   const draw=()=>{};draw.setFighter=draw.clearKO=draw.resetMotion=()=>{};
-  const context={...motion,Simulation:TrackedSimulation,MAPS,C,SLOTS:[],
+  const context={...motion,createCombatAudio,Simulation:TrackedSimulation,MAPS,C,SLOTS:[],
     document:{getElementById:$,querySelectorAll:()=>steps,createElement:element,addEventListener(){},hidden:false},
     createCommentary:()=>({unlock(){},phase(){},tick(){},step(){}}),
     connectSocket:()=>socket,createRenderer:()=>draw,createPresentation:()=>({request(){},setPhase(){}}),

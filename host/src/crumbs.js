@@ -1,4 +1,5 @@
 import * as T from 'three';
+import { hitDirection } from './hit-effects.js';
 
 // Toast crumbs for fighters with impactFx: 'crumbs': small tumbling bread chunks that burst out on impacts,
 // bounce on the floor and fade. Pooled meshes, so bursts cost nothing to allocate mid-fight.
@@ -14,11 +15,17 @@ export function createCrumbs(scene, count = 96) {
   let cursor = 0;
   return {
     // power scales how far and high they fly; body is the raw simulation fighter that got hit or landed.
-    burst(body, amount = 28, power = 1) {
+    burst(body, amount = 28, power = 1, impact) {
+      const direction = impact ? hitDirection(body, impact) : null;
       for (let i = 0; i < amount; i++) {
         const c = pool[cursor++ % pool.length], a = Math.random() * Math.PI * 2, s = (1.5 + Math.random() * 3.5) * power;
         c.mesh.position.set(body.x + Math.cos(a) * .3, body.y + .6 + Math.random() * .9, body.z + Math.sin(a) * .3);
         c.velocity.set(Math.cos(a) * s + body.vx * .3, (2.5 + Math.random() * 4) * power, Math.sin(a) * s + body.vz * .3);
+        if (direction) {
+          const {x, z} = direction, side = (Math.random() - .5) * .4;
+          c.mesh.position.set(body.x + x * .7 - z * side, body.y + 1.1, body.z + z * .7 + x * side);
+          c.velocity.set(x * s - z * side, (1 + Math.random() * 2) * power, z * s + x * side);
+        }
         c.spin.set(Math.random() * 12 - 6, Math.random() * 12 - 6, Math.random() * 12 - 6);
         c.mesh.scale.set(.05 + Math.random() * .07, .04 + Math.random() * .05, .05 + Math.random() * .07);
         c.age = 0; c.life = 1.2 + Math.random() * .8; c.mesh.material.opacity = 1; c.mesh.visible = true;
