@@ -98,3 +98,54 @@ test('the spring glove knocks people back harder than the sword or a fist', () =
   const spring = launch('spring'), sword = launch('sword');
   assert.ok(spring > sword * 1.4, `spring ${spring.toFixed(1)} vs sword ${sword.toFixed(1)}`);
 });
+
+test('the squeaky hammer launches hardest of all, but a miss sends its owner tumbling', () => {
+  const launch = (type, gap) => {
+    const { sim, red, blue } = ring(gap);
+    red.weapon = { type, uses: 3 };
+    for (let t = 0; t < .8 && !blue.hit; t += dt) sim.step(t === 0 ? { red: { arm: { punch: true, power: 1 } } } : {});
+    return { blue, speed: Math.hypot(blue.vx, blue.vz) };
+  };
+  const hammer = launch('hammer', 2.3);
+  assert.equal(hammer.blue.damage, WEAPONS.hammer.damage);
+  assert.ok(hammer.speed > launch('spring', 2.9).speed, 'out-launches the spring glove');
+
+  const { sim, red, blue } = ring(8), events = [];
+  red.weapon = { type: 'hammer', uses: 3 };
+  const f = punchOnce();
+  for (let t = 0; t < .7; t += dt) { sim.step(f()); events.push(...sim.motionEvents); }
+  assert.equal(blue.damage, 0);
+  assert.ok(events.some(e => e.type === 'tumble' && e.team === 'red'), 'whiffed');
+  assert.ok(red.stun > 0 && red.vx > 3, 'lurching forward out of control');
+});
+
+test('the hammer is heavy: you walk slower while holding it', () => {
+  const walked = weapon => {
+    const { sim, red } = ring(8); red.weapon = weapon; const x = red.x;
+    run(sim, 1, () => ({ red: { legs: { moveX: 1 } } }));
+    return Math.abs(red.x - x);
+  };
+  assert.ok(walked({ type: 'hammer', uses: 3 }) < walked(null) * .75);
+  assert.ok(Math.abs(walked({ type: 'pan', uses: 3 }) - walked(null)) < .01, 'a pan weighs nothing');
+});
+
+test('the frying pan bonks fast and bounces its attacker back off the head', () => {
+  const { sim, red, blue } = ring(1.5), events = [];
+  red.weapon = { type: 'pan', uses: 6 };
+  const f = punchOnce();
+  for (let t = 0; t < .3; t += dt) { sim.step(f()); events.push(...sim.motionEvents); }
+  assert.equal(blue.damage, WEAPONS.pan.damage);
+  assert.ok(events.some(e => e.type === 'recoil' && e.team === 'red'));
+  assert.ok(red.vx < 0, 'red recoils away from blue');
+  assert.ok(WEAPONS.pan.cooldown < WEAPONS.sword.cooldown && WEAPONS.pan.reach < WEAPONS.sword.reach);
+});
+
+test('the rubber chicken out-reaches the sword', () => {
+  for (const [gap, lands] of [[2.9, true], [3.6, false]]) {
+    const { sim, red, blue } = ring(gap);
+    red.weapon = { type: 'chicken', uses: 5 };
+    run(sim, .5, punchOnce());
+    assert.equal(blue.damage > 0, lands, `chicken at ${gap} m`);
+  }
+  assert.ok(WEAPONS.chicken.reach > WEAPONS.sword.reach);
+});
