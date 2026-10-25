@@ -16,13 +16,16 @@ test('dev button skips crew, survives roster updates, previews idle teams and re
     replaceChildren(...items){this.children=items;},querySelector(){return {focus(){}};}};}
   for(const m of html.matchAll(/id="([^"]+)"/g))elements.set(m[1],element());
   const $=id=>{assert.ok(elements.has(id),'Missing DOM element '+id);return elements.get(id);};
-  const handlers={},emitted=[],steps=[element(),element(),element()];let frame,clock=0,lastInputs;
+  const handlers={},emitted=[],steps=[element(),element(),element()];let frame,clock=0,lastInputs,activeSim;const randomChoices=['ice','conveyor','classic'];let randomCalls=0;
   const socket={on:(event,fn)=>handlers[event]=fn,emit:(event,payload,ack)=>{
     emitted.push({event,payload});ack?.({});
   }};
-  class TrackedSimulation extends Simulation {step(inputs,dt){lastInputs=inputs;return super.step(inputs,dt);}}
+  class TrackedSimulation extends Simulation {
+    constructor(...args){super(...args);activeSim=this;}
+    step(inputs,dt){lastInputs=inputs;return super.step(inputs,dt);}
+  }
   const draw=()=>{};draw.setFighter=draw.clearKO=draw.resetMotion=()=>{};
-  const context={...motion,createCombatAudio,Simulation:TrackedSimulation,MAPS,C,SLOTS:[],
+  const context={...motion,createCombatAudio,Simulation:TrackedSimulation,MAPS,C,SLOTS:[],chooseRandomMap:()=>randomChoices[randomCalls++],
     document:{getElementById:$,querySelectorAll:()=>steps,createElement:element,addEventListener(){},hidden:false},
     createCommentary:()=>({unlock(){},phase(){},tick(){},step(){}}),
     connectSocket:()=>socket,createRenderer:()=>draw,createPresentation:()=>({request(){},setPhase(){}}),
@@ -44,4 +47,14 @@ test('dev button skips crew, survives roster updates, previews idle teams and re
   handlers['game:state']({phase:'lobby',debug:true});assert.equal($('mapStep').classList.contains('hidden'),false);
   $('devMode').onclick();assert.equal($('start').disabled,true);assert.equal($('joinStep').classList.contains('hidden'),false);
   $('start').onclick();assert.equal(emitted.at(-1).payload.debug,false);
+  context.pickMap('random');
+  assert.equal(activeSim.mapId,'ice');assert.equal(randomCalls,1);
+  handlers['game:state']({phase:'playing',debug:true});
+  const arena=activeSim.arena;assert.equal(arena.id,'conveyor');
+  assert.match($('mapName').textContent,/RANDOM \/ FACTORY/);
+  handlers['game:state']({phase:'paused',debug:true});
+  handlers['game:state']({phase:'playing',debug:true,resumed:true});
+  assert.equal(activeSim.arena,arena,'resume keeps the same chosen arena');assert.equal(randomCalls,2);
+  handlers['game:state']({phase:'playing',debug:true});
+  assert.equal(activeSim.arena.id,'classic');assert.equal(randomCalls,3,'rematch chooses another existing arena');
 });

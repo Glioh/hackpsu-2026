@@ -7,10 +7,10 @@ import { tiltAxis } from '../controller/src/sensors.js';
 test('movement spans X and Z and diagonal movement is normalized',()=>{
   function move(x,z){const s=new Simulation();s.fighters[0].heading=0;for(let i=0;i<30;i++)s.step({red:{legs:{moveX:x,moveZ:z}}});return s.fighters[0];}
   const x=move(1,0),z=move(0,1),diagonal=move(1,1);
-  assert.ok(x.x>-3&&Math.abs(x.z)<.001);assert.ok(z.z>0&&Math.abs(z.x+3)<.001);
+  assert.ok(x.x>-3&&Math.abs(x.z)<.001);assert.ok(z.z<0&&Math.abs(z.x+3)<.001);
   assert.ok(Math.abs(Math.hypot(diagonal.vx,diagonal.vz)-Math.hypot(x.vx,x.vz))<.001);
 });
-test('body-relative forward follows the facing angle',()=>{const s=new Simulation();s.step({red:{legs:{moveZ:1}}});assert.ok(s.fighters[0].vx>0);assert.ok(Math.abs(s.fighters[0].vz)<.001);});
+test('forward movement stays away from the camera while the arms turn',()=>{const s=new Simulation();s.step({red:{legs:{moveZ:1},arm:{turn:1}}});assert.ok(s.fighters[0].vz<0);assert.ok(Math.abs(s.fighters[0].vx)<.001);assert.ok(s.fighters[0].heading>Math.PI/2);});
 test('punch has a windup, directional range, hit reaction, and cooldown',()=>{
   const s=new Simulation();s.fighters[0].x=-.65;s.fighters[1].x=.65;
   let hits=s.step({red:{arm:{punch:true,power:1}}});assert.equal(hits.length,0);

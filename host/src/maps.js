@@ -32,6 +32,11 @@ export const MAPS = [
   { id: 'conveyor', name: 'Factory / Conveyor Chaos', tier: 'Late', blurb: 'Belts drag you to the edge, then reverse.' },
 ];
 
+// Random selection uses the existing authored maps; it never creates new geometry.
+export function chooseRandomMap(random = Math.random) {
+  return MAPS[Math.floor(random() * MAPS.length)].id;
+}
+
 // Small seeded PRNG so rounds differ but tests are repeatable.
 function mulberry32(seed) {
   return () => {

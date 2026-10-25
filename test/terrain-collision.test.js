@@ -53,7 +53,7 @@ test('Skyline bridge risers work in both directions and stairs/ramp allow descen
     [-5.4,2.5,1.585,0,1,0],[4.5,0,2.585,0,1,0],
   ]) {
     const s=new Simulation('skyline');Object.assign(s.fighters[0],{x,z,y,heading:0});
-    for(let i=0;i<70;i++)s.step({red:{legs:{moveX,moveZ}}});
+    for(let i=0;i<70;i++)s.step({red:{legs:{moveX,moveZ:-moveZ}}});
     assert.ok(Math.abs(s.fighters[0].y-expectedY)<.001);
     assert.ok(Math.hypot(s.fighters[0].x-x,s.fighters[0].z-z)>3);
   }

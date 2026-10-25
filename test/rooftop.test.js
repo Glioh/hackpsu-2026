@@ -35,9 +35,9 @@ test('Skyline spawns clear, resets cleanly, and has no lower rear corridor',()=>
 
 test('Skyline ramp and stairs climb to matching terrace heights and descend',()=>{
   for(const [x,z,height] of [[-4.32,5.7,1.585],[3.6,4.2,2.585]]) {
-    const s=at(x,z);run(s,75,{red:{legs:{moveZ:-1}}});
+    const s=at(x,z);run(s,75,{red:{legs:{moveZ:1}}});
     assert.ok(Math.abs(s.fighters[0].y-height)<.001);assert.equal(s.fighters[0].grounded,true);
-    run(s,75,{red:{legs:{moveZ:1}}});run(s,30);
+    run(s,75,{red:{legs:{moveZ:-1}}});run(s,30);
     assert.equal(s.fighters[0].y,0);assert.equal(s.winner,null);
   }
 });
@@ -64,7 +64,7 @@ test('Skyline jump input clears low obstacles and walking off a terrace falls to
 
 test('Skyline all four open edges allow ring-outs, including from the raised rear',()=>{
   for(const [x,z,y,moveX,moveZ] of [[-10.9,6,0,-1,0],[10.9,6,0,1,0],[0,8.8,0,0,1],[0,-7.5,1.185,0,-1]]) {
-    const s=at(x,z,y);run(s,120,{red:{legs:{moveX,moveZ}}});
+    const s=at(x,z,y);run(s,120,{red:{legs:{moveX,moveZ:-moveZ}}});
     assert.equal(s.winner,'blue');assert.ok(s.fighters[0].y<C.eliminationY);
   }
 });

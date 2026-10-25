@@ -15,9 +15,9 @@ npm start
 
 Open **http://localhost:3000** on the laptop/projector. `npm run dev` restarts after edits (invalidating existing rooms). `npm test` runs simulation and Socket.IO integration checks. No build step or external asset service is required for gameplay; optional Google Fonts fall back to installed fonts.
 
-For a single-machine match, expand **Developer Playground**, then **Start keyboard / bot match**. Red: WASD body-relative movement, Q/E turn, Space jump, F punch. Blue: arrows move, J/L turn, I jump, K punch. Disable the Blue bot to use those keys. The stats toggle shows positions, speed, heading, grounded state, and cooldowns. Debug mode is labeled and does not satisfy the four-phone demo requirements.
+For a single-machine match, expand **Developer Playground**, then **Start keyboard / bot match**. Red: WASD arena-relative movement, Q/E turn, Space jump, F punch. Blue: arrows move, J/L turn, I jump, K punch. Disable the Blue bot to use those keys. The stats toggle shows positions, speed, heading, grounded state, and cooldowns. Debug mode is labeled and does not satisfy the four-phone demo requirements.
 
-Each fighter starts at **0% damage**. Two-arm uppercuts add damage based on punch strength and forward momentum (at most 18 percentage points per hit). Accumulated damage gently raises horizontal knockback and upward recoil, with launch growth capped at 180%. There are no health knockouts: knock the other team off the platform to win. Damage resets on rematch and is preserved while paused. Tilt uses a 5-degree neutral dead zone relative to the calibrated holding angle. Forward/back movement reaches full speed at 25 degrees; left/right movement and Arm rotation reach full speed at 55 degrees.
+Each fighter starts at **0% damage**. Two-arm uppercuts add damage based on punch strength and forward momentum (at most 18 percentage points per hit). Accumulated damage gently raises horizontal knockback and upward recoil, with launch growth capped at 180%. There are no health knockouts: knock the other team off the platform to win. Damage resets on rematch and is preserved while paused. Tilt uses a 3-degree neutral dead zone relative to the calibrated holding angle. Forward/back movement reaches full speed at 15 degrees; left/right movement and Arm rotation reach full speed at 20 degrees.
 
 Combat uses each selected GLB model's part bounds and swept hand volumes along the same two-arm uppercut animation. Main torso geometry controls body separation; hands, limbs, and accessories remain hittable. Cosmetic jelly and gear wobble do not change the combat volumes.
 
@@ -49,7 +49,7 @@ Use the collapsible **Controller preview** panel to choose role, team, and scree
 2. Open the host through that origin, or paste it into **Phone-accessible origin** and press the arrow to update the QR. This changes the join link; it does not create a tunnel or deploy the application.
 3. Scan with four separate phones. The server assigns Red Legs, Red Arm, Blue Legs, Blue Arm in that order.
 4. Tap **Enable motion sensors**, allow access, hold the phone comfortably in portrait, then **Hold neutral & calibrate**. Both orientation and acceleration streams are required.
-5. Once all four slots show ready, press **Start the brawl**. The arena enters fullscreen (or fills the browser viewport if fullscreen is unavailable). Phone calibration appears in the corner. Legs movement follows the fighter's facing, controlled by the Arm teammate.
+5. Once all four slots show ready, press **Start the brawl**. The arena enters fullscreen (or fills the browser viewport if fullscreen is unavailable). Phone calibration appears in the corner. Legs movement stays relative to the arena view: left/right stays left/right as the Arm teammate turns the fighter. Forward tilt/W/Up moves away from the camera; backward moves toward it.
 6. Knockout and ring-out results offer **Run it back** without rejoining. Hold phones securely and use small jolts while standing still.
 
 The steering flip checkbox reverses left/right; recalibration resets neutral. Rotating, backgrounding, losing sensors, or reconnecting requires recalibration. Calibration errors and controller disconnects pause normal matches in place. The corner status identifies the affected role; recalibrate on the phone and the same round resumes automatically once all four phones are ready. Explicit host pauses still require **Resume match**. Silent controllers are marked stale after 2.5 seconds. The original controller can reclaim its role using its stored token for 30 seconds. Occupied slots cannot be replaced. After host disconnect/reload, the room expires; phones must join the new code. Results or **Return to lobby** exit fullscreen.
@@ -88,6 +88,9 @@ For this session, an HTTPS Cloudflare quick tunnel to the existing port 3000 pro
 Slot identity comes from the socket's server assignment. Client-supplied team/key fields cannot change the relay destination. Packets carry sequence numbers and cumulative action IDs; the host consumes actions once, observes cumulative IDs after dropped volatile packets, and expires continuous input after 400 ms. Initial sensor tuning: 12 m/s² jolt threshold, 350 ms cooldown, 100 ms tilt suppression. These values still require device testing.
 
 ## Verification status
+
+Choose **Random Map** to select one of the existing arenas at random each round.
+See [Movement and random maps](docs/movement-and-random-maps.md) for behavior and manual checks.
 
 `npm test`: 32 passing tests covering gameplay and room behavior, calibration interruption/resume and stale-controller detection, fullscreen fallback, camera framing, spring decay and bounds, neutral model hierarchy, directional inertia, distance-driven gait, baseline mode, punch timing, landing reactions, heading wrapping, full pose reset, once-per-tick motion events, and identical fixed-step pose evolution under simulated 30/60/120/144 Hz render schedules.
 

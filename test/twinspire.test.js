@@ -26,7 +26,7 @@ test('Twinspire bridges support crossing while central gap and outer edges ring 
     assert.ok(s.fighters[0].x>4);assert.equal(s.fighters[0].grounded,true);assert.equal(s.winner,null);
   }
   for(const [x,z,moveX,moveZ]of [[-4,.5,1,0],[-18,2,-1,0],[-11,9,0,1],[18,2,1,0]]) {
-    const s=at(x,z);run(s,180,{red:{legs:{moveX,moveZ}}});assert.equal(s.winner,'blue');
+    const s=at(x,z);run(s,180,{red:{legs:{moveX,moveZ:-moveZ}}});assert.equal(s.winner,'blue');
   }
   assert.equal(createArena('twinspire').floorAt(0,0),null);
 });
@@ -44,7 +44,7 @@ test('Twinspire wide lanes allow two-way crossings near both fences',()=>{
 test('Twinspire fences stop walking off either side without blocking the entrances',()=>{
   for(const center of [-3,4])for(const direction of [-1,1]) {
     const s=at(0,center);
-    run(s,120,{red:{legs:{moveZ:direction}}});
+    run(s,120,{red:{legs:{moveZ:-direction}}});
     assert.ok((s.fighters[0].z-center)*direction<2.3);
     assert.equal(s.fighters[0].y,0);
     assert.equal(s.fighters[0].grounded,true);
@@ -55,9 +55,9 @@ test('Twinspire fences stop walking off either side without blocking the entranc
 });
 
 test('Twinspire equipment blocks movement and service stairs climb onto the deck',()=>{
-  const wall=at(-13,-3);run(wall,90,{red:{legs:{moveZ:-1}}});
+  const wall=at(-13,-3);run(wall,90,{red:{legs:{moveZ:1}}});
   assert.ok(wall.fighters[0].z>-5);assert.equal(wall.fighters[0].y,0);
-  const stairs=at(-7,-3);run(stairs,42,{red:{legs:{moveZ:-1}}});
+  const stairs=at(-7,-3);run(stairs,42,{red:{legs:{moveZ:1}}});
   assert.equal(stairs.fighters[0].grounded,true);assert.ok(stairs.fighters[0].y>=.675);
 });
 

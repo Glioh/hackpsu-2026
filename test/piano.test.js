@@ -28,7 +28,7 @@ test('fighter jumps and lands on a raised black key',()=>{
 test('fighter can jump from a white key onto a black key',()=>{
  const s=new Simulation('piano'),k=PIANO_KEYS.find(k=>k.black&&k.x>5);
  const f=s.fighters[0];Object.assign(f,{x:k.x,z:22,y:.12,heading:0,grounded:true});
- for(let i=0;i<48;i++)s.step({red:{legs:{moveZ:i<25?-1:0,jump:i===0}}});
+ for(let i=0;i<48;i++)s.step({red:{legs:{moveZ:i<25?1:0,jump:i===0}}});
  assert.equal(f.y,k.y);assert.equal(f.grounded,true);assert.equal(s.arena.floorAt(f.x,f.z).midi,k.midi);
 });
 test('piano back wall blocks walking, jumping and fast knockback',()=>{
@@ -36,14 +36,14 @@ test('piano back wall blocks walking, jumping and fast knockback',()=>{
   const s=new Simulation('piano'),f=s.fighters[0];
   Object.assign(f,{x:8,z:18,y:airborne?1.4:.12,heading:0,grounded:!airborne,vz:-100,stun:1});
   for(let i=0;i<60;i++){
-   s.step({red:{legs:{moveZ:-1,jump:i===0}}});
+   s.step({red:{legs:{moveZ:1,jump:i===0}}});
    assert.ok(f.z>=PIANO_BACK_WALL_Z+s.rigs[0].radius-1e-5);
   }
  }
 });
 test('walking across white-key seams never drops a fighter through the keyboard',()=>{
  const s=new Simulation('piano');
- for(let i=0;i<120;i++)s.step({red:{legs:{moveZ:1}}});
+ for(let i=0;i<120;i++)s.step({red:{legs:{moveX:1}}});
  assert.equal(s.winner,null);assert.equal(s.fighters[0].grounded,true);assert.equal(s.fighters[0].y,.12);
 });
 test('piano music desk fades when it blocks the low camera, then restores',()=>{
