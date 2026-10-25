@@ -1,6 +1,7 @@
 import { CONFIG as C } from '../../shared/config.js';
 import { fallbackCombatRig, uppercutHits } from './combat-rig.js';
 import { createArena } from './maps.js';
+import { createWeapons } from './weapons.js';
 export function fighter(team, x, heading) {
   return { team, damage: 0, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, hit: 0, stun: 0, landed: false };
 }
@@ -14,7 +15,7 @@ export class Simulation {
     const [[rx, rz], [bx, bz]] = this.arena.spawn;
     this.fighters = [Object.assign(fighter('red', rx, Math.PI / 2), { z: rz }), Object.assign(fighter('blue', bx, -Math.PI / 2), { z: bz })];
     if (this.arena.resolveMotion) for (const f of this.fighters) f.y = this.arena.floorAt(f.x, f.z)?.y ?? 0;
-    this.winner = null; this.motionEvents = []; this.attackSequence = 0;
+    this.winner = null; this.motionEvents = []; this.attackSequence = 0; this.weapons = createWeapons(this.seed);
   }
   step(inputs, dt = C.tick) {
     this.motionEvents.length = 0;
@@ -34,7 +35,7 @@ export class Simulation {
       f.vx += (x * C.speed * drive - f.vx) * (1 - Math.exp(-damping * dt));
       f.vz += (z * C.speed * drive - f.vz) * (1 - Math.exp(-damping * dt));
       if (legs.jump && f.grounded) { f.vy = C.jump; f.grounded = false; this.motionEvents.push({type:'takeoff',team:f.team}); }
-      if (arm.punch && f.cooldown <= 0) { f.attackId = ++this.attackSequence; f.attack = .28; f.cooldown = C.punchCooldown; f.landed = false; f.power = arm.power ?? .6; this.motionEvents.push({type:'punch',team:f.team}); }
+      if (arm.punch && f.cooldown <= 0 && !this.weapons.attack(f, this.motionEvents)) { f.attackId = ++this.attackSequence; f.attack = .28; f.cooldown = C.punchCooldown; f.landed = false; f.power = arm.power ?? .6; this.motionEvents.push({type:'punch',team:f.team}); }
       previousAttacks.push(f.attack);
       f.attack = Math.max(0, f.attack - dt);
       if (floor) { f.x += floor.vx * dt; f.z += floor.vz * dt; } // moving platforms and conveyor belts carry you
@@ -77,6 +78,7 @@ export class Simulation {
       target.grounded = false; target.hit = .3; target.stun = .22+growth*.14; hits.push(target.team);
       this.motionEvents.push({type:'hit',source:'fighter',attacker:f.team,attackId:f.attackId,attackerBefore:contactStates[index],before:contactStates[1-index],after:{x:target.x,y:target.y,z:target.z,vx:target.vx,vy:target.vy,vz:target.vz,grounded:target.grounded},team:target.team,x:nx,z:nz,strength:power,damage});
     }
+    hits.push(...this.weapons.step(dt, this));
     const out = this.fighters.filter(f => f.y < C.eliminationY);
     if (out.length) this.winner = out.length === 2 ? 'draw' : out[0].team === 'red' ? 'blue' : 'red';
     return hits;
