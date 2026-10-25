@@ -42,7 +42,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
     hitEffects.update(bodies, active ? dt : 0);
     const piano=arena.id==='piano';
     const twinspire=arena.id==='twinspire';
-    const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain', elevated = rooftop || mountain;
+    const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain'||arena.id==='quake', elevated = rooftop || mountain;
     ground.position.y = twinspire ? -39 : piano ? -24 : mountain ? -40 : rooftop ? -24 : -6;
     ground.material.color.set(piano ? '#292830' : mountain ? '#93afa0' : rooftop ? '#455e61' : '#bac797');
     scene.background.set(piano ? '#34343d' : mountain ? '#b6cbbb' : rooftop ? '#526f72' : '#d8dfb2');

@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {Simulation} from '../host/src/simulation.js';
+import {MAPS} from '../host/src/maps.js';
+import {CONFIG as C} from '../shared/config.js';
+import * as motion from '../host/src/motion.js';
+
+test('dev button skips crew, survives roster updates, previews idle teams and returns to map selection',()=>{
+  const html=readFileSync(new URL('../host/index.html',import.meta.url),'utf8'),elements=new Map();
+  function element(){const classes=new Set();return {value:'',checked:true,dataset:{},children:[],textContent:'',
+    classList:{add:c=>classes.add(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c),contains:c=>classes.has(c)},
+    setAttribute(k,v){this[k]=v;},focus(){},append(...items){this.children.push(...items);},
+    replaceChildren(...items){this.children=items;},querySelector(){return {focus(){}};}};}
+  for(const m of html.matchAll(/id="([^"]+)"/g))elements.set(m[1],element());
+  const $=id=>{assert.ok(elements.has(id),'Missing DOM element '+id);return elements.get(id);};
+  const handlers={},emitted=[],steps=[element(),element(),element()];let frame,clock=0,lastInputs;
+  const socket={on:(event,fn)=>handlers[event]=fn,emit:(event,payload,ack)=>{
+    emitted.push({event,payload});ack?.({});
+  }};
+  class TrackedSimulation extends Simulation {step(inputs,dt){lastInputs=inputs;return super.step(inputs,dt);}}
+  const draw=()=>{};draw.setFighter=draw.clearKO=draw.resetMotion=()=>{};
+  const context={...motion,Simulation:TrackedSimulation,MAPS,C,SLOTS:[],
+    document:{getElementById:$,querySelectorAll:()=>steps,createElement:element,addEventListener(){},hidden:false},
+    connectSocket:()=>socket,createRenderer:()=>draw,createPresentation:()=>({request(){},setPhase(){}}),
+    FIGHTERS:{dummy:{name:'Dummy'}},TEAM_FIGHTERS:['dummy','dummy'],createBotController:()=>()=>{assert.fail('Active bot used in preview');},
+    FINISH_DURATION:2,FINISH_TIME_SCALE:.2,stepFinish(){},URL,location:{origin:'http://localhost:3001'},
+    localStorage:{getItem(){return null;},setItem(){}},addEventListener(){},setInterval(){},
+    performance:{now:()=>clock},requestAnimationFrame:fn=>{frame=fn;}};
+  const source=readFileSync(new URL('../host/src/main.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'');
+  vm.runInNewContext(source,context);
+  $('devMode').onclick();assert.equal($('mapStep').classList.contains('hidden'),false);
+  assert.equal($('joinStep').classList.contains('hidden'),true);assert.equal($('start').disabled,false);
+  const slots=['red:legs','red:arm','blue:legs','blue:arm'].map(key=>({key,connected:false,ready:false}));
+  handlers['room:roster']({slots});assert.equal($('start').disabled,false);
+  assert.equal($('calibrationRows').children.length,2);
+  $('start').onclick();assert.equal(emitted.at(-1).event,'game:start');assert.equal(emitted.at(-1).payload.debug,true);
+  handlers['game:state']({phase:'playing',debug:true});clock=40;frame(clock);
+  assert.equal(JSON.stringify(lastInputs),'{}');assert.match($('phase').textContent,/MAP PREVIEW/);
+  $('leaveGame').onclick();assert.equal(emitted.at(-1).payload.phase,'lobby');
+  handlers['game:state']({phase:'lobby',debug:true});assert.equal($('mapStep').classList.contains('hidden'),false);
+  $('devMode').onclick();assert.equal($('start').disabled,true);assert.equal($('joinStep').classList.contains('hidden'),false);
+  $('start').onclick();assert.equal(emitted.at(-1).payload.debug,false);
+});

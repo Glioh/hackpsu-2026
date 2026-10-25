@@ -1,4 +1,6 @@
 import * as T from 'three';
+import {createArcheryView} from './archery-view.js';
+import {createQuakeView} from './quake-view.js';
 import {createPianoView} from './piano-view.js';
 import { CONFIG as C } from '../../shared/config.js';
 import { createRooftopView } from './rooftop-view.js';
@@ -31,12 +33,14 @@ export function createArenaView(scene) {
   const mountain = createMountainView(scene);
   const twinspire=createTwinspireView(scene);
   const piano=createPianoView(scene);
+  const archery=createArcheryView(scene);
+  const quake=createQuakeView(scene);
   let current = null, items = [], last = 0;
 
   function build(arena) {
     for (const o of root.children) o.traverse(m => m.material?.map !== belt && m.material?.map?.dispose?.());
     root.clear();
-    if (arena.id === 'skyline' || arena.id === 'mountain' || arena.id === 'piano' || arena.id === 'twinspire' || arena.id === 'station') { items = []; current = arena; return; }
+    if (arena.id === 'quake' || arena.id === 'archery' || arena.id === 'skyline' || arena.id === 'mountain' || arena.id === 'piano' || arena.id === 'twinspire' || arena.id === 'station') { items = []; current = arena; return; }
     items = arena.pieces.map(p => {
       const base = new T.Mesh(box, new T.MeshStandardMaterial({ color: BASE[p.kind] ?? '#737e59', roughness: .85 }));
       const top = new T.Mesh(box, new T.MeshStandardMaterial({ color: TOP[p.kind] ?? TOP.floor, roughness: p.kind === 'ice' ? .12 : .85 }));
@@ -61,6 +65,8 @@ export function createArenaView(scene) {
     rooftop(arena.id === 'skyline', fighters, camera);
     station(arena,fighters,camera);
     piano(arena,fighters,camera);
+    archery(arena);
+    quake(arena);
     mountain(arena.id === 'mountain', time, fighters, camera);
     twinspire(arena.id==='twinspire',fighters,camera);
     if (arena !== current) { build(arena); last = time; }

@@ -10,16 +10,19 @@ import {configurePiano} from './piano-map.js';
 import { configureMountain } from './mountain-map.js';
 import {configureStation} from './station-map.js';
 import {configureTwinspire} from './twinspire-map.js';
+import {configureArchery} from './archery-map.js';
+import {onSummit} from '../../shared/quake-layout.js';
 
 export const MAPS = [
   { id: 'classic', name: 'Classic Ring', tier: 'Early', blurb: 'Solid floor. Learn to shove.' },
   { id: 'ice', name: 'Ice Rink', tier: 'Early', blurb: 'No grip. Momentum carries you off the edge.' },
-  { id: 'quake', name: 'Earthquake Arena', tier: 'Early', blurb: 'Tremors bounce everyone around.' },
+  { id: 'quake', name: 'Earthquake Summit', tier: 'Early', blurb: 'Brawl atop a rocky mountain above the clouds. Glowing fissures warn of tremors. Watch the open cliffs!' },
   { id: 'skyline', name: 'Skyline Rooftop', tier: 'Mid', blurb: 'Climb ramps and stairs, brawl around rooftop utilities, and knock rivals off open edges.' },
   { id: 'station', name: 'Crossline Station', tier: 'Mid', blurb: 'Climb the terraces and transfer bridge. Trains sweep the front and rear tracks at random intervals—watch the warning signals.' },
   { id: 'mountain', name: 'Cloudpeak Dojo', tier: 'Mid', blurb: 'Kung fu above the clouds. Climb stone terraces, weave through training obstacles, and send rivals over the cliffs.' },
   {id:'twinspire',name:'Twinspire',tier:'Mid',blurb:'Spawn on opposite skyscrapers. Cross two narrow skybridges and knock your rival into the city below.'},
   {id:'piano',name:'Forte Grand Piano',tier:'Mid',blurb:'88 playable keys on a giant concert grand. Jump onto the sharps, play notes with your feet, and knock rivals off the case.'},
+  { id: 'archery', name: 'Bullseye Brawl', tier: 'Mid', blurb: 'Brawl on a giant target! Dodge the marked circles before sky-high arrows land. Open edges mean ring-outs.' },
   { id: 'tiles', name: 'Disappearing Tiles', tier: 'Mid', blurb: 'Blinking tiles drop out, then come back.' },
   { id: 'split', name: 'Splitting Floor', tier: 'Mid', blurb: 'The floor splits in half, then slams shut.' },
   { id: 'platforms', name: 'Moving Platforms', tier: 'Mid', blurb: 'A small island and platforms that drift past.' },
@@ -69,6 +72,9 @@ export function createArena(id = 'classic', seed = 1) {
   const tick = (p, dt, next) => { if ((p.t -= dt) <= 0) Object.assign(p, next(p)); };
 
   switch (id) {
+    case 'archery':
+      configureArchery(arena,rng);
+      break;
     case 'station':
       configureStation(arena,rng);
       break;
@@ -92,7 +98,8 @@ export function createArena(id = 'classic', seed = 1) {
       break;
 
     case 'quake': {
-      arena.pieces = [piece(0, 0, C.arenaX, C.arenaZ, { kind: 'quake' })];
+      arena.pieces = [piece(0, 0, 9.4, 7.3, { kind: 'quake' })];
+      arena.floorAt=(x,z,maxY=Infinity)=>maxY>=0&&onSummit(x,z)?arena.pieces[0]:null;
       let wait = 3 + rng() * 2, quake = 0, jolt = 0;
       arena.update = (dt, fighters, events) => {
         if (quake > 0) {
