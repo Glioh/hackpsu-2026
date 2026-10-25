@@ -7,7 +7,7 @@ import { SCRIPTS } from '../shared/commentary-scripts.js';
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 function harness({ live = false, stream, dialogue } = {}) {
-  const nodes = [], elements = new Map(), callbacks = {};
+  const nodes = [], elements = new Map(), callbacks = {}, spoken=[];
   const document = { getElementById(id) { if (!elements.has(id)) elements.set(id, { textContent: '' }); return elements.get(id); } };
   let context;
   class AudioContext {
@@ -23,6 +23,7 @@ function harness({ live = false, stream, dialogue } = {}) {
   }
   const catalog = { live, dialogue: !!dialogue, clips: live ? {} : Object.fromEntries(SCRIPTS.map(script => [script.id, { url: '/clip/' + script.id }])) };
   const sandbox = { document, AudioContext, CommentaryDetector, CommentaryDirector, SCRIPTS, AbortController, setTimeout, clearTimeout, performance,
+    SpeechSynthesisUtterance:class {constructor(text){this.text=text;}},speechSynthesis:{getVoices:()=>[],speak:utterance=>spoken.push(utterance),cancel(){}},
     fetch: async (url, options) => url === '/api/commentary/catalog' ? { json: async () => catalog } : url === '/api/commentary/dialogue' ? dialogue(JSON.parse(options.body)) : url.startsWith('/clip/') ? { ok: true, arrayBuffer: async () => new ArrayBuffer(0) } : stream(url),
   };
   const source = readFileSync(new URL('../host/src/commentary-audio.js', import.meta.url), 'utf8').replace(/^import .*\r?\n/gm, '').replace('export function', 'function');
@@ -30,8 +31,22 @@ function harness({ live = false, stream, dialogue } = {}) {
   const api = sandbox.createCommentary({ on: (name, callback) => { callbacks[name] = callback; }, emit: (_, data, callback) => callback({ token: 'host' }) });
   const advance = (dt, events = [], winner = null) => api.step({ arena: { id: 'classic' }, winner, motionEvents: events, fighters: ['red', 'blue'].map(team => ({ team, damage: 0, grounded: true })) }, dt);
   api.unlock();
-  return { api, nodes, advance, elements, callbacks, get context() { return context; } };
+  return { api, nodes, advance, elements, callbacks, spoken, get context() { return context; } };
 }
+
+test('failed live second voice keeps captions instead of substituting a browser voice',async t=>{
+  let calls=0;
+  const h=harness({live:true,stream:async()=>{
+    if(++calls===2)return {ok:false,status:502,json:async()=>({error:'Announcer B custom voice unavailable.'})};
+    let read=false;return {ok:true,body:{getReader:()=>({read:async()=>read?{done:true}:(read=true,{done:false,value:Uint8Array.of(0,0)})})}};
+  }});
+  t.after(()=>h.api.phase('paused'));
+  await flush();h.api.phase('playing');h.api.tick();await flush();
+  h.nodes[0].end();await flush();
+  h.advance(3,[{type:'hit',source:'fighter',attacker:'red',team:'blue',damage:16}]);h.api.tick();await flush();
+  assert.equal(calls,2);assert.match(h.elements.get('commentaryCaption').textContent,/Vera:/);
+  assert.equal(h.spoken.length,0);assert.match(h.elements.get('commentaryStatus').textContent,/Announcer B custom voice unavailable/);
+});
 
 test('local voices wait for actual audio ending, even when audio clock stalls past clip duration', async t => {
   const h = harness(); t.after(() => h.api.phase('paused'));

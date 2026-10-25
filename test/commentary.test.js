@@ -69,6 +69,8 @@ test('provider sends finite script and supported format; cache excludes secrets 
  assert.match(request.url,/output_format=pcm_24000/);assert.equal(JSON.parse(request.options.body).text,SCRIPTS[0].text);assert.equal(request.options.headers['xi-api-key'],'secret');
  assert.equal(cacheKey(SCRIPTS[0],config),cacheKey(SCRIPTS[0],{...config,key:'rotated'}));assert.notEqual(cacheKey(SCRIPTS[0],config),cacheKey(SCRIPTS[0],{...config,a:'new'}));
  await assert.rejects(synthesize(SCRIPTS[0],{}),/credentials/);
+ const second=SCRIPTS.find(script=>script.speaker==='b');
+ await synthesize(second,{...config,b:'zGedNEybz7PeBgPNR4L7'},{fetcher:async(url)=>{assert.match(url,/text-to-speech\/zGedNEybz7PeBgPNR4L7\/stream/);return {ok:true};}});
 });
 test('backend denies non-host, unknown scripts and missing live config without provider calls',async()=>{
  const app=express(),io=new EventEmitter();installCommentary(app,io,{config:{},fetcher:()=>{throw Error('must not call');}});
@@ -81,11 +83,15 @@ test('backend denies non-host, unknown scripts and missing live config without p
 });
 
 test('live relay streams PCM bytes and limits repeat requests',async()=>{
- const app=express(),io=new EventEmitter();let calls=0;
- installCommentary(app,io,{config:{key:'private',a:'a',b:'b',model:'eleven_flash_v2_5',live:true},fetcher:async()=>{calls++;return {ok:true,body:(async function*(){yield Uint8Array.of(1,2,3);yield Uint8Array.of(4);})()};}});
+ const app=express(),io=new EventEmitter();let calls=0;const requestedVoices=[];
+ installCommentary(app,io,{config:{key:'private',a:'a',b:'zGedNEybz7PeBgPNR4L7',model:'eleven_flash_v2_5',live:true},fetcher:async(url)=>{calls++;requestedVoices.push(url);return {ok:true,body:(async function*(){yield Uint8Array.of(1,2,3);yield Uint8Array.of(4);})()};}});
  const socket=new EventEmitter();socket.id='h';socket.data={host:true};io.emit('connection',socket);let token;socket.emit('commentary:authorize',{},r=>token=r.token);
  const server=app.listen(0);await new Promise(r=>server.once('listening',r));
  try{const url=`http://127.0.0.1:${server.address().port}/api/commentary/live/${SCRIPTS[0].id}`,headers={Authorization:`Bearer ${token}`};const result=await fetch(url,{headers});assert.equal(result.status,200);assert.equal(result.headers.get('x-audio-sample-rate'),'24000');assert.deepEqual([...new Uint8Array(await result.arrayBuffer())],[1,2,3,4]);assert.equal((await fetch(url,{headers})).status,429);assert.equal(calls,1);
+ const second=SCRIPTS.find(script=>script.speaker==='b');
+ const reply=await fetch(new URL(second.id,url),{headers});assert.equal(reply.status,200,'second announcer can respond inside the first announcer cooldown');await reply.arrayBuffer();
+ assert.equal(calls,2);assert.match(requestedVoices[1],/text-to-speech\/zGedNEybz7PeBgPNR4L7\/stream/);
+ assert.equal((await fetch(new URL(second.id,url),{headers})).status,429,'same speaker still has a cooldown');
  }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
 });
 

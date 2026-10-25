@@ -8,12 +8,12 @@ export function cacheKey(script,config,format='mp3_44100_128'){return createHash
 export async function synthesize(script,config,{format='mp3_44100_128',signal,fetcher=fetch}={}){
  if(!config.key||!config[script.speaker])throw Error('Voice credentials missing');
  const result=await fetcher(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(config[script.speaker])}/stream?output_format=${format}`,{method:'POST',headers:{'xi-api-key':config.key,'Content-Type':'application/json'},body:JSON.stringify({text:script.text,model_id:config.model}),signal});
- if(!result.ok)throw Error(`Speech provider status ${result.status}`);return result;
+ if(!result.ok)throw Object.assign(Error(`Speech provider status ${result.status}`),{providerStatus:result.status});return result;
 }
 export function installCommentary(app,io,{config=configuration(),fetcher=fetch,connect=url=>new WebSocket(url),bankDir=new URL('../host/audio/commentary/',import.meta.url)}={}){
  const sessions=new Map();
  io.on('connection',socket=>{
-  socket.on('commentary:authorize',(_,ack)=>{if(typeof ack!=='function')return;if(!socket.data.host)return ack({error:'Host only'});let session=[...sessions.values()].find(s=>s.socket===socket.id);if(!session){session={socket:socket.id,token:randomBytes(24).toString('hex'),last:0,busy:false,turns:new Map(),recent:[],lastDialogue:0};sessions.set(session.token,session);}ack({token:session.token});});
+  socket.on('commentary:authorize',(_,ack)=>{if(typeof ack!=='function')return;if(!socket.data.host)return ack({error:'Host only'});let session=[...sessions.values()].find(s=>s.socket===socket.id);if(!session){session={socket:socket.id,token:randomBytes(24).toString('hex'),lastBySpeaker:new Map(),busy:false,turns:new Map(),recent:[],lastDialogue:0};sessions.set(session.token,session);}ack({token:session.token});});
   socket.on('disconnect',()=>{for(const [key,s]of sessions)if(s.socket===socket.id){s.abort?.abort();s.dialogueAbort?.abort();sessions.delete(key);}});
  });
  app.get('/api/commentary/catalog',async(_,res)=>{
@@ -45,9 +45,9 @@ export function installCommentary(app,io,{config=configuration(),fetcher=fetch,c
   const s=sessions.get(req.get('Authorization')?.replace(/^Bearer /,''));if(!s)return res.sendStatus(403);
   const generated=s.turns.get(req.params.id),script=generated||scriptById(req.params.id);if(!script||generated?.expires<Date.now())return res.sendStatus(400);
   if(!config.live||!config.key||!config.a||!config.b)return res.sendStatus(503);
-  if(s.busy||(!generated&&Date.now()-s.last<5000))return res.sendStatus(429);
+  if(s.busy||(!generated&&Date.now()-(s.lastBySpeaker.get(script.speaker)??-Infinity)<5000))return res.status(429).json({error:`Announcer ${script.speaker.toUpperCase()} voice is busy. Captions remain available.`});
   if(generated)s.turns.delete(req.params.id);
-  s.busy=true;s.last=Date.now();const abort=new AbortController();s.abort=abort;const timer=setTimeout(()=>abort.abort(),7000);res.on('close',()=>abort.abort());
-  try{const upstream=await synthesize(script,config,{format:'pcm_24000',signal:abort.signal,fetcher});res.set({'Content-Type':'application/octet-stream','Cache-Control':'no-store','X-Audio-Sample-Rate':'24000'});res.flushHeaders();let bytes=0;for await(const chunk of upstream.body){bytes+=chunk.length;if(bytes>48000*12)throw Error('Speech too long');if(abort.signal.aborted)break;if(!res.write(chunk))await new Promise(resolve=>{res.once('drain',resolve);abort.signal.addEventListener('abort',resolve,{once:true});});}res.end();}catch{if(!res.headersSent)res.sendStatus(502);else res.destroy();}finally{clearTimeout(timer);s.busy=false;}
+  s.busy=true;s.lastBySpeaker.set(script.speaker,Date.now());const abort=new AbortController();s.abort=abort;const timer=setTimeout(()=>abort.abort(),7000);res.on('close',()=>abort.abort());
+  try{const upstream=await synthesize(script,config,{format:'pcm_24000',signal:abort.signal,fetcher});res.set({'Content-Type':'application/octet-stream','Cache-Control':'no-store','X-Audio-Sample-Rate':'24000'});res.flushHeaders();let bytes=0;for await(const chunk of upstream.body){bytes+=chunk.length;if(bytes>48000*12)throw Error('Speech too long');if(abort.signal.aborted)break;if(!res.write(chunk))await new Promise(resolve=>{res.once('drain',resolve);abort.signal.addEventListener('abort',resolve,{once:true});});}res.end();}catch(error){if(!res.headersSent)res.status(502).json({error:`Announcer ${script.speaker.toUpperCase()} custom voice unavailable.`,providerStatus:error.providerStatus??null});else res.destroy();}finally{clearTimeout(timer);s.busy=false;}
  });
 }

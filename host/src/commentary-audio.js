@@ -34,7 +34,7 @@ export function createCommentary(socket){
   if(catalog.live&&token&&!muted&&context?.state==='running'){
    const request=new AbortController();const cancel=()=>request.abort();signal.addEventListener('abort',cancel,{once:true});const timer=setTimeout(cancel,Math.min(7000,deadline-started));
    try{
-    const response=await fetch(`/api/commentary/live/${script.id}`,{headers:{Authorization:`Bearer ${token}`},signal:request.signal});if(!response.ok)throw Error();
+    const response=await fetch(`/api/commentary/live/${script.id}`,{headers:{Authorization:`Bearer ${token}`},signal:request.signal});if(!response.ok){const detail=await response.json().catch(()=>({}));throw Error(detail.error||`Announcer ${script.speaker.toUpperCase()} voice unavailable (${response.status}).`);}
     const reader=response.body.getReader();let carry=null,next=null,first=true,total=0;
     while(true){const {value,done}=await reader.read();if(done)break;if(signal.aborted)throw Error();
      if(first&&performance.now()>deadline)throw Error('Stale');
@@ -53,10 +53,10 @@ export function createCommentary(socket){
      }
     }
     if(carry!==null)throw Error('Truncated PCM sample');if(first)throw Error('Empty speech');await Promise.all(ended);return !signal.aborted;
-   }catch{for(const node of nodes){try{node.stop();}catch{}}await Promise.all(ended);}finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);request.abort();}
+   }catch(error){for(const node of nodes){try{node.stop();}catch{}}await Promise.all(ended);if(!signal.aborted)status.textContent=`${error.message||'Custom voice unavailable.'} Captions only; keeping your selected voice.`;}finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);request.abort();}
   }
   // New scripts remain audible before their studio voice clips are rendered.
-  if(!muted&&globalThis.speechSynthesis&&globalThis.SpeechSynthesisUtterance&&!signal.aborted){
+  if(!catalog.live&&!muted&&globalThis.speechSynthesis&&globalThis.SpeechSynthesisUtterance&&!signal.aborted){
    const utterance=new SpeechSynthesisUtterance(script.text);
    utterance.volume=volume;utterance.rate=script.speaker==='a'?1.08:.96;utterance.pitch=script.speaker==='a'?.85:1.1;
    const voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith('en'));
