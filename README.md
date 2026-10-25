@@ -17,7 +17,9 @@ Open **http://localhost:3000** on the laptop/projector. `npm run dev` restarts a
 
 For a single-machine match, expand **Developer Playground**, then **Start keyboard / bot match**. Red: WASD body-relative movement, Q/E turn, Space jump, F punch. Blue: arrows move, J/L turn, I jump, K punch. Disable the Blue bot to use those keys. The stats toggle shows positions, speed, heading, grounded state, and cooldowns. Debug mode is labeled and does not satisfy the four-phone demo requirements.
 
-Each fighter starts with **100 HP**. Punches deal damage based on punch strength plus the attacker's momentum toward the opponent at impact (capped at 32 damage). Sideways and retreating movement add no bonus. Depleting health wins by knockout; ring-outs still win. Health resets on rematch and is preserved while paused.
+Each fighter starts at **0% damage**. Two-arm uppercuts add damage based on punch strength and forward momentum (at most 18 percentage points per hit). Accumulated damage gently raises horizontal knockback and upward recoil, with launch growth capped at 180%. There are no health knockouts: knock the other team off the platform to win. Damage resets on rematch and is preserved while paused. Tilt uses a 5-degree neutral dead zone and gradually increases movement/rotation speed up to 55 degrees.
+
+Combat uses each selected GLB model's part bounds and swept hand volumes along the same two-arm uppercut animation. Main torso geometry controls body separation; hands, limbs, and accessories remain hittable. Cosmetic jelly and gear wobble do not change the combat volumes.
 
 **Spring body motion** enables cosmetic torso inertia, head lag, arm follow-through, distance-driven steps, and jump/landing reactions. Compare **Subtle** (default), **Floppy**, and **Lively** in Developer Playground, or turn the checkbox off for a rigid baseline. Pose updates run at 60 Hz and interpolate with the root movement; results freeze the pose and rematches reset all motion. The extra wobble is damped, walking no longer squashes the body, and jump/hit scaling stays within 4%. These are visual effects; collisions and combat still use the existing root simulation.
 
@@ -60,7 +62,7 @@ For this session, an HTTPS Cloudflare quick tunnel to the existing port 3000 pro
 - `host/src/render.js`: Three.js three-quarter camera, thick platform, boundaries, shadows, cosmetic limbs and recoil.
 - `host/src/characters.js`: neutral character meshes with waist, neck, shoulder, and hip pivots.
 - `host/src/motion.js`: exact bounded angular springs, movement inertia, event reactions, pose snapshots, and root/pose interpolation.
-- `host/src/camera.js`: wide, low-angle camera that smoothly pans horizontally with the fighters at a steady height and fits both bodies as they separate. The arena is 22 by 16 units; accepted punches alternate arms independently for each fighter.
+- `host/src/camera.js`: wide, low-angle camera that smoothly pans horizontally with the fighters at a steady height and fits both bodies as they separate. The arena is 22 by 16 units; both arms sweep upward together for each uppercut.
 - `host/src/main.js`: host UI, simulation loop, stale input expiry, one-shot consumption, keyboard/bot debug.
 - `controller/src/sensors.js`: permissions, calibration, smoothing, dead zone, impulse detection, gravity filtering fallback.
 - `controller/src/main.js`: join, reconnect, instructions, diagnostics, 30 Hz input, feedback.

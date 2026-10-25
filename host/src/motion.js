@@ -78,9 +78,8 @@ export function punchAngle(remaining) {
   if (remaining <= 0) return 0;
   const elapsed = .28 - remaining;
   if (elapsed < .05) return .35 * smooth(Math.max(0, elapsed / .05));
-  if (elapsed < .09) return .35 - 2.65 * smooth((elapsed - .05) / .04);
-  if (elapsed < .19) return -2.3;
-  return -2.3 * (1 - smooth(Math.min(1, (elapsed - .19) / .09)));
+  if (elapsed < .19) return .35 - 2.75 * smooth((elapsed - .05) / .14);
+  return -2.4 * (1 - smooth(Math.min(1, (elapsed - .19) / .09)));
 }
 
 export function stepMotion(state, fighter, events, dt, preset = 'floppy', enabled = true) {
@@ -115,14 +114,14 @@ export function stepMotion(state, fighter, events, dt, preset = 'floppy', enable
     t[`leg${j}Pitch`] = fighter.grounded ? gait * side * .6 * localZ / Math.max(.1, speed) : .2;
     t[`arm${j}Pitch`] = enabled ? gain * (localAz * .005 - gait * side * .3) : -gait * side * .3;
     t[`arm${j}Roll`] = enabled ? side * (fighter.grounded ? .03 : .38) + gain * localAx * .003 : 0;
-    t[`arm${j}Action`] = fighter.punchArm === j ? punchAngle(fighter.attack) : 0;
+    t[`arm${j}Action`] = punchAngle(fighter.attack);
   }
   if (enabled) for (const event of events) {
     if (event.team !== fighter.team) continue;
     if (event.type === 'punch') {
       springs.torsoPitch.velocity -= .9 * gain;
-      springs.torsoRoll.velocity += (event.arm ? 1 : -1) * .6 * gain;
-      springs[`arm${event.arm}Pitch`].velocity -= 1.2 * gain;
+      springs.arm0Pitch.velocity -= 1.2 * gain;
+      springs.arm1Pitch.velocity -= 1.2 * gain;
     } else if (event.type === 'hit') {
       const x = event.x * cos - event.z * sin, z = event.x * sin + event.z * cos;
       const strength = Math.min(1.5, event.strength / 11) * gain;

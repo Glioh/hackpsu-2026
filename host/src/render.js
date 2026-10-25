@@ -4,7 +4,7 @@ import { CAMERA_DIRECTION, CAMERA_FOV, CAMERA_MIN_DISTANCE, frameFighters } from
 import { createCharacter } from './characters.js';
 import { loadFighter } from './fighter-model.js';
 import { createWobble } from './wobble.js';
-export function createRenderer(container) {
+export function createRenderer(container, onCombatRig = () => {}) {
   const scene = new T.Scene(); scene.background = new T.Color('#d8dfb2'); scene.fog = new T.Fog('#d8dfb2', 30, 65);
   const camera = new T.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 180);
   const cameraFocus = new T.Vector3(), cameraDirection = new T.Vector3(...CAMERA_DIRECTION);
@@ -24,7 +24,7 @@ export function createRenderer(container) {
   let wobbles = models.map((_, i) => createWobble(i));
   // Swaps team i's body to character id. The current body (capsule fallback at first) stays if loading fails,
   // and a slower earlier pick never overwrites a newer one.
-  const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);m.group.clear();m.group.add(s.root);Object.assign(m,s,{head:null,torsoY:0});},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
+  const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);m.group.clear();m.group.add(s.root);Object.assign(m,s,{head:null,torsoY:0});onCombatRig(i,s.combatRig);},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
   const resize=()=>{const w=container.clientWidth,h=container.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; new ResizeObserver(resize).observe(container); resize();
   // fighters: interpolated motion poses from motion.js; bodies: raw simulation fighters (velocity, landings, hits).
   const draw = (fighters, time, bodies = [], { active = true, motionEnabled = true } = {}) => {
@@ -54,8 +54,8 @@ export function createRenderer(container) {
       m.head?.rotation.set(pose.headPitch + bob.x, pose.headYaw, pose.headRoll + bob.z); // capsule fallback
       m.legs.forEach((leg, j) => leg.rotation.x = pose[`leg${j}Pitch`]);
       m.arms.forEach((arm, j) => {
-        arm.rotation.x = pose[`arm${j}Action`] + pose[`arm${j}Pitch`];
-        arm.rotation.z = (j ? 1 : -1) * .12 + pose[`arm${j}Roll`];
+        arm.rotation.x = pose[`arm${j}Action`] + (body?.attack > 0 ? 0 : pose[`arm${j}Pitch`]);
+        arm.rotation.z = body?.attack > 0 ? (j ? -1 : 1)*.6 : (j ? 1 : -1)*.12 + pose[`arm${j}Roll`];
       });
       m.wobbly?.forEach(({ node, kind, rest, restY, maxTilt, lift }) => {
         if (kind === 'head') { // bobblehead: motion.js head + extra bobble spring + bounce

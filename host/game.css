@@ -28,3 +28,5 @@
 .health-team progress::-webkit-progress-value{background:currentColor}
 .health-team progress::-moz-progress-bar{background:currentColor}
 @media(max-width:600px){.scorebar{gap:12px}.scorebar .win-rule{display:none}.health-team>div{font-size:10px}.health-team output{font-size:10px}}
+
+.health-team output{font-size:24px;font-weight:800}

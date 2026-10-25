@@ -1,5 +1,5 @@
 import { CONFIG as C } from '../../shared/config.js';
-export function tiltAxis(degrees) { return Math.sign(degrees) * Math.min(1,Math.max(0,Math.abs(degrees)-C.deadZone)/(C.saturation-C.deadZone)); }
+export function tiltAxis(degrees) { return Math.sign(degrees) * Math.pow(Math.min(1,Math.max(0,Math.abs(degrees)-C.deadZone)/(C.saturation-C.deadZone)), 1.25); }
 export class Sensors {
   constructor(onImpulse) {
     this.onImpulse=onImpulse;this.raw=null;this.neutral=null;this.x=0;this.z=0;this.magnitude=0;this.lastJolt=-Infinity;this.lastOrientation=0;this.lastMotion=0;this.fallbackGravity=null;this.enabled=false;

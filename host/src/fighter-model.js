@@ -1,4 +1,5 @@
 import * as T from 'three';
+import { createCombatRig } from './combat-rig.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // Fighter models from art/characters/. Exported in metres, facing +Z, feet at y=0, parts named <prefix>Torso,
@@ -62,6 +63,11 @@ export async function loadFighter(id) {
     const ring = new T.Mesh(new T.RingGeometry(.42, .52, 40), new T.MeshBasicMaterial({ color: teamColor }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .01; root.add(ring);
     root.scale.setScalar(SCALE);
-    return { root, torso, arms: [node('Arm_R'), node('Arm_L')], legs, wobbly, jelly };
+    const collisionRoot = gltf.scene.clone(true);
+    const collisionNode = name => collisionRoot.getObjectByName(spec.prefix + name);
+    const combatRig = createCombatRig(collisionRoot,
+      [collisionNode('Arm_R'), collisionNode('Arm_L')],
+      [collisionNode('Hand_R') || collisionNode('Glove_R'), collisionNode('Hand_L') || collisionNode('Glove_L')], SCALE, collisionNode('Torso'));
+    return { combatRig, root, torso, arms: [node('Arm_R'), node('Arm_L')], legs, wobbly, jelly };
   };
 }

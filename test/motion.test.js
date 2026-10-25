@@ -87,19 +87,20 @@ test('gait follows grounded distance and pauses while stationary or airborne',()
   f.grounded=false;f.z=.1; stepMotion(motion,f,[],C.tick); assert.equal(motion.gaitPhase,phase);
 });
 
-test('baseline disables secondary motion while keeping the alternating attack visible',()=>{
+test('baseline disables secondary motion while keeping the two-arm uppercut visible',()=>{
   const f=fighter('red',0,0), motion=createMotion(f);
   Object.assign(f,{vx:3,attack:.15,punchArm:0});
   stepMotion(motion,f,[{type:'hit',team:'red',x:1,z:0,strength:14}],C.tick,'floppy',false);
   assert.equal(motion.current.pose.torsoRoll,0); assert.equal(motion.current.pose.headYaw,0);
-  assert.equal(motion.current.pose.arm0Action,-2.3); assert.equal(motion.current.pose.arm1Action,0);
+  assert.equal(motion.current.pose.arm0Action,punchAngle(f.attack)); assert.equal(motion.current.pose.arm1Action,punchAngle(f.attack));
   for(const spring of Object.values(motion.springs)) assert.equal(spring.velocity,0);
 });
 
 test('punch extension covers the existing hit window and recovers smoothly',()=>{
   assert.equal(punchAngle(.28),0);
   assert.ok(punchAngle(.24)>0,'windup');
-  for(const remaining of [.18,.15,.1]) assert.equal(punchAngle(remaining),-2.3);
+  assert.ok(punchAngle(.18)>punchAngle(.15)); assert.ok(punchAngle(.15)>punchAngle(.1));
+  assert.ok(Math.abs(punchAngle(.09)+2.4)<1e-10);
   assert.ok(punchAngle(.04)>-2.3); assert.equal(punchAngle(0),0);
 });
 
@@ -132,7 +133,7 @@ test('simulation emits discrete events only on their tick and retains phone hit 
   let landings=0;
   for(let i=0;i<80;i++){s.step({});landings+=s.motionEvents.filter(e=>e.type==='landing').length;}
   assert.equal(landings,1);
-  s.reset();s.fighters[0].x=-.8;s.fighters[1].x=.8;
+  s.reset();s.fighters[0].x=-.65;s.fighters[1].x=.65;
   let hits=0, events=0;
   for(let i=0;i<40;i++) {hits+=s.step(i===0?{red:{arm:{punch:true,power:1}}}:{}).length;events+=s.motionEvents.filter(e=>e.type==='hit').length;}
   assert.equal(hits,1);assert.equal(events,1);

@@ -2,69 +2,36 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Simulation } from '../host/src/simulation.js';
 import { CONFIG as C } from '../shared/config.js';
-
-function strike(vx = 0, vz = 0, power = 1) {
-  const sim = new Simulation();
-  Object.assign(sim.fighters[0], { x: -.8, vx, vz, attack: .18, power });
-  sim.fighters[1].x = .8;
-  sim.step({});
-  return { sim, damage: C.maxHealth - sim.fighters[1].health };
+function strike(damage=0,power=1) {
+  const sim=new Simulation();sim.fighters[0].x=-.65;Object.assign(sim.fighters[1],{x:.65,damage});
+  let impact;
+  for(let i=0;i<20;i++){sim.step(i===0?{red:{arm:{punch:true,power}}}:{});if(sim.motionEvents.some(e=>e.type==='hit')){impact={speed:Math.hypot(sim.fighters[1].vx,sim.fighters[1].vz),lift:sim.fighters[1].vy};break;}}
+  return {sim,impact};
 }
-
-test('forward momentum adds damage; lateral and retreating velocity do not', () => {
-  const stationary = strike().damage, moving = strike(5).damage;
-  assert.ok(stationary > 0);
-  assert.ok(moving > stationary, 'running into a punch must deal more damage');
-  assert.equal(strike(-5).damage, stationary, 'retreating cannot earn a momentum bonus');
-  assert.equal(strike(0, 5).damage, stationary, 'sideways movement cannot earn a momentum bonus');
-  assert.ok(strike(0, 0, 0).damage < stationary, 'phone punch strength still matters');
+test('damage starts at zero, accumulates and never causes a health knockout',()=>{
+  const {sim,impact}=strike(500);assert.ok(impact);assert.ok(sim.fighters[1].damage>500);assert.equal(sim.winner,null);
+  sim.reset();assert.ok(sim.fighters.every(f=>f.damage===0));
 });
-
-test('extreme momentum is capped and health cannot fall below zero', () => {
-  const sim = new Simulation();
-  Object.assign(sim.fighters[0], { x: -.8, vx: 500, attack: .18, power: 1 });
-  Object.assign(sim.fighters[1], { x: .8, health: 1 });
-  sim.step({}, .00001);
-  assert.equal(sim.motionEvents.find(e => e.type === 'hit').damage, C.maxPunchDamage);
-  assert.equal(sim.fighters[1].health, 0);
-  assert.equal(sim.winner, 'red');
+test('damage raises recoil gradually and caps the launch at high percentages',()=>{
+  const fresh=strike(0).impact,hurt=strike(100).impact,cap=strike(180).impact,extreme=strike(10000).impact;
+  assert.ok(hurt.speed>fresh.speed);assert.ok(hurt.lift>fresh.lift);assert.ok(hurt.speed<fresh.speed*1.7);
+  assert.equal(cap.speed,extreme.speed);assert.ok(cap.speed<=C.maxKnockback);assert.ok(fresh.speed<7);
 });
-
-test('a real punch respects windup and damages only once during its hit window', () => {
-  const sim = new Simulation();
-  sim.fighters[0].x = -.8; sim.fighters[1].x = .8;
-  sim.step({ red: { arm: { punch: true, power: 1 } } });
-  assert.equal(sim.fighters[1].health, 100, 'windup cannot damage');
-  for (let i = 0; i < 7; i++) sim.step({});
-  const remaining = sim.fighters[1].health;
-  assert.ok(remaining < 100);
-  for (let i = 0; i < 12; i++) sim.step({});
-  assert.equal(sim.fighters[1].health, remaining);
-  const miss = new Simulation();
-  miss.step({ red: { arm: { punch: true, power: 1 } } });
-  for (let i = 0; i < 20; i++) miss.step({});
-  assert.equal(miss.fighters[1].health, 100, 'out-of-range punch cannot damage');
+test('uppercuts respect windup, hit once, and miss outside actual hand reach',()=>{
+  const sim=new Simulation();sim.fighters[0].x=-.65;sim.fighters[1].x=.65;
+  sim.step({red:{arm:{punch:true,power:1}}});assert.equal(sim.fighters[1].damage,0);
+  let hits=0;for(let i=0;i<25;i++)hits+=sim.step({}).length;
+  assert.equal(hits,1);assert.ok(sim.fighters[1].damage>0);
+  const miss=new Simulation();miss.step({red:{arm:{punch:true}}});for(let i=0;i<25;i++)miss.step({});assert.equal(miss.fighters[1].damage,0);
 });
-
-test('simultaneous lethal punches draw and use momentum from before either knockback', () => {
-  const sim = new Simulation();
-  Object.assign(sim.fighters[0], { x: -.8, health: 1, vx: 3, attack: .18, power: 1 });
-  Object.assign(sim.fighters[1], { x: .8, health: 1, vx: -3, attack: .18, power: 1 });
-  assert.deepEqual(sim.step({}), ['blue', 'red']);
-  assert.equal(sim.winner, 'draw');
-  assert.equal(sim.fighters[0].health, 0); assert.equal(sim.fighters[1].health, 0);
-  const hits = sim.motionEvents.filter(e => e.type === 'hit');
-  assert.equal(hits[0].damage, hits[1].damage);
-  assert.deepEqual(sim.step({}), [], 'finished rounds cannot take more damage');
-  sim.reset();
-  assert.equal(sim.winner, null);
-  assert.ok(sim.fighters.every(f => f.health === C.maxHealth));
+test('punch power matters and damage per hit stays modest',()=>{
+  assert.ok(strike(0,1).sim.fighters[1].damage>strike(0,0).sim.fighters[1].damage);
+  assert.ok(strike().sim.fighters[1].damage<=C.maxPunchDamage);
 });
-
-test('ring-outs still win against an opponent with full health', () => {
-  const sim = new Simulation();
-  sim.fighters[0].y = C.eliminationY - 1;
-  sim.step({});
-  assert.equal(sim.winner, 'blue');
-  assert.equal(sim.fighters[0].health, C.maxHealth);
+test('simultaneous uppercuts trade fairly and ring-outs decide rounds',()=>{
+  const sim=new Simulation();sim.fighters[0].x=-.65;sim.fighters[1].x=.65;
+  sim.step({red:{arm:{punch:true,power:1}},blue:{arm:{punch:true,power:1}}});
+  for(let i=0;i<12;i++)sim.step({});assert.ok(sim.fighters[0].damage>0);assert.equal(sim.fighters[0].damage,sim.fighters[1].damage);assert.equal(sim.winner,null);
+  sim.fighters[0].y=C.eliminationY-1;sim.step({});assert.equal(sim.winner,'blue');assert.deepEqual(sim.step({}),[]);
+  sim.reset();sim.fighters.forEach(f=>f.y=C.eliminationY-1);sim.step({});assert.equal(sim.winner,'draw');
 });
