@@ -83,6 +83,23 @@ test('dev button skips crew, survives roster updates, previews idle teams and re
   $('resultLobby').onclick();assert.equal(emitted.at(-1).payload.phase,'lobby');
 });
 
+test('random map starts immediately on the game screen with the resolved arena in the intro',()=>{
+  const h=hostHarness(true),{$,handlers,context}=h;
+  context.pickMap('random');
+  handlers['game:state']({phase:'playing',debug:false});
+  assert.equal($('setup').classList.contains('hidden'),true);
+  assert.equal($('gameScreen').classList.contains('hidden'),false);
+  assert.equal($('faceoff').classList.contains('hidden'),false);
+  assert.equal(h.sim.mapId,'conveyor');
+  assert.equal($('faceoffMap').textContent,'FACTORY / CONVEYOR CHAOS');
+  assert.equal(h.randomCalls,2,'choose once for selection and once for the new round');
+  h.advance(9800);h.advance(9840);assert.ok(h.lastInputs);
+  h.advance(10350);assert.ok($('faceoff').classList.contains('hidden'));
+  handlers['game:state']({phase:'playing',debug:false});
+  assert.equal(h.sim.mapId,'classic');
+  assert.equal($('faceoffMap').textContent,'CLASSIC RING','rematch intro matches the new arena');
+});
+
 test('host shows life circles and every beam, with finish effects only after final life',()=>{
   const h=hostHarness(),{$,handlers,sim}=h;
   $('devMode').onclick(); handlers['game:state']({phase:'playing',debug:true});

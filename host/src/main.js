@@ -169,6 +169,7 @@ for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
 });
 socket.on('game:state',p=>{
   phase=p.phase; debug=p.debug;
+  if(phase==='playing'&&!p.resumed){if(mapId==='random')sim.setMap(chooseRandomMap());else sim.reset();clearFinish();resetPoses();}
   commentary.phase(phase,p.resumed,{map:mapId,fighters:Object.fromEntries(TEAMS.map((team,i)=>[team,picks[i]]))});
   if (phase !== 'playing') clearFaceoff();
   else if (!p.resumed) showFaceoff();
@@ -186,7 +187,7 @@ socket.on('game:state',p=>{
     $('resumeGame').focus();
   }
   $('result').classList.toggle('hidden',phase!=='results');
-  if(phase==='playing'){if(!p.resumed){if(mapId==='random')sim.setMap(chooseRandomMap());else sim.reset();clearFinish();resetPoses();}snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
+  if(phase==='playing'){snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
   if(phase==='results'){const index=p.winner==='blue'?1:0;$('winner').textContent=p.winner==='draw'?'Draw!':FIGHTERS[picks[index]].name+' wins!';$('winner').className=p.winner;void winnerView.show(p.winner,picks);$('rematch').focus();}
   if(phase==='lobby')snapshots.clear();
   renderPicks();renderMaps();
@@ -206,7 +207,7 @@ function showFaceoff(){
     fallback.textContent=url?'':f.name[0];fallback.classList.toggle('hidden',!!url);
     $('faceoff'+cap(team)+'Name').textContent=f.name;
   });
-  $('faceoffMap').textContent=MAPS.find(m=>m.id===mapId).name.toUpperCase();
+  $('faceoffMap').textContent=MAPS.find(m=>m.id===sim.mapId).name.toUpperCase();
   const countdown=$('faceoffCountdown');
   countdown.textContent='';countdown.className='faceoff-countdown hidden';
   faceoffActive=true;syncScreen();
