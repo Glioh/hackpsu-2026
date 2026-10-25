@@ -28,6 +28,8 @@ for(const id of ['skyline','mountain','piano','station','twinspire','classic','i
  await page.screenshot({path:`${output}/${id}.png`});
 }
 await page.evaluate(()=>review.setMap('skyline',true));await page.waitForTimeout(1200);await page.screenshot({path:`${output}/skyline-wide.png`});
+await page.evaluate(()=>review.setMap('lava'));await page.waitForTimeout(500);
+report.warmLava=await page.evaluate(()=>review.draw.diagnostics());
 for(let round=0;round<2;round++)for(const id of ['skyline','mountain','piano','classic','ice','station','twinspire','lava']){await page.evaluate(id=>review.setMap(id),id);await page.waitForTimeout(80);}
 report.afterCycles=await page.evaluate(()=>(review.draw.diagnostics?.()??{}));
 await page.setViewportSize({width:800,height:600});await page.waitForTimeout(300);await page.screenshot({path:`${output}/resized.png`});
@@ -36,8 +38,12 @@ for(const id of ['lava','tiles','conveyor','station','skyline']) {
  await page.evaluate(id=>{review.setMap(id);for(let i=0;i<900;i++)review.sim.step({red:{legs:{jump:i===10},arm:{punch:i===30}},blue:{}},1/60);review.poses=review.sim.fighters.map(f=>({...f,pose:review.poses[0].pose}));review.draw.hit(review.sim.fighters[0]);},id);
  await page.waitForTimeout(100);
 }
-await page.evaluate(()=>{review.draw.resetMotion();review.setMap('lava');review.sim.arena.pieces.forEach((p,i)=>{p.state=i%3===0?'warn':i%3===1?'lava':'solid';});});
-await page.waitForTimeout(300);await page.screenshot({path:`${output}/hazards.png`});
+for(const [name,seconds] of [['vent-warning',3.6],['vent-impact',4.4],['bomb-warning',6.5],['bomb-falling',7.1],['bomb-impact',7.4],['crust-warning',9],['crust-falling',10.6],['crust-broken',22],['crust-core',40]]) {
+ await page.evaluate(seconds=>{review.draw.resetMotion();review.setMap('lava');for(let i=0;i<seconds*60;i++)review.sim.arena.step(1/60,[],[]);},seconds);
+ await page.waitForTimeout(150);await page.screenshot({path:`${output}/lava-${name}.png`});
+}
+await page.setViewportSize({width:600,height:850});await page.waitForTimeout(300);await page.screenshot({path:`${output}/lava-portrait.png`});
+await page.setViewportSize({width:1280,height:720});
 await page.evaluate(()=>{review.draw.resetMotion();review.setMap('station',true);review.sim.arena.trains.forEach(t=>{t.warning=true;});});
 await page.waitForTimeout(300);await page.screenshot({path:`${output}/station-warning.png`});
 await page.evaluate(()=>{review.draw.startKO(review.sim.fighters);review.draw.clearKO();});
@@ -47,5 +53,5 @@ host.on('pageerror',e=>errors.push(String(e)));
 await host.goto(baseURL);await host.locator('details.debug summary').click();await host.locator('#debugStart').click();await host.waitForTimeout(1500);
 await host.keyboard.press('Space');await host.keyboard.press('f');await host.setViewportSize({width:900,height:600});await host.waitForTimeout(500);
 report.hostCanvas=await host.locator('#arena canvas').count();await host.close();
-if(!baseline&&(report.afterCycles.environments!==8||report.afterCycles.textures!==report.lava.textures))errors.push('Environment cache or texture count grew after map cycles');
+if(!baseline&&(report.afterCycles.environments!==report.quake.environments||report.afterCycles.textures!==report.warmLava.textures))errors.push('Environment cache or texture count grew after map cycles');
 report.errors=errors;await writeFile(`${output}/report.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));await browser.close();if(errors.length||report.hostCanvas!==1)process.exitCode=1;

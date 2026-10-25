@@ -63,16 +63,6 @@ test('moving platforms: small island, platforms carry you, the void in between',
   assert.ok(Math.abs(s.fighters[0].x - x0) > 1 && s.fighters[0].grounded && s.winner === null, 'carried by the platform');
 });
 
-test('lava floor: lava bursts launch you; it spreads faster as the round goes on', () => {
-  const s = solo('lava'); const tile = s.arena.floorAt(s.fighters[0].x, s.fighters[0].z);
-  Object.assign(tile, { state: 'lava', t: 4 });
-  s.step({});
-  assert.ok(s.fighters[0].vy > 5 && s.fighters[0].stun > 0, 'hot foot');
-  const a = createArena('lava', 3); let early = 0, late = 0;
-  for (let i = 0; i < 90 / C.tick; i++) { a.step(C.tick, [], []); const n = a.pieces.filter(p => p.state !== 'solid').length; if (a.time < 20) early = Math.max(early, n); else late = Math.max(late, n); }
-  assert.ok(late > early);
-});
-
 test('falling platforms: tiles crumble under you and never return', () => {
   const s = solo('falling'), red = s.fighters[0]; red.z = 1; // middle of a tile, not on a seam
   const tile = s.arena.floorAt(red.x, red.z);

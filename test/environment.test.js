@@ -27,3 +27,8 @@ test('city retains two batches, deterministic silhouettes and windows on four fa
   assert.ok(rotations.size>=4);
   assert.equal(city.children[0].castShadow,false);
 });
+
+test('lava has its own warm enclosed environment',()=>{
+  assert.equal(environmentKey('lava'),'lava');assert.equal(ENVIRONMENTS.lava.indoor,true);
+  assert.notEqual(ENVIRONMENTS.lava.fog,ENVIRONMENTS.industrial.fog);
+});

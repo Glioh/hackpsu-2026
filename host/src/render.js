@@ -64,11 +64,13 @@ export function createRenderer(container, onCombatRig = () => {}) {
     const factory=arena.id==='conveyor';
     const twinspire=arena.id==='twinspire';
     const sumo = arena.id === 'sumo';
-    const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain'||arena.id==='quake', elevated = rooftop || mountain || sumo;
+    const lava = arena.id === 'lava';
+    ground.visible = !lava;
+    const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain'||arena.id==='quake', elevated = rooftop || mountain || sumo || lava;
     ground.position.y = twinspire ? -39 : piano ? -24 : mountain ? -40 : rooftop ? -24 : -6;
     ground.material.color.set(factory ? '#435459' : piano ? '#292830' : mountain ? '#879bb1' : rooftop ? '#66798d' : '#96a7ba');
     cameraDirection.fromArray(elevated ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION);
-    const framingOptions=sumo?{minDistance:Math.max(32, 40 / camera.aspect),padding:1.25}:piano?{minDistance:7,padding:1.08}:undefined;
+    const framingOptions=lava?{minDistance:Math.max(24,25/camera.aspect),padding:1.2}:sumo?{minDistance:Math.max(32, 40 / camera.aspect),padding:1.25}:piano?{minDistance:7,padding:1.08}:undefined;
     const framing = frameFighters(fighters, camera.aspect, undefined, elevated, framingOptions);
     const desiredFocus = new T.Vector3(...framing.target);
     if (previousTime === null) cameraFocus.copy(desiredFocus);

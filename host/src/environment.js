@@ -6,6 +6,7 @@ const yard = { zenith:'#668eac', horizon:'#e5dec0', lower:'#717d68', fog:'#c3d3e
 const city = { ...yard, zenith:'#527f9d', horizon:'#edc8a0', lower:'#435c68', fog:'#bdcbdc', fogRange:[65,185], sun:[-24,23,-18], key:'#ffe0ad', power:2.8, fill:'#afcfe8', bounce:'#526777', ambient:.65, exposure:1.05, environment:.75 };
 export const ENVIRONMENTS = {
   yard,
+  lava:{...yard,zenith:'#120e16',horizon:'#47252a',lower:'#a9380c',fog:'#492c30',fogRange:[38,110],sun:[-18,30,12],key:'#ffdab5',power:2.1,fill:'#b6bdce',bounce:'#ff5017',ambient:1.1,exposure:1,environment:.5,indoor:true},
   sumo:{...yard, fogRange:[100,250]},
   skyline:city,
   twinspire:{...city, horizon:'#f0cfb6', fog:'#c7d2e2', sun:[-28,25,-12]},
@@ -17,7 +18,7 @@ export const ENVIRONMENTS = {
 };
 export const QUALITY = { low:{pixelRatio:1,shadowSize:1024}, medium:{pixelRatio:1.5,shadowSize:2048}, high:{pixelRatio:2,shadowSize:2048} };
 export function environmentKey(id) {
-  return ENVIRONMENTS[id] ? id : ['lava','conveyor'].includes(id) ? 'industrial' : 'yard';
+  return ENVIRONMENTS[id] ? id : id === 'conveyor' ? 'industrial' : 'yard';
 }
 
 // Piano keeps a dark studio backdrop; outdoor maps use r180's analytic
