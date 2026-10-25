@@ -60,7 +60,6 @@ export function createRenderer(container, onCombatRig = () => {}) {
   // weapons: the simulation's weapon pickups, grenades and blasts (weapons.js state).
   const draw = (fighters, time, bodies = [], arena = fallbackArena, { active = true, motionEnabled = true, finishAge = null, weapons = null } = {}) => {
     const dt = previousTime === null ? 0 : Math.max(0, Math.min(.1, time - previousTime));
-    renderer.domElement.style.filter = finishAge === null ? '' : `grayscale(${Math.min(1, finishAge / .22)}) contrast(1.15)`;
     ko.update(finishAge ?? 0);
     hitEffects.update(bodies, active ? dt : 0);
     crumbs.update(active ? dt : 0, (x, z) => { const floor = arena.floorAt?.(x, z); return floor ? floor.y + .04 : undefined; });
@@ -152,8 +151,8 @@ export function createRenderer(container, onCombatRig = () => {}) {
   draw.resetMotion = () => { hitEffects.clear(); weaponView.clear(); crumbs.clear(); landings.fill(null); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); jiggles = models.map(() => createJiggle()); bowls = models.map(() => createFishbowl()); gags.forEach(g => g.reset()); };
   draw.setFighter = setFighter;
   draw.weaponAudio = weaponView.audio;                                    // grenade sounds (weapon-audio.js)
-  draw.dispose = () => { resizeObserver.disconnect(); ko.clear(); contactShadows.dispose(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
-  draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, geometries:renderer.info.memory.geometries, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
+  draw.dispose = () => { resizeObserver.disconnect(); ko.dispose(); contactShadows.dispose(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+  draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, geometries:renderer.info.memory.geometries, koEffects:ko.count, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
   draw.hit = (body, impact) => {
     const index = body.team === 'red' ? 0 : 1; hitAges[index] = 0; hitEffects.hit(body, impact);
     if (models[index].impactFx === 'crumbs') { const heavy = Math.hypot(body.vx, body.vz) > 7; crumbs.burst(body, heavy ? 24 : 6, heavy ? 1.2 : .6, impact); }
