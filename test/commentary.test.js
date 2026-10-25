@@ -131,6 +131,15 @@ test('director keeps both hosts in repeated-event rotation beyond the recent-lin
  for(let i=0;i<24;i++){d.offer({round:1,type:'heavy_hit',team:'red',priority:40,expires:now+1.5});await d.tick(SCRIPTS);now+=3;}
  assert.equal(speakers.length,24);for(let i=1;i<speakers.length;i++)assert.notEqual(speakers[i],speakers[i-1]);
 });
+
+test('context-specific A lines cannot starve the custom B announcer across different events',async()=>{
+ let now=0;const spoken=[];const d=new CommentaryDirector({clock:()=>now,play:async script=>spoken.push(script)});
+ d.reset(1,{map:'piano',fighters:{red:'squish',blue:'bonk'}});
+ for(const type of ['round_start','pressure_run','counter_swing','hazard_impact','quiet_brawl','ring_out']){
+  d.offer({round:1,type,team:type==='round_start'||type==='quiet_brawl'?null:'red',priority:40,expires:now+3});await d.tick(SCRIPTS);now+=3;
+ }
+ assert.deepEqual(spoken.map(script=>script.speaker),['a','b','a','b','a','b']);
+});
 test('every supported event and team maps to an approved playable script, with no early winner call',async()=>{
  const events=[];const detector=new CommentaryDetector();detector.reset(1);
  events.push(detector.event('round_start',null));

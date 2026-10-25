@@ -84,6 +84,17 @@ test('announcer countdown uses ready voice clips on each beat, interrupts dialog
   h.api.countdown(0);assert.equal(h.nodes.length,count);
 });
 
+test('B gives the opening line after A finishes the countdown',async t=>{
+ const h=harness();t.after(()=>h.api.phase('paused'));
+ await flush();h.api.phase('playing',false,{map:'piano'});
+ for(let i=0;i<4;i++)h.api.countdown(i);
+ const count=h.nodes.length;h.api.tick();await flush();assert.equal(h.nodes.length,count,'opening waits for Start');
+ h.nodes.at(-1).end();h.advance(1.3);h.api.tick();await flush();
+ assert.equal(h.nodes.length,count+1);
+ const opening=SCRIPTS.find(script=>script.id===h.api.metrics.at(-1).script);
+ assert.equal(opening.speaker,'b');assert.equal(opening.event,'round_start');assert.equal(opening.map,'piano');
+});
+
 test('late canceled stream cannot stop newer ElevenLabs speech', async t => {
   let calls = 0, rejectOld;
   const h = harness({ live: true, stream: async () => {

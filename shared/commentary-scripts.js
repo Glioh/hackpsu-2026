@@ -1,4 +1,4 @@
-export const VOICES = { a: 'Jacks Dad', b: 'Jacks Dad' };
+export const VOICES = { a: 'Rex', b: 'Vera' };
 export const SCRIPTS = [];
 for (const [i,text] of ['Three!','Two!','One!','Start!'].entries()) {
  SCRIPTS.push({id:`countdown-${i}`,event:'countdown',team:null,speaker:'a',text,intensity:5,offset:0,version:1});

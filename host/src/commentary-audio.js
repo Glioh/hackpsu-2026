@@ -86,7 +86,7 @@ export function createCommentary(socket){
   finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);request.abort();}
  }
  const director=new CommentaryDirector({play,prepare,stop,clock:()=>detector.time,caption:(text,speaker)=>{caption.textContent=text?`${speaker==='a'?'Rex':'Vera'}: ${text}`:'';}});
- function offer(event){event.observedAt=performance.now();if(catalog.dialogue)event.expires=Math.max(event.expires,event.time+5);director.offer(event);}
+ function offer(event){event.observedAt=performance.now();if(catalog.dialogue||catalog.live)event.expires=Math.max(event.expires,event.time+5);director.offer(event);}
  document.getElementById('commentaryEnabled').onchange=e=>{enabled=e.target.checked;if(!enabled)director.cancel();};
  document.getElementById('commentaryMute').onchange=e=>{muted=e.target.checked;if(gain)gain.gain.value=muted?0:volume;if(muted)director.cancel();};
  document.getElementById('commentaryVolume').oninput=e=>{volume=Number(e.target.value);if(gain)gain.gain.value=muted?0:volume;};
@@ -108,6 +108,11 @@ export function createCommentary(socket){
     utterance.volume=volume;utterance.rate=1.08;utterance.pitch=.85;
     utterance.voice=speechSynthesis.getVoices().find(v=>v.lang.startsWith('en'))||null;
     speaking=true;utterance.onend=utterance.onerror=()=>{speaking=false;};speechSynthesis.speak(utterance);
+   }
+   if(index===3){
+    // A calls the countdown; B welcomes the players once "Start!" finishes.
+    director.lastSpeaker='a';director.nextAt=detector.time+1.2;
+    const opening=detector.event('round_start',null);opening.expires=detector.time+6;offer(opening);
    }
   },
   step(sim,dt){game={map:sim.arena.id,winner:sim.winner??null,fighters:sim.fighters.map(f=>({team:f.team,character:match.fighters?.[f.team],damage:f.damage,grounded:f.grounded}))};for(const event of detector.step(sim.motionEvents,sim.winner,dt,sim.fighters))if(enabled)offer(event);},

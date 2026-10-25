@@ -45,11 +45,11 @@ export class CommentaryDirector {
     const options=scripts.filter(s=>s.event===event.type&&s.team===(event.team==='draw'?null:event.team)
       &&(!s.map||s.map===map)&&(!s.fighter||(event.team?fighters[event.team]===s.fighter:Object.values(fighters).includes(s.fighter)))
       &&(!s.hazard||s.hazard===event.evidence?.hazard));
-    // Exhaust fresh lines before repeating; prefer arena/character detail among equally fresh choices.
+    // Alternate hosts first, then choose a fresh, context-specific line for that host.
     const freshness=s=>this.recent.lastIndexOf(s.id);
     const specific=s=>Number(!!(s.map||s.fighter||s.hazard));
-    const script=options.slice().sort((a,b)=>freshness(a)-freshness(b)||specific(b)-specific(a)
-      ||Number(a.speaker===this.lastSpeaker)-Number(b.speaker===this.lastSpeaker))[0];if(!script)return;
+    const script=options.slice().sort((a,b)=>Number(a.speaker===this.lastSpeaker)-Number(b.speaker===this.lastSpeaker)
+      ||freshness(a)-freshness(b)||specific(b)-specific(a))[0];if(!script)return;
     this.busy=true;const generation=this.generation;this.abort=new AbortController();const signal=this.abort.signal;
     try{
       let turns=[script];
