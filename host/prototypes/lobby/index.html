@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Two-Body Brawl · Lobby concept</title><link rel="stylesheet" href="/shared/style.css"><link rel="stylesheet" href="./lobby.css"></head>
+<body>
+<header><a class="brand" href="/">TWO-BODY <span>BRAWL</span><sup> ↗</sup></a><span class="session"><i></i> THE COUCH IS YOUR ARENA</span><span class="concept">LOBBY CONCEPT / 01</span></header>
+<main>
+<nav aria-label="Setup preview"><button class="current" data-step="0"><b>01</b> Assemble the crew</button><span>────</span><button data-step="1"><b>02</b> Pick your fighter</button><span>────</span><button data-step="2"><b>03</b> Choose an arena</button></nav>
+<section class="intro"><div><span class="eyebrow">FOUR FRIENDS. TWO BODIES. ZERO COORDINATION.</span><h1>BETTER <em>TOGETHER.</em><br>WORSE AT WALKING.</h1></div><p>One friend takes the legs. One takes the arms.<br>Somehow, you’re a team.</p></section>
+<div class="lobby">
+<aside class="join"><div class="label"><span>YOUR NEXT BAD IDEA</span><span>↗</span></div><h2>PHONE IN.<br>THROW DOWN.</h2><div class="qr-box"><img id="qr" width="172" height="172" alt="Scan to open the existing phone controller"></div><div class="room"><small>DEMO ROOM</small><strong>COUCH</strong></div><p>Scan with your phone camera.<br>No download. Just questionable teamwork.</p><a class="join-link" id="joinLink" href="/controller">Open phone controller ↗</a><div class="join-note"><span>01 / JOIN</span><span>02 / CALIBRATE</span><span>03 / CHAOS</span></div></aside>
+<section class="matchup" aria-label="Team lineup"><div class="lineup-heading"><div><span class="eyebrow">THE LINEUP</span><h2>FIND YOUR OTHER HALF.</h2></div><span id="count" class="count" aria-live="polite">2 / 4 PHONES</span></div><div class="teams" id="teams"></div><div class="lineup-bottom"><p><span class="status-dot"></span><span id="hint" aria-live="polite">Two more friends, then it’s everybody’s problem.</span></p><button id="continue">Preview fighter select ↗</button></div></section>
+</div>
+<section id="picker" class="picker" hidden><div class="picker-heading"><div><span class="eyebrow" id="pickerLabel">02 / PICK YOUR FIGHTER</span><h2 id="pickerTitle">ONE BODY. SHARED CUSTODY.</h2></div><div class="team-toggle" aria-label="Select team"><button data-team="0" aria-pressed="true">CORAL TEAM</button><button data-team="1" aria-pressed="false">CYAN TEAM</button></div></div><div id="choices" class="choices"></div><p id="selectionNote" aria-live="polite">Select a card to change Coral team’s fighter.</p></section>
+<section id="arenaPreview" class="arena-preview" hidden><span class="eyebrow">03 / ARENA PREVIEW</span><h2>TAKE IT TO THE TILT YARD.</h2><p>A compact rooftop. Very little room for your friendship to recover.</p><a class="join-link" href="/">Open the playable host ↗</a></section>
+<section class="how"><div><b>↔</b><span><strong>LEGS GET YOU THERE.</strong>Tilt to move. Jolt to jump.</span></div><div><b>✳</b><span><strong>ARMS MAKE A POINT.</strong>Tilt to turn. Jolt to uppercut.</span></div><div><b>↗</b><span><strong>STAY ON. KNOCK ’EM OFF.</strong>The last body standing wins.</span></div></section>
+<footer><span>BUILT FOR BEAUTIFUL MISCOMMUNICATION.</span><span>HACKPSU 2026</span></footer>
+<section class="prototype-controls" aria-label="Prototype controls"><span>INTERACTIVE MOCKUP · SAMPLE PLAYERS</span><button id="simulate">Fill remaining slots</button><button id="reset">Reset</button><button id="palette" aria-pressed="false">Try dusk gradient</button></section>
+</main><script type="module" src="./lobby.js"></script></body></html>
