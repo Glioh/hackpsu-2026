@@ -1,30 +1,40 @@
 import { CONFIG as C } from '../../shared/config.js';
+import { createArena } from './maps.js';
 export function fighter(team, x, heading) {
   return { team, x, z: 0, y: 0, vx: 0, vz: 0, vy: 0, heading, grounded: true, cooldown: 0, attack: 0, punchArm: 1, hit: 0, stun: 0, landed: false };
 }
 export class Simulation {
-  constructor() { this.reset(); }
-  reset() { this.fighters = [fighter('red', -3, Math.PI / 2), fighter('blue', 3, -Math.PI / 2)]; this.winner = null; this.motionEvents = []; }
+  constructor(mapId = 'classic', seed = 1) { this.mapId = mapId; this.seed = seed; this.reset(); }
+  setMap(mapId) { this.mapId = mapId; this.reset(); }
+  // Each reset builds a fresh arena with a new seed, so hazards differ round to round.
+  reset() {
+    this.arena = createArena(this.mapId, this.seed++);
+    const [[rx, rz], [bx, bz]] = this.arena.spawn;
+    this.fighters = [Object.assign(fighter('red', rx, Math.PI / 2), { z: rz }), Object.assign(fighter('blue', bx, -Math.PI / 2), { z: bz })];
+    this.winner = null; this.motionEvents = [];
+  }
   step(inputs, dt = C.tick) {
     this.motionEvents.length = 0;
     if (this.winner) return [];
     const hits = [];
+    this.arena.step(dt, this.fighters, this.motionEvents);
     for (const f of this.fighters) {
       const i = inputs[f.team] || {}, legs = i.legs || {}, arm = i.arm || {};
       f.cooldown = Math.max(0, f.cooldown - dt); f.hit = Math.max(0, f.hit - dt); f.stun = Math.max(0, f.stun - dt);
       f.heading += (arm.turn || 0) * C.turnRate * dt;
       let mx = legs.moveX || 0, mz = legs.moveZ || 0, len = Math.max(1, Math.hypot(mx, mz)); mx /= len; mz /= len;
       const x = mx * Math.cos(f.heading) + mz * Math.sin(f.heading), z = -mx * Math.sin(f.heading) + mz * Math.cos(f.heading);
-      const drive = f.stun > 0 ? 0 : 1;
-      f.vx += (x * C.speed * drive - f.vx) * (1 - Math.exp(-C.damping * dt));
-      f.vz += (z * C.speed * drive - f.vz) * (1 - Math.exp(-C.damping * dt));
+      const drive = f.stun > 0 ? 0 : 1, floor = f.grounded ? this.arena.floorAt(f.x, f.z) : null, grip = floor?.grip ?? 1;
+      f.vx += (x * C.speed * drive - f.vx) * (1 - Math.exp(-C.damping * grip * dt));
+      f.vz += (z * C.speed * drive - f.vz) * (1 - Math.exp(-C.damping * grip * dt));
       if (legs.jump && f.grounded) { f.vy = C.jump; f.grounded = false; this.motionEvents.push({type:'takeoff',team:f.team}); }
       if (arm.punch && f.cooldown <= 0) { f.punchArm = 1 - f.punchArm; f.attack = 0.28; f.cooldown = C.punchCooldown; f.landed = false; f.power = arm.power ?? 0.6; this.motionEvents.push({type:'punch',team:f.team,arm:f.punchArm}); }
       f.attack = Math.max(0, f.attack - dt);
+      if (floor) { f.x += floor.vx * dt; f.z += floor.vz * dt; } // moving platforms and conveyor belts carry you
       f.x += f.vx * dt; f.z += f.vz * dt;
-      const support = Math.abs(f.x) <= C.arenaX && Math.abs(f.z) <= C.arenaZ;
+      const support = this.arena.floorAt(f.x, f.z), top = support ? support.y : 0;
       f.vy -= C.gravity * dt; f.y += f.vy * dt;
-      if (support && f.y <= 0 && f.y > -0.5 && f.vy <= 0) { if (!f.grounded) this.motionEvents.push({type:'landing',team:f.team,speed:-f.vy}); f.y = 0; f.vy = 0; f.grounded = true; } else f.grounded = false;
+      if (support && f.y <= top && f.y > top - 0.5 && f.vy <= 0) { if (!f.grounded) this.motionEvents.push({type:'landing',team:f.team,speed:-f.vy}); f.y = top; f.vy = 0; f.grounded = true; } else f.grounded = false;
     }
     const [a, b] = this.fighters;
     let dx = b.x - a.x, dz = b.z - a.z, dist = Math.hypot(dx, dz);
