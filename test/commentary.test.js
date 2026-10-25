@@ -5,7 +5,34 @@ import {SCRIPTS} from '../shared/commentary-scripts.js';
 import {configuration,cacheKey,synthesize,installCommentary} from '../server/commentary.js';
 import express from 'express';
 import {EventEmitter} from 'node:events';
+import {MAPS} from '../host/src/maps.js';
 const hit=(attacker,damage=16)=>({type:'hit',source:'fighter',attacker,team:attacker==='red'?'blue':'red',damage});
+test('script bank covers every arena and character without duplicate IDs',()=>{
+ assert.equal(new Set(SCRIPTS.map(s=>s.id)).size,SCRIPTS.length);
+ for(const map of MAPS)for(const type of ['round_start','quiet_brawl','ring_out'])
+  assert.ok(SCRIPTS.some(s=>s.map===map.id&&s.event===type),`${map.id}/${type}`);
+ for(const fighter of ['squish','crank','bonk','nik','tung','toast','conehead','bubbles'])
+  for(const type of ['round_start','heavy_hit','pressure_run','counter_swing','ring_out'])
+   assert.ok(SCRIPTS.some(s=>s.fighter===fighter&&s.event===type),`${fighter}/${type}`);
+});
+test('director uses selected arena and attacking fighter, excludes other identities, remembers rematches',async()=>{
+ let now=0;const spoken=[];
+ const d=new CommentaryDirector({clock:()=>now,play:async s=>spoken.push(s)});
+ const context={map:'piano',fighters:{red:'tung',blue:'bubbles'}};
+ const say=async(type,team,evidence={})=>{d.offer({round:d.round,type,team,evidence,priority:40,expires:now+2});await d.tick(SCRIPTS);now+=3;};
+ d.reset(1,context);await say('round_start',null);assert.equal(spoken.at(-1).map,'piano');
+ d.reset(2,context);await say('round_start',null);assert.equal(spoken.at(-1).map,'piano');assert.notEqual(spoken[0].id,spoken[1].id);
+ await say('heavy_hit','red');assert.equal(spoken.at(-1).fighter,'tung');
+ await say('heavy_hit','blue');assert.equal(spoken.at(-1).fighter,'bubbles');
+ await say('hazard_impact','red',{hazard:'laser'});assert.equal(spoken.at(-1).hazard,'laser');assert.doesNotMatch(spoken.at(-1).text,/train/i);
+ d.reset(3,{map:'unknown',fighters:{}});await say('heavy_hit','red');assert.equal(spoken.at(-1).fighter,undefined);
+});
+test('detector reports non-train hazards with actual identity',()=>{
+ for(const hazard of ['arrow','laser','lava','quake']){
+  const d=new CommentaryDetector(),events=d.step([{type:'hit',source:'hazard',hazard,hazardId:'instance',team:'red'}],null,.1);
+  assert.equal(events[0].type,'hazard_impact');assert.equal(events[0].evidence.hazard,hazard);
+ }
+});
 test('detector collapses trades, counts unanswered pressure and reversal',()=>{
  const d=new CommentaryDetector();d.reset(1);
  assert.deepEqual(d.step([hit('red'),hit('blue')],null,.01).map(e=>e.type),['trade']);

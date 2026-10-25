@@ -8,6 +8,7 @@ import { createClumsy } from './clumsy.js';
 import { createArenaView } from './arena-view.js';
 import { createArena } from './maps.js';
 import { createKOEffects } from './ko-effects.js';
+import { FINISH_TIME_SCALE } from './ko-finish.js';
 import { createHitEffects, createHitFlash } from './hit-effects.js';
 import { createJiggle } from './jiggle.js';
 import { createFishbowl } from './fishbowl.js';
@@ -61,18 +62,19 @@ export function createRenderer(container, onCombatRig = () => {}) {
   const draw = (fighters, time, bodies = [], arena = fallbackArena, { active = true, motionEnabled = true, finishAge = null, weapons = null } = {}) => {
     const dt = previousTime === null ? 0 : Math.max(0, Math.min(.1, time - previousTime));
     renderer.domElement.style.filter = finishAge === null ? '' : `grayscale(${Math.min(1, finishAge / .22)}) contrast(1.15)`;
-    ko.update(finishAge ?? 0);
+    ko.update(active ? dt / (finishAge === null ? 1 : FINISH_TIME_SCALE) : 0);
     hitEffects.update(bodies, active ? dt : 0);
     crumbs.update(active ? dt : 0, (x, z) => { const floor = arena.floorAt?.(x, z); return floor ? floor.y + .04 : undefined; });
     const piano=arena.id==='piano';
     const factory=arena.id==='conveyor';
     const twinspire=arena.id==='twinspire';
-    const sumo = arena.id === 'sumo';
-    const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain'||arena.id==='quake', elevated = rooftop || mountain || sumo;
+    const lava = arena.id === 'lava';
+    ground.visible = !lava;
+    const rooftop = arena.id === 'skyline'||twinspire||arena.id==='station', mountain = arena.id === 'mountain'||arena.id==='quake', elevated = rooftop || mountain || lava;
     ground.position.y = twinspire ? -39 : piano ? -24 : mountain ? -40 : rooftop ? -24 : -6;
     ground.material.color.set(factory ? '#435459' : piano ? '#292830' : mountain ? '#879bb1' : rooftop ? '#66798d' : '#96a7ba');
     cameraDirection.fromArray(elevated ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION);
-    const framingOptions=sumo?{minDistance:Math.max(32, 40 / camera.aspect),padding:1.25}:piano?{minDistance:7,padding:1.08}:undefined;
+    const framingOptions=lava?{minDistance:Math.max(24,25/camera.aspect),padding:1.2}:piano?{minDistance:7,padding:1.08}:undefined;
     const framing = frameFighters(fighters, camera.aspect, undefined, elevated, framingOptions);
     const desiredFocus = new T.Vector3(...framing.target);
     if (previousTime === null) cameraFocus.copy(desiredFocus);
@@ -93,7 +95,7 @@ export function createRenderer(container, onCombatRig = () => {}) {
       if (active) hitAges[i] += dt;
       const age = hitAges[i];
       flashes[i](age < .075 ? 1 : age < .13 ? .15 : age < .19 ? .8 * (1 - (age - .13) / .06) : 0, body?.damage ?? 0);
-      m.group.visible = !(finishAge !== null && body?.y < -5);
+      m.group.visible = !body?.respawnRemaining && body?.lives !== 0;
       m.group.position.set(f.x, f.y + .09, f.z);
       m.group.rotation.y = f.heading;
       // Wukong: a winner's victory twirl topples him over; a loser's headband slips over his eyes.

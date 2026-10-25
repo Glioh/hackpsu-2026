@@ -1,8 +1,9 @@
 // Short synthesized impacts avoid network/loading delays during combat.
-export function createCombatAudio({ createContext = () => new AudioContext({ latencyHint: 'interactive' }), random = Math.random } = {}) {
-  let context, master, noise, enabled = true, volume = .65;
+export function createCombatAudio({ createContext = () => new AudioContext({ latencyHint: 'interactive' }), random = Math.random, fetcher = globalThis.fetch } = {}) {
+  let context, master, noise, crowd, crowdLoad, generation = 0, enabled = true, volume = .65;
   const active = new Set();
   function stop() {
+    generation++;
     for (const source of active) { try { source.stop(); } catch {} }
     active.clear();
   }
@@ -18,12 +19,21 @@ export function createCombatAudio({ createContext = () => new AudioContext({ lat
         for (let i = 0; i < data.length; i++) data[i] = random() * 2 - 1;
       }
       void context.resume().catch(() => {});
+      crowdLoad ??= Promise.resolve().then(()=>fetcher('/host/audio/crowd-cheer.mp3'))
+        .then(response=>{if(!response.ok)throw Error('Crowd audio unavailable');return response.arrayBuffer();})
+        .then(bytes=>context.decodeAudioData(bytes)).then(buffer=>{crowd=buffer;})
+        .catch(()=>{crowdLoad=null;});
+      return crowdLoad;
     } catch { /* Combat remains playable when browser audio is unavailable. */ }
   }
-  function layer(source, level, duration, filter) {
+  function layer(source, level, duration, filter, sustain = false) {
     const now = context.currentTime, gain = context.createGain();
     gain.gain.setValueAtTime(.0001, now);
     gain.gain.exponentialRampToValueAtTime(level, now + .004);
+    if (sustain) {
+      gain.gain.setValueAtTime(level, now + duration * .6);
+      gain.gain.exponentialRampToValueAtTime(level * .4, now + duration * .94);
+    }
     gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
     if (filter) { source.connect(filter); filter.connect(gain); } else source.connect(gain);
     gain.connect(master); active.add(source);
@@ -32,6 +42,37 @@ export function createCombatAudio({ createContext = () => new AudioContext({ lat
   }
   return {
     unlock, stop,
+    async cheer(duration = 10.35) {
+      if (!enabled || !context) return;
+      const started=context.currentTime,requestedGeneration=generation;
+      await crowdLoad;
+      if(!enabled||context.state!=='running'||requestedGeneration!==generation||!crowd)return;
+      const elapsed=context.currentTime-started;
+      duration=Math.min(duration-elapsed,crowd.duration);
+      if(duration<=.05)return;
+      const source=context.createBufferSource();source.buffer=crowd;
+      layer(source,.5,duration,undefined,true);
+    },
+    countdown(fight = false) {
+      if (!enabled || context?.state !== 'running') return;
+      if (fight) {
+        // A two-tone arena horn marks the same beat that releases the simulation.
+        for (const frequency of [220, 330]) {
+          const horn=context.createOscillator(),filter=context.createBiquadFilter();
+          horn.type='sawtooth';horn.frequency.value=frequency;
+          filter.type='lowpass';filter.frequency.value=1400;
+          layer(horn,.24,.85,filter,true);
+        }
+        return;
+      }
+      const boom=context.createOscillator(),now=context.currentTime;
+      boom.frequency.setValueAtTime(110,now);
+      boom.frequency.exponentialRampToValueAtTime(35,now+.35);
+      layer(boom,.4,.45);
+      const crash=context.createBufferSource(),filter=context.createBiquadFilter();
+      crash.buffer=noise;filter.type='highpass';filter.frequency.value=1800;
+      layer(crash,.12,.24,filter);
+    },
     setEnabled(value) { enabled = !!value; if (master) master.gain.value = enabled ? volume : 0; if (!enabled) stop(); },
     setVolume(value) { volume = Math.max(0, Math.min(1, value)); if (master) master.gain.value = enabled ? volume : 0; },
     event(event) {

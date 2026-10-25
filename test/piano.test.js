@@ -19,7 +19,7 @@ test('all 88 keys have distinct correct pitches and matching physics surfaces',(
 });
 test('soundboard is scenery and open keyboard edges ring out',()=>{
  const a=createArena('piano');assert.equal(a.floorAt(40,-35),null);assert.equal(a.floorAt(0,-40),null);
- const s=new Simulation('piano');Object.assign(s.fighters[0],{x:43,z:26,y:.12});for(let i=0;i<120;i++)s.step({});assert.equal(s.winner,'blue');
+ const s=new Simulation('piano');Object.assign(s.fighters[0],{x:43,z:26,y:.12});for(let i=0;i<120;i++)s.step({});assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2);
 });
 test('fighter jumps and lands on a raised black key',()=>{
  const s=new Simulation('piano'),k=PIANO_KEYS.find(k=>k.black);Object.assign(s.fighters[0],{x:k.x,z:k.z,y:2,vy:-1,grounded:false});

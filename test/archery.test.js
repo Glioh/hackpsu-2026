@@ -22,7 +22,7 @@ test('target is selectable with circular support and safe separated spawns',()=>
 });
 test('open circular edges allow diagonal ring-outs',()=>{
   const s=new Simulation('archery');Object.assign(s.fighters[0],{x:6.5,z:6.5});
-  for(let i=0;i<180&&!s.winner;i++)s.step({});assert.equal(s.winner,'blue');
+  for(let i=0;i<180&&!s.winner;i++)s.step({});assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2);
 });
 test('seeded random arrows give full fixed-position warnings, varied gaps, and stay on board',()=>{
   const sample=seed=>{const a=createArena('archery',seed),seen=[];for(let i=0;i<3000;i++){

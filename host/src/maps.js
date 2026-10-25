@@ -11,7 +11,7 @@ import { configureMountain } from './mountain-map.js';
 import {configureStation} from './station-map.js';
 import {configureTwinspire} from './twinspire-map.js';
 import {configureArchery} from './archery-map.js';
-import { configureSumo } from './sumo-map.js';
+import { configureLava } from './lava-map.js';
 
 export const MAPS = [
   { id: 'classic', name: 'Classic Ring', tier: 'Early', blurb: 'Solid floor. Learn to shove.' },
@@ -23,11 +23,10 @@ export const MAPS = [
   {id:'twinspire',name:'Twinspire',tier:'Mid',blurb:'Spawn on opposite skyscrapers. Cross two wide, fenced skybridges and battle across both rooftops.'},
   {id:'piano',name:'Forte Grand Piano',tier:'Mid',blurb:'88 playable keys on a giant concert grand. Jump onto the sharps, play notes with your feet, and knock rivals off the case.'},
   { id: 'archery', name: 'Bullseye Brawl', tier: 'Mid', blurb: 'Brawl on a giant target! Dodge the marked circles before sky-high arrows land. Open edges mean ring-outs.' },
-  { id: 'sumo', name: 'Sumo Laser Arena', tier: 'Mid', blurb: 'Three giant champions aim at the open sumo stage. Dodge the marked spots before their lasers strike.' },
   { id: 'tiles', name: 'Disappearing Tiles', tier: 'Mid', blurb: 'Blinking tiles drop out, then come back.' },
   { id: 'split', name: 'Splitting Floor', tier: 'Mid', blurb: 'The floor splits in half, then slams shut.' },
   { id: 'platforms', name: 'Moving Platforms', tier: 'Mid', blurb: 'A small island and platforms that drift past.' },
-  { id: 'lava', name: 'Lava Floor', tier: 'Late', blurb: 'Lava bursts up through the floor. Hot feet fly.' },
+  { id: 'lava', name: 'Volcano Crucible', tier: 'Late', blurb: 'Magma crust breaks apart and falls into lava. Escape glowing cracks, vents, and falling volcanic bombs.' },
   { id: 'falling', name: 'Falling Platform Arena', tier: 'Late', blurb: 'Tiles crumble under your feet and never return.' },
   { id: 'conveyor', name: 'Factory / Conveyor Chaos', tier: 'Late', blurb: 'Belts drag you to the edge, then reverse.' },
 ];
@@ -81,9 +80,6 @@ export function createArena(id = 'classic', seed = 1) {
   switch (id) {
     case 'archery':
       configureArchery(arena,rng);
-      break;
-    case 'sumo':
-      configureSumo(arena, rng);
       break;
     case 'station':
       configureStation(arena,rng);
@@ -171,21 +167,9 @@ export function createArena(id = 'classic', seed = 1) {
       break;
     }
 
-    case 'lava': {
-      arena.pieces = grid('lava');
-      let timer = 2;
-      arena.update = (dt, fighters, events) => {
-        if ((timer -= dt) <= 0) { timer = Math.max(.45, 1.6 - arena.time * .02); const p = pick(arena.pieces.filter(p => p.state === 'solid')); if (p) Object.assign(p, { state: 'warn', t: 1.2 }); }
-        for (const p of arena.pieces) if (p.state !== 'solid') tick(p, dt, p => p.state === 'warn' ? { state: 'lava', t: 4 } : { state: 'solid', t: 0 });
-        for (const f of fighters) {
-          const p = standingOn(f);
-          if (p?.state !== 'lava') continue;
-          f.vx = 0; f.vz = 0; f.stun = .45;                                     // hot foot: launched up and away
-          shove(f, Math.atan2(f.z - p.z, f.x - p.x) + (rng() - .5) * 1.2, 7, 9, events, 9);
-        }
-      };
+    case 'lava':
+      configureLava(arena,rng);
       break;
-    }
 
     case 'falling': {
       arena.pieces = grid('crumble');

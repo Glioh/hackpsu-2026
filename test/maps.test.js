@@ -46,7 +46,7 @@ test('disappearing tiles: blinking tiles drop out under you, then come back', ()
   const gone = tiles.find(t => t.state === 'gone');
   Object.assign(s.fighters[0], { x: gone.x, z: gone.z });
   run(s, 2);
-  assert.equal(s.winner, 'blue', 'standing on a missing tile drops you');
+  assert.equal(s.fighters[0].lives, 2, 'standing on a missing tile costs one life');
   const t = createArena('tiles', 2); t.pieces[0].state = 'warn'; t.pieces[0].t = .1;
   for (let i = 0; i < 400; i++) t.step(C.tick, [], []);
   assert.ok(t.pieces.filter(p => p.state === 'gone').length < t.pieces.length / 2, 'tiles return');
@@ -70,22 +70,12 @@ test('moving platforms: small island, platforms carry you, the void in between',
   assert.ok(Math.abs(s.fighters[0].x - x0) > 1 && s.fighters[0].grounded && s.winner === null, 'carried by the platform');
 });
 
-test('lava floor: lava bursts launch you; it spreads faster as the round goes on', () => {
-  const s = solo('lava'); const tile = s.arena.floorAt(s.fighters[0].x, s.fighters[0].z);
-  Object.assign(tile, { state: 'lava', t: 4 });
-  s.step({});
-  assert.ok(s.fighters[0].vy > 5 && s.fighters[0].stun > 0, 'hot foot');
-  const a = createArena('lava', 3); let early = 0, late = 0;
-  for (let i = 0; i < 90 / C.tick; i++) { a.step(C.tick, [], []); const n = a.pieces.filter(p => p.state !== 'solid').length; if (a.time < 20) early = Math.max(early, n); else late = Math.max(late, n); }
-  assert.ok(late > early);
-});
-
 test('falling platforms: tiles crumble under you and never return', () => {
   const s = solo('falling'), red = s.fighters[0]; red.z = 1; // middle of a tile, not on a seam
   const tile = s.arena.floorAt(red.x, red.z);
   run(s, 1); assert.equal(tile.state, 'warn');
   run(s, 3); assert.notEqual(tile.state, 'solid');
-  assert.equal(s.winner, 'blue', 'rode the tile down');
+  assert.equal(s.fighters[0].lives, 2, 'rode the tile down');
   const a = createArena('falling', 4);
   for (let i = 0; i < 60 / C.tick; i++) a.step(C.tick, [], []);
   assert.ok(a.pieces.filter(p => p.state === 'gone').length > 10);

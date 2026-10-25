@@ -25,8 +25,9 @@ test('original knockout uses billboard beams for both deaths and clears on reset
     group.children.forEach(sprite=>{assert.ok(sprite.isSprite);assert.equal(sprite.material.depthTest,false);materials.add(sprite.material);});
   });
   fx.update(.15);assert.ok(scene.children.every(g=>g.children[0].scale.y>20));
-  fx.update(1.8);assert.ok(scene.children.every(g=>g.children.every(s=>s.material.opacity===0)));
   let disposed=0;materials.forEach(m=>m.addEventListener('dispose',()=>disposed++));
+  fx.update(1.8);assert.equal(scene.children.length,0);assert.equal(disposed,materials.size);
+  fx.trigger(bodies);assert.equal(scene.children.length,2);
   fx.clear();assert.equal(scene.children.length,0);assert.equal(disposed,materials.size);
 });
 

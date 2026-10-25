@@ -27,28 +27,44 @@ export class CommentaryDetector {
       if(this.run.times.length>=3&&!this.run.announced){this.run.announced=true;out.push(this.event('pressure_run',hit.attacker,{hits:3}));}
       else if(hit.damage>=15)out.push(this.event('heavy_hit',hit.attacker,{hit}));
     }
-    for(const hit of hits)if(hit.source==='hazard'){this.run=null;this.reversal=null;if(hit.hazard==='train')out.push(this.event('hazard_impact',hit.team,{hazardId:hit.hazardId}));}
+    for(const hit of hits)if(hit.source==='hazard'){this.run=null;this.reversal=null;out.push(this.event('hazard_impact',hit.team,{hazard:hit.hazard,hazardId:hit.hazardId}));}
     if(!hits.length&&fighters.every(f=>f.grounded&&!f.stun)&&this.time-this.lastContact>=10&&this.time-this.quietAt>=30){this.quietAt=this.time;out.push(this.event('quiet_brawl',null));}
     return out;
   }
 }
 
 export class CommentaryDirector {
-  constructor({play,stop=()=>{},caption=()=>{},clock=()=>0}){Object.assign(this,{play,stop,caption,clock});this.recent=[];this.reset(0);}
-  reset(round){this.cancel();this.round=round;this.pending=null;this.nextAt=0;this.paused=false;this.recent=[];this.lastSpeaker=null;}
+  constructor({play,prepare,stop=()=>{},caption=()=>{},clock=()=>0}){Object.assign(this,{play,prepare,stop,caption,clock});this.recent=[];this.reset(0);}
+  reset(round,context={}){this.cancel();this.round=round;this.context=context;this.pending=null;this.nextAt=0;this.paused=false;this.history=[];}
   cancel(){this.generation=(this.generation||0)+1;this.abort?.abort();this.stop();this.busy=false;this.pending=null;this.caption('');}
   offer(event){if(this.paused||event.round!==this.round)return;if(event.priority===100){this.cancel();this.nextAt=0;}if(!this.pending||event.priority>=this.pending.priority)this.pending=event;}
   async tick(scripts){
     const event=this.pending,now=this.clock();if(!event||this.busy||this.paused)return;
     if(event.expires<now){this.pending=null;return;}if(now<this.nextAt)return;
-    this.pending=null;const options=scripts.filter(s=>s.event===event.type&&s.team===(event.team==='draw'?null:event.team));
-    const alternating=options.filter(s=>s.speaker!==this.lastSpeaker);
-    const candidates=alternating.length?alternating:options;
-    const script=candidates.slice().sort((a,b)=>this.recent.lastIndexOf(a.id)-this.recent.lastIndexOf(b.id))[0];if(!script)return;
-    this.lastSpeaker=script.speaker;
-    this.recent.push(script.id);this.recent=this.recent.slice(-8);this.busy=true;const generation=this.generation;this.abort=new AbortController();
-    this.caption(script.text,script.speaker);
-    try{await this.play(script,event,this.abort.signal);}catch{/* Audio is optional. */}
+    this.pending=null;const {map,fighters={}}=this.context;
+    const options=scripts.filter(s=>s.event===event.type&&s.team===(event.team==='draw'?null:event.team)
+      &&(!s.map||s.map===map)&&(!s.fighter||(event.team?fighters[event.team]===s.fighter:Object.values(fighters).includes(s.fighter)))
+      &&(!s.hazard||s.hazard===event.evidence?.hazard));
+    // Exhaust fresh lines before repeating; prefer arena/character detail among equally fresh choices.
+    const freshness=s=>this.recent.lastIndexOf(s.id);
+    const specific=s=>Number(!!(s.map||s.fighter||s.hazard));
+    const script=options.slice().sort((a,b)=>freshness(a)-freshness(b)||specific(b)-specific(a)
+      ||Number(a.speaker===this.lastSpeaker)-Number(b.speaker===this.lastSpeaker))[0];if(!script)return;
+    this.busy=true;const generation=this.generation;this.abort=new AbortController();const signal=this.abort.signal;
+    try{
+      let turns=[script];
+      if(this.prepare){try{turns=await this.prepare(event,this.history.slice(),script.speaker,signal)||turns;}catch{/* Use the local bank when generation is unavailable. */}}
+      if(signal.aborted||generation!==this.generation||event.expires<this.clock())return;
+      for(const turn of turns){
+        if(signal.aborted||generation!==this.generation)return;
+        this.caption(turn.text,turn.speaker);
+        const completed=await this.play(turn,event,signal);
+        if(signal.aborted||generation!==this.generation)return;
+        if(completed!==false){this.history.push({speaker:turn.speaker,text:turn.text});this.history=this.history.slice(-12);this.lastSpeaker=turn.speaker;}
+        this.recent.push(turn.id);this.recent=this.recent.slice(-128);
+        if(this.pending?.priority>event.priority)break;
+      }
+    }catch{/* Audio is optional. */}
     finally{if(generation===this.generation){this.busy=false;this.nextAt=this.clock()+2;this.caption('');}}
   }
 }

@@ -5,7 +5,7 @@ import { FINISH_TIME_SCALE, stepFinish } from '../host/src/ko-finish.js';
 
 test('finish slows survivor momentum without changing winner, damage, or eliminated body', () => {
   const sim = new Simulation();
-  sim.fighters[0].y = -6; sim.step({});
+  sim.fighters[0].lives = 1; sim.fighters[0].y = -6; sim.step({});
   const loser = { ...sim.fighters[0] }, survivor = sim.fighters[1];
   const x = survivor.x; survivor.vx = 4;
   stepFinish(sim, FINISH_TIME_SCALE);
@@ -19,7 +19,7 @@ test('finish slows survivor momentum without changing winner, damage, or elimina
 
 test('simultaneous void deaths stay a draw throughout the finish', () => {
   const sim = new Simulation();
-  sim.fighters.forEach(f => f.y = -6); sim.step({});
+  sim.fighters.forEach(f => { f.lives = 1; f.y = -6; }); sim.step({});
   const bodies = structuredClone(sim.fighters);
   stepFinish(sim, .1);
   assert.equal(sim.winner, 'draw');

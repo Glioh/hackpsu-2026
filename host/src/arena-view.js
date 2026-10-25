@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {createLavaView} from './lava-view.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {createArcheryView} from './archery-view.js';
 import {createQuakeView} from './quake-view.js';
@@ -9,7 +10,6 @@ import { createMountainView } from './mountain-view.js';
 import {createStationView} from './station-view.js';
 import {createTwinspireView} from './twinspire-view.js';
 import {createFactoryView} from './factory-view.js';
-import { createSumoView } from './sumo-view.js';
 
 // Draws the current arena (maps.js) from its live state: each floor piece is a dark base plus a coloured top,
 // moved/hidden/recoloured every frame (blinking warnings, glowing lava, scrolling belts, falling tiles).
@@ -39,7 +39,7 @@ export function createArenaView(scene) {
   const archery=createArcheryView(scene);
   const quake=createQuakeView(scene);
   const factory=createFactoryView(scene);
-  const sumo = createSumoView(scene);
+  const lava = createLavaView(scene);
   let current = null, items = [], last = 0;
 
   function build(arena) {
@@ -48,7 +48,7 @@ export function createArenaView(scene) {
     for (const material of oldMaterials) { if (material.map && material.map !== belt) material.map.dispose(); material.dispose(); }
     for (const geometry of oldGeometry) geometry.dispose();
     root.clear();
-    if (arena.id === 'sumo' || arena.id === 'quake' || arena.id === 'archery' || arena.id === 'skyline' || arena.id === 'mountain' || arena.id === 'piano' || arena.id === 'twinspire' || arena.id === 'station') { items = []; current = arena; return; }
+    if (arena.id === 'lava' || arena.id === 'quake' || arena.id === 'archery' || arena.id === 'skyline' || arena.id === 'mountain' || arena.id === 'piano' || arena.id === 'twinspire' || arena.id === 'station') { items = []; current = arena; return; }
     items = arena.pieces.map(p => {
       const base = new T.Mesh(box, new T.MeshStandardMaterial({ color: BASE[p.kind] ?? '#526079', roughness: .78, metalness: .08 }));
       const top = new T.Mesh(box, new T.MeshStandardMaterial({ color: TOP[p.kind] ?? TOP.floor, roughness: p.kind === 'ice' ? .18 : p.kind === 'belt' ? .55 : .78, metalness: p.kind === 'ice' ? .12 : p.kind === 'belt' ? .35 : 0 }));
@@ -70,7 +70,7 @@ export function createArenaView(scene) {
   }
 
   return (arena, time, fighters = [], camera) => {
-    sumo(arena);
+    lava(arena,time);
     rooftop(arena.id === 'skyline', fighters, camera);
     station(arena,fighters,camera);
     piano(arena,fighters,camera);
