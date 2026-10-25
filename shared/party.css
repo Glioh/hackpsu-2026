@@ -1,0 +1,23 @@
+.choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.choice-card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;overflow:hidden;border:2px solid #ffffff17;border-radius:14px;background:#171d2b;color:#fff;padding:12px;box-shadow:none;transition:border-color .1s,background .1s,transform .12s}
+.choice-card img{width:100%;height:125px;object-fit:contain;filter:drop-shadow(0 6px 10px #0005);pointer-events:none}
+.choice-card strong{font-size:14px;line-height:1.2;text-align:center}
+.choice-card small{display:block;min-height:17px;margin-top:7px;color:#b5bfd3;font-size:11px;text-align:center}
+.choice-card.selected{border-color:#d5ff61;background:#273428}
+.choice-card.partner-pick:after{content:'PARTNER';position:absolute;top:6px;right:6px;padding:3px 5px;border-radius:4px;background:#b29bff;color:#100c21;font-size:8px;font-weight:900;letter-spacing:.05em}
+.choice-card.rolling{border-color:#fff;background:#566174;box-shadow:0 0 0 2px #fff,0 0 26px #fff4}
+.choice-card.winner{animation:selection-lock .26s ease-in-out 3 alternate;border-color:#fff;background:#37414f;box-shadow:0 0 25px #fff3}
+.choice-card:disabled{opacity:1;cursor:default}
+.map-card{min-height:130px;align-items:stretch;text-align:left;justify-content:space-between;padding:18px;background:linear-gradient(140deg,var(--map-color,#2b4466),#101825)}
+.map-card strong{text-align:left;font-size:20px;max-width:95%;line-height:1.1}
+.map-card .map-number{font-size:11px;letter-spacing:.15em;opacity:.6;margin-bottom:20px}
+.map-card small{text-align:left;font-size:11px;color:#d6deeb}
+.map-card:nth-child(2){--map-color:#593155}.map-card:nth-child(3){--map-color:#295653}.map-card:nth-child(4){--map-color:#665028}.map-card:nth-child(5){--map-color:#3f376d}.map-card:nth-child(6){--map-color:#66352f}
+.selection-clock{display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:52px;border:1px solid #ffffff24;border-radius:50%;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.duo-card{padding:18px;border:1px solid #ffffff1a;border-top:3px solid var(--duo-color);border-radius:12px;background:#141b28}
+.duo-card h3{margin:0 0 12px;color:var(--duo-color);font-size:20px}
+.duo-card p{font-size:13px;margin:6px 0;color:#b9c3d4}
+.duo-portrait{width:100%;height:175px;object-fit:contain;transition:filter .1s}
+.duo-card.rolling .duo-portrait{filter:brightness(1.8) drop-shadow(0 0 8px #fff9)}
+@keyframes selection-lock{from{filter:brightness(1)}to{filter:brightness(2.7)}}
+@media(prefers-reduced-motion:reduce){.choice-card.winner{animation:none}.choice-card{transition:none}}

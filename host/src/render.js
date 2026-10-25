@@ -52,7 +52,15 @@ export function createRenderer(container, onCombatRig = () => {}) {
   };
   // Swaps team i's body to character id. The current body (capsule fallback at first) stays if loading fails,
   // and a slower earlier pick never overwrites a newer one.
-  const setFighter=(i,id)=>{const m=models[i];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(['#ff665b','#63c7ec'][i]);enrichMaterials(s.root);m.group.clear();m.group.add(s.root);Object.assign(m,s,{head:null,torsoY:0});flashes[i]=createHitFlash(m.group);onCombatRig(i,s.combatRig);},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
+  const setFighter=(i,id,color)=>{ensureModels(i+1);const m=models[i];m.color=color||m.color||['#ff665b','#63c7ec'][i%2];m.pick=id;loadFighter(id).then(make=>{if(m.pick!==id)return;const s=make(m.color);enrichMaterials(s.root);m.group.clear();m.group.add(s.root);Object.assign(m,s,{head:null,torsoY:0});flashes[i]=createHitFlash(m.group);onCombatRig(i,s.combatRig);},err=>console.warn(id+' model unavailable; keeping current fighter',err));};
+  function ensureModels(count) {
+    while (models.length < count) {
+      const i = models.length, model = createCharacter('#ffd447', mesh);
+      scene.add(model.group); models.push({ ...model, torsoY: model.torso.position.y });
+      flashes.push(createHitFlash(model.group)); clumsies.push(createClumsy(i));
+      jiggles.push(createJiggle()); bowls.push(createFishbowl()); landings.push(null); hitAges.push(Infinity);
+    }
+  }
   const resize=()=>{const w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}; const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(container); resize();
   // fighters: interpolated motion poses from motion.js; bodies: raw simulation fighters (velocity, landings, hits);
   // arena: the simulation's current map (maps.js).
@@ -73,12 +81,16 @@ export function createRenderer(container, onCombatRig = () => {}) {
     ground.material.color.set(factory ? '#435459' : piano ? '#292830' : mountain ? '#879bb1' : rooftop ? '#66798d' : '#96a7ba');
     cameraDirection.fromArray(elevated ? ROOFTOP_CAMERA_DIRECTION : CAMERA_DIRECTION);
     const framingOptions=lava?{minDistance:Math.max(24,25/camera.aspect),padding:1.2}:piano?{minDistance:7,padding:1.08}:undefined;
-    const framing = frameFighters(fighters, camera.aspect, undefined, elevated, framingOptions);
+    ensureModels(fighters.length);
+    models.forEach((m, i) => { if (i >= fighters.length) m.group.visible = false; });
+    const visibleFighters = fighters.filter((_, i) => !bodies[i] || bodies[i].lives > 0 && !bodies[i].respawnRemaining);
+    const framed = visibleFighters.length ? visibleFighters : fighters.slice(0, 1);
+    const framing = frameFighters(framed, camera.aspect, undefined, elevated, framingOptions);
     const desiredFocus = new T.Vector3(...framing.target);
     if (previousTime === null) cameraFocus.copy(desiredFocus);
     else cameraFocus.lerp(desiredFocus, 1 - Math.exp(-2.5 * dt));
     // Fit against the smoothed focus too, so fighters stay visible during pans.
-    const requiredDistance = frameFighters(fighters, camera.aspect, cameraFocus.toArray(), elevated, framingOptions).distance;
+    const requiredDistance = frameFighters(framed, camera.aspect, cameraFocus.toArray(), elevated, framingOptions).distance;
     if (previousTime === null || requiredDistance > cameraDistance) cameraDistance = requiredDistance;
     else cameraDistance += (requiredDistance - cameraDistance) * (1 - Math.exp(-1.5 * dt));
     camera.position.copy(cameraFocus).addScaledVector(cameraDirection, cameraDistance);
@@ -90,6 +102,11 @@ export function createRenderer(container, onCombatRig = () => {}) {
 
     fighters.forEach((f, i) => {
       const m = models[i], pose = f.pose, body = bodies[i];
+      if (m.marker) {
+        m.marker.visible = m.label.visible = !body?.respawnRemaining && body?.lives !== 0;
+        m.marker.position.set(f.x, f.y + .04, f.z);
+        m.label.position.set(f.x, f.y + 3.25, f.z);
+      }
       if (active) hitAges[i] += dt;
       const age = hitAges[i];
       flashes[i](age < .075 ? 1 : age < .13 ? .15 : age < .19 ? .8 * (1 - (age - .13) / .06) : 0, body?.damage ?? 0);
@@ -144,12 +161,34 @@ export function createRenderer(container, onCombatRig = () => {}) {
   };
   draw.resetMotion = () => { hitEffects.clear(); weaponView.clear(); crumbs.clear(); landings.fill(null); hitAges.fill(Infinity); flashes.forEach(flash => flash(0)); clumsies = models.map((_, i) => createClumsy(i)); jiggles = models.map(() => createJiggle()); bowls = models.map(() => createFishbowl()); };
   draw.setFighter = setFighter;
+  draw.configure = fighters => {
+    ensureModels(fighters.length);
+    fighters.forEach((f, i) => {
+      const m = models[i]; m.fighterId = f.id; setFighter(i, f.character, f.color);
+      if (!m.marker) {
+        m.marker = new T.Mesh(new T.RingGeometry(.7, .83, 40), new T.MeshBasicMaterial({ color: f.color, side: T.DoubleSide, depthWrite: false }));
+        m.marker.rotation.x = -Math.PI / 2; scene.add(m.marker);
+        m.label = new T.Sprite(new T.SpriteMaterial({ transparent: true, depthTest: false, depthWrite: false }));
+        m.label.scale.set(2.4, .6, 1); scene.add(m.label);
+      }
+      m.marker.material.color.set(f.color);
+      const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 64;
+      const context = canvas.getContext('2d'); context.fillStyle = '#080d18dd'; context.fillRect(0, 0, 256, 64);
+      context.font = 'bold 32px sans-serif'; context.textAlign = 'center'; context.textBaseline = 'middle'; context.fillStyle = f.color;
+      context.fillText((f.label || f.id).toUpperCase(), 128, 34);
+      m.label.material.map?.dispose(); m.label.material.map = new T.CanvasTexture(canvas); m.label.material.needsUpdate = true;
+    });
+    models.forEach((m, i) => { if (i >= fighters.length) { m.group.visible = false; if (m.marker) m.marker.visible = m.label.visible = false; } });
+  };
   draw.weaponAudio = weaponView.audio;                                    // grenade sounds (weapon-audio.js)
   draw.dispose = () => { resizeObserver.disconnect(); ko.clear(); contactShadows.dispose(); environment.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   draw.diagnostics = () => ({ calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, textures:renderer.info.memory.textures, geometries:renderer.info.memory.geometries, environments:environment.cacheSize, exposure:renderer.toneMappingExposure });
   draw.hit = (body, impact) => {
-    const index = body.team === 'red' ? 0 : 1; hitAges[index] = 0; hitEffects.hit(body, impact);
-    if (models[index].impactFx === 'crumbs') { const heavy = Math.hypot(body.vx, body.vz) > 7; crumbs.burst(body, heavy ? 24 : 6, heavy ? 1.2 : .6, impact); }
+    if (!body) return;
+    const index = models.findIndex(m => m.fighterId === body.team);
+    const targetIndex = index < 0 ? (body.team === 'red' ? 0 : 1) : index;
+    hitAges[targetIndex] = 0; hitEffects.hit(body, impact);
+    if (models[targetIndex]?.impactFx === 'crumbs') { const heavy = Math.hypot(body.vx, body.vz) > 7; crumbs.burst(body, heavy ? 24 : 6, heavy ? 1.2 : .6, impact); }
   };
   draw.startKO = fighters => ko.trigger(fighters);
   draw.clearKO = () => { ko.clear(); renderer.domElement.style.filter = ''; };

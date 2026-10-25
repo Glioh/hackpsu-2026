@@ -1,288 +1,236 @@
-import { createWinnerView } from './winner-view.js';
 import { createCombatAudio } from './combat-audio.js';
 import { createCommentary } from './commentary-audio.js';
 import { Simulation } from './simulation.js';
 import { createRenderer } from './render.js';
-import { CONFIG as C, SLOTS } from '../../shared/config.js';
+import { CONFIG as C } from '../../shared/config.js';
 import { connectSocket } from '../../shared/connection.js';
+import { CHARACTERS, matchRules, rollFrame } from '../../shared/party.js';
+import { choiceCard, updateChoices } from '../../shared/selection-view.js';
 import { createMotion, resetMotion, stepMotion, interpolateMotion } from './motion.js';
 import { createPresentation } from './presentation.js';
-import { FIGHTERS, TEAM_FIGHTERS } from './fighter-model.js';
-import { MAPS, chooseRandomMap } from './maps.js';
+import { MAPS } from '../../shared/maps.js';
 import { createBotController } from './bot.js';
 import { FINISH_DURATION, FINISH_TIME_SCALE, stepFinish } from './ko-finish.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
-const commentary = createCommentary(socket), combatAudio = createCombatAudio();
-$('combatSoundEnabled').onchange = e => { combatAudio.setEnabled(e.target.checked); draw?.weaponAudio.setEnabled(e.target.checked); };
-$('combatSoundVolume').oninput = e => { combatAudio.setVolume(Number(e.target.value)); draw?.weaponAudio.setVolume(Number(e.target.value)); };
-const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
-const winnerView = createWinnerView($('winnerSprite'));
-const presentation = createPresentation($('gameScreen'));
-function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); draw?.resetMotion(); }
-let draw, finishAge = null, visualTime = 0;
-function clearFinish() { finishAge = null; draw?.clearKO(); }
-try { draw = createRenderer($('arena'), (index, rig) => sim.setCombatRig(index, rig)); } catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
-let roomCode = '', phase = 'lobby', debug = false, snapshots = new Map(), ready = false;
-let setupStep = 0, connectedCount = 0, mapPreview = false;
-function syncPreviewControls() {
-  $('start').disabled = !mapPreview && !ready;
-  $('start').textContent = mapPreview ? 'Preview selected map' : ready ? 'Start the brawl' : 'Waiting for four ready phones';
-  $('mapHelp').textContent = mapPreview ? 'No phones needed. Both teams use idle dummy bots. Arena hazards remain active.' : 'Pick an arena. All four phones must be calibrated before the brawl.';
-  $('devMode').setAttribute('aria-pressed', String(mapPreview));
-  $('devMode').textContent = mapPreview ? 'Exit dev mode' : 'Dev mode: preview maps with idle bots';
-  $('leaveGame').textContent = mapPreview ? 'Choose another map' : 'Return to lobby';
-  if (mapPreview) $('calibrationRows').replaceChildren(...['red','blue'].map(team => {
-    const row = document.createElement('div'); row.className = 'calibration-row'; row.dataset.ready = 'true';
-    row.textContent = team.toUpperCase() + ' / IDLE DUMMY BOT'; return row;
-  }));
-}
-$('devMode').onclick = () => {
-  mapPreview = !mapPreview;
-  keys.clear(); edges.clear(); snapshots.clear();
-  syncPreviewControls();
-  showSetupStep(mapPreview ? 2 : 0);
-};
-const setupPanels = ['joinStep','fighterStep','mapStep'];
-function showSetupStep(step, focus = true) {
-  setupStep = step;
-  setupPanels.forEach((id, i) => $(id).classList.toggle('hidden', i !== step));
-  document.querySelectorAll('[data-setup-step]').forEach((button, i) => {
-    button.setAttribute('aria-current', i === step ? 'step' : 'false');
-    button.disabled = i > step;
-  });
-  if (focus) $(setupPanels[step]).querySelector('h2').focus();
-}
-document.querySelectorAll('[data-setup-step]').forEach((button, i) => button.onclick = () => showSetupStep(i));
-$('chooseSprites').onclick = () => { if (connectedCount === 4) showSetupStep(1); };
-$('chooseMap').onclick = () => showSetupStep(2);
-$('backToPlayers').onclick = () => showSetupStep(0);
-$('backToSprites').onclick = () => showSetupStep(1);
-let faceoffActive = false;
-const faceoffTimers=[];
-function clearFaceoff(){
-  faceoffTimers.splice(0).forEach(id=>clearTimeout(id));
-  faceoffActive=false;$('faceoff').classList.add('hidden');combatAudio.stop();
-}
-function syncScreen() {
-  $('gameScreen').classList.toggle('showing-results',phase==='results');
-  if(phase!=='results')winnerView.hide();
-  const inSetup = phase === 'lobby' && !faceoffActive;
-  $('setup').classList.toggle('hidden', !inSetup);
-  $('gameScreen').classList.toggle('hidden', inSetup);
-  if (inSetup) showSetupStep(mapPreview ? 2 : 0, false);
-}
-function kickButton(slot) {
-  const button = document.createElement('button');
-  button.className = 'secondary kick-player';button.textContent = 'Kick';
-  button.setAttribute('aria-label', 'Kick ' + slot.key.replace(':', ' '));
-  button.onclick = () => {
-    button.disabled = true;
-    socket.emit('player:kick', {key: slot.key}, result => {
-      if (result.error) { $('error').textContent = result.error; button.disabled = false; }
-    });
-  };
-  return button;
-}
-const keys = new Set(), edges = new Set();
-addEventListener('keydown', e => { if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); if (!keys.has(e.code)) edges.add(e.code); keys.add(e.code); });
-addEventListener('keyup', e => keys.delete(e.code)); addEventListener('blur',()=>{keys.clear();edges.clear();});
-function createRoom() { socket.emit('room:create', {}, p => { if (p.error) return $('error').textContent = p.error; roomCode = p.roomCode; $('code').textContent = roomCode; updateURL(); }); }
-socket.on('connect', createRoom);
-socket.on('disconnect',()=>{phase='lobby';clearFaceoff();clearFinish();ready=false;connectedCount=0;syncScreen();$('chooseSprites').disabled=true;snapshots.clear();presentation.setPhase(phase);$('pauseOverlay').classList.add('hidden');$('phase').textContent='HOST DISCONNECTED · RECONNECTING';$('start').disabled=true;$('error').textContent='Connection lost. Reconnecting creates a new room; phones must rejoin.';});
+const commentary = createCommentary(socket), combatAudio = createCombatAudio(), presentation = createPresentation($('gameScreen'));
+let draw, motions = [], renderFighters = [];
+let roomCode = '', phase = 'lobby', debug = false, match = null, selection = null, slots = [], ready = false;
+let serverOffset = 0, mapPreview = false, finishAge = null, visualTime = 0, introUntil = 0, lastCountdown = '';
+const snapshots = new Map(), keys = new Set(), edges = new Set(), bot = createBotController();
+let previous = performance.now(), accumulator = 0;
+try { draw = createRenderer($('arena'), (i, rig) => sim.setCombatRig(i, rig)); }
+catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
+function resetPoses() { motions = sim.fighters.map(createMotion); renderFighters = motions.map(m => m.output); draw?.resetMotion(); }
+resetPoses();
+function clearFinish() { finishAge = null; introUntil = 0; draw?.clearKO(); $('faceoff').classList.add('hidden'); }
+function error(message) { $('error').textContent = message || ''; }
 function updateURL() {
-  let origin = $('origin').value.trim() || location.origin;
-  try { const url=new URL(origin); if (!['http:','https:'].includes(url.protocol)) throw Error(); origin=url.origin; } catch { $('error').textContent='Enter a valid HTTP(S) origin.';return; }
-  const url = origin + '/controller?room=' + roomCode;
-  $('qr').src = '/qr?url=' + encodeURIComponent(url); $('joinlink').href=url;
-  $('httpsNote').textContent=origin.startsWith('https://')?'HTTPS join URL · verify it opens on all phones.':'Use your deployed HTTPS origin or secure tunnel for phone motion access.';
+  let origin;
+  try { const url = new URL($('origin').value.trim() || location.origin); if (!['https:', 'http:'].includes(url.protocol)) throw Error(); origin = url.origin; }
+  catch { return error('Enter a valid HTTP(S) origin.'); }
+  const url = `${origin}/controller?room=${roomCode}`;
+  $('qr').src = '/qr?url=' + encodeURIComponent(url); $('joinlink').href = url;
+  $('httpsNote').textContent = origin.startsWith('https:') ? 'HTTPS join URL. Open it on every phone.' : 'Use a deployed HTTPS origin or secure tunnel for phone motion access.';
 }
 $('origin').value = localStorage.getItem('brawl-origin') || location.origin;
-$('setOrigin').onclick=()=>{localStorage.setItem('brawl-origin',$('origin').value);updateURL();};
-// Character select: one pick per team, remembered per browser, locked while a round is live.
-const TEAMS=['red','blue'], picks=TEAMS.map((team,i)=>{const saved=localStorage.getItem('brawl-fighter-'+team);return FIGHTERS[saved]?saved:TEAM_FIGHTERS[i];});
-const UI_ASSETS='/host/assets/ui/';
-// Short tags for the champ-select grid; no portrait yet for 'tung' so its card falls back to a lettermark.
-const FIGHTER_TAGS={squish:'SOFT BODY. HARD FEELINGS.',crank:'A LITTLE SHELL. A LOT OF ATTITUDE.',bonk:'BUILT DIFFERENT. MOSTLY BOLTS.',nik:'ALL GLOVES. NO PLAN.',tung:'KNOCKS ONCE. KNOCKS HARD.',toast:'WELL DONE UNDER PRESSURE.',conehead:'POINTY. UNBOTHERED. UNSTOPPABLE.',bubbles:'FOAMS AT THE MOUTH. ON PURPOSE.'};
-const HAS_PORTRAIT=new Set(['squish','crank','bonk','nik','toast','conehead','bubbles']);
-let pickingTeam=0;
-function portraitUrl(id,kind){return HAS_PORTRAIT.has(id)?UI_ASSETS+'portraits/'+id+'_'+kind+'.png':'';}
-function renderPicks(){
-  const locked=phase==='playing'||phase==='paused';
-  TEAMS.forEach((team,i)=>{
-    const f=FIGHTERS[picks[i]], slot=$(team+'Slot'), img=$(team+'Portrait'), fallback=$(team+'Fallback'), name=$(team+'Name');
-    const url=portraitUrl(picks[i],'portrait');
-    img.src=url;img.alt=url?f.name:'';img.classList.toggle('hidden',!url);
-    fallback.textContent=url?'':f.name[0];fallback.classList.toggle('hidden',!!url);
-    name.textContent=f.name;
-    slot.classList.toggle('active-pick',pickingTeam===i);
-  });
-  document.querySelectorAll('[data-pick-team]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.pickTeam===pickingTeam)));
-  $('fighterGrid').replaceChildren(...Object.entries(FIGHTERS).map(([id,f])=>{
-    const selected=picks[pickingTeam]===id, b=document.createElement('button');
-    b.className='champ-card';b.setAttribute('role','listitem');b.setAttribute('aria-pressed',selected);
-    b.disabled=locked;b.onclick=()=>pickFighter(pickingTeam,id);
-    const frame=document.createElement('img');frame.className='card-frame';frame.alt='';
-    frame.src=UI_ASSETS+'frames/character_frame_'+(selected?'selected':'normal')+'.svg';
-    const headUrl=portraitUrl(id,'head');
-    const strong=document.createElement('strong');strong.textContent=f.name;
-    const small=document.createElement('small');small.textContent=FIGHTER_TAGS[id]||'';
-    b.append(frame);
-    if(headUrl){const head=document.createElement('img');head.className='card-head';head.alt='';head.src=headUrl;b.append(head);}
-    else{const head=document.createElement('div');head.className='card-head-fallback';head.setAttribute('aria-hidden','true');head.textContent=f.name[0];b.append(head);}
-    b.append(strong,small);
-    return b;
-  }));
+$('setOrigin').onclick = () => { localStorage.setItem('brawl-origin', $('origin').value); updateURL(); };
+socket.on('connect', () => socket.emit('room:create', {}, p => {
+  if (p.error) return error(p.error); roomCode = p.roomCode; $('code').textContent = roomCode; error(''); updateURL();
+}));
+socket.on('disconnect', () => {
+  phase = 'lobby'; slots = []; ready = false; snapshots.clear(); clearFinish(); syncScreen(); renderRoster();
+  presentation.setPhase(phase); error('Connection lost. Reconnecting creates a new room; phones must rejoin.');
+});
+function kickButton(slot) {
+  const button = document.createElement('button'); button.className = 'secondary kick-player'; button.textContent = '×';
+  button.setAttribute('aria-label', `Remove ${slot.name}`);
+  button.onclick = () => socket.emit('player:kick', { key: slot.id }, result => { if (result.error) error(result.error); }); return button;
 }
-document.querySelectorAll('[data-pick-team]').forEach(b=>b.onclick=()=>{pickingTeam=+b.dataset.pickTeam;renderPicks();});
-function pickFighter(i,id){picks[i]=id;localStorage.setItem('brawl-fighter-'+TEAMS[i],id);draw?.setFighter(i,id);renderPicks();}
-picks.forEach((id,i)=>draw?.setFighter(i,id));renderPicks();
-// Arena select: grouped Early / Mid / Late, remembered per browser, locked while a round is live.
-const mapChoices=[{id:'random',name:'Random Map',tier:'Early',blurb:'Choose one of the existing arenas at random each round.'},...MAPS];
-let mapId=mapChoices.some(m=>m.id===localStorage.getItem('brawl-map'))?localStorage.getItem('brawl-map'):MAPS[0].id;
-function renderMaps(){const locked=phase==='playing'||phase==='paused',map=mapChoices.find(m=>m.id===mapId);$('mapPicks').replaceChildren(...['Early','Mid','Late'].map(tier=>{const group=document.createElement('div');group.className='tier';const label=document.createElement('small');label.textContent=tier;const choices=document.createElement('div');choices.append(...mapChoices.filter(m=>m.tier===tier).map(m=>{const b=document.createElement('button');b.className='secondary';b.textContent=m.name;b.title=m.blurb;b.setAttribute('aria-pressed',m.id===mapId);b.disabled=locked;b.onclick=()=>pickMap(m.id);return b;}));group.append(label,choices);return group;}));$('mapBlurb').textContent=map.blurb;$('mapName').textContent=(mapId==='random'?'RANDOM / ':'')+MAPS.find(m=>m.id===sim.mapId).name.toUpperCase();}
-function pickMap(id){mapId=id;localStorage.setItem('brawl-map',id);sim.setMap(id==='random'?chooseRandomMap():id);clearFinish();resetPoses();renderMaps();}
-pickMap(mapId);
-socket.on('room:roster', p => {
-  ready = p.slots.every(s=>s.connected&&s.ready);
-  connectedCount = p.slots.filter(s=>s.connected).length;
-  $('playerCount').textContent = connectedCount + ' / 4 PLAYERS';
-  $('chooseSprites').disabled = connectedCount !== 4;
-  $('chooseSprites').textContent = connectedCount === 4 ? 'Choose player sprites →' : 'Waiting for ' + (4-connectedCount) + ' more phone' + (connectedCount===3?'':'s');
-  $('roster').replaceChildren(...p.slots.map(s=>{const row=document.createElement('div');row.className='slot';const [team,role]=s.key.split(':');const name=document.createElement('span');name.className=team;name.textContent=team.toUpperCase()+' / '+role.toUpperCase();const status=document.createElement('span');status.className='slot-status';status.textContent=s.ready&&s.connected?'● READY':s.connected?'Calibrating…':s.occupied?'Disconnected · reserved':'Waiting for phone';row.append(name,status);if(s.occupied)row.append(kickButton(s));return row;}));
-  $('resumeGame').disabled = !debug && !ready;
-  $('calibrationRows').replaceChildren(...p.slots.map(slot => {
+function renderRoster() {
+  const count = slots.filter(s => s.connected).length, valid = count >= 4 && count % 2 === 0;
+  $('playerCount').textContent = `${count} ${count === 1 ? 'PLAYER' : 'PLAYERS'}`;
+  $('start').disabled = !valid || !socket.connected;
+  $('start').textContent = valid ? 'Everybody in? Start' : count >= 4 ? 'One more player needed' : 'Waiting for players';
+  $('lobbyHint').textContent = valid ? (() => { const r = matchRules(count); return r.mode === 'ffa' ? `${r.count} duos. Free-for-all. One life. Last duo standing wins.` : `${r.count / 2} ${r.count === 2 ? 'duo' : 'duos'} per team. ${r.lives} shared lives each. Pairings revealed after Start.`; })()
+    : count >= 4 ? 'Odd player out! Invite one more friend so everyone has a partner.' : 'Bring at least 4 players. Everyone needs a partner.';
+  $('roster').replaceChildren(...slots.map(slot => {
+    const tile = document.createElement('div'); tile.className = 'player-tile';
+    const avatar = document.createElement('span'); avatar.className = 'player-avatar'; avatar.textContent = slot.name[0].toUpperCase();
+    const label = document.createElement('div'), name = document.createElement('strong'), status = document.createElement('small');
+    name.textContent = slot.name; status.textContent = slot.connected ? 'IN THE CREW' : 'RECONNECTING';
+    label.append(name, status); tile.append(avatar, label, kickButton(slot)); return tile;
+  }));
+  const affected = slots.filter(slot => !slot.ready || !slot.connected);
+  $('calibrationMode').textContent = debug ? 'DEVELOPER MATCH' : affected.length ? 'CHECK PHONE CALIBRATION' : `${count} PHONES READY`;
+  $('calibrationRows').replaceChildren(...affected.map(slot => {
     const row = document.createElement('div'); row.className = 'calibration-row'; row.dataset.ready = String(slot.connected && slot.ready);
-    const name = document.createElement('b'); name.textContent = slot.key.replace(':',' / ').toUpperCase();
-    const status = document.createElement('span'); status.textContent = slot.message || (slot.ready ? 'Ready' : 'Calibration required');
-    row.append(name, status); if(slot.occupied)row.append(kickButton(slot)); return row;
+    const name = document.createElement('b'), status = document.createElement('span'); name.textContent = `${slot.name} / ${(slot.role || 'waiting').toUpperCase()}`;
+    status.textContent = slot.message || 'Calibration required'; row.append(name, status); return row;
   }));
-  if(!p.slots.every(s=>s.connected))snapshots.clear();
-  syncPreviewControls();
-});
-for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
-  let s=snapshots.get(p.key);
-  if(!s)s={seq:-1,lastAction:0,actions:[],p:{},at:0};
-  if(p.seq<=s.seq)return;
-  const action=p[role==='legs'?'jumpId':'actId'];
-  if(action>s.lastAction){s.lastAction=action;s.actions.push(p.power??1);if(s.actions.length>4)s.actions.shift();}
-  Object.assign(s,{seq:p.seq,p,at:performance.now()});snapshots.set(p.key,s);
-});
-socket.on('game:state',p=>{
-  phase=p.phase; debug=p.debug;
-  commentary.phase(phase,p.resumed,{map:mapId,fighters:Object.fromEntries(TEAMS.map((team,i)=>[team,picks[i]]))});
-  if (phase !== 'playing') clearFaceoff();
-  else if (!p.resumed) showFaceoff();
-  syncScreen();
-  if (phase === 'lobby') clearFinish();
-  presentation.setPhase(phase);
-  $('pauseOverlay').classList.toggle('hidden', phase !== 'paused');
-  $('calibrationMode').textContent = mapPreview ? 'MAP PREVIEW / IDLE BOTS' : debug ? 'KEYBOARD / BOT MODE' : 'PHONE CALIBRATION';
-  syncPreviewControls();
   $('resumeGame').disabled = !debug && !ready;
-  if(phase==='paused') {
-    snapshots.clear();keys.clear();edges.clear();
-    const who = p.interruption?.key ? p.interruption.key.replace(':',' / ').toUpperCase() + ': ' : '';
-    $('pauseReason').textContent = who + (p.interruption?.message || 'Recalibrate the affected phone to continue.');
-    $('resumeGame').focus();
-  }
-  $('result').classList.toggle('hidden',phase!=='results');
-  if(phase==='playing'){if(!p.resumed){if(mapId==='random')sim.setMap(chooseRandomMap());else sim.reset();clearFinish();resetPoses();}snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
-  if(phase==='results'){const index=p.winner==='blue'?1:0;$('winner').textContent=p.winner==='draw'?'Draw!':FIGHTERS[picks[index]].name+' wins!';$('winner').className=p.winner;void winnerView.show(p.winner,picks);$('rematch').focus();}
-  if(phase==='lobby')snapshots.clear();
-  renderPicks();renderMaps();
-  $('phase').textContent=phase==='playing'?(mapPreview?'MAP PREVIEW / IDLE BOTS':debug?'DEBUG MATCH / KEYBOARD + BOTS':'LIVE / FOUR PHONES, TWO BODIES'):phase==='paused'?'PAUSED / CHECK CALIBRATION':phase==='results'?'ROUND COMPLETE':'LOBBY / ASSEMBLE YOUR CREW';
-});
-function start(isDebug){commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:start',{debug:isDebug},p=>{if(p.error){$('error').textContent=p.error;presentation.setPhase(phase);}});}
-// Hold simulation during the introduction so no fighter loses behind the overlay.
-const FACEOFF_BEATS=[{at:6200,text:'3'},{at:7400,text:'2'},{at:8600,text:'1'},{at:9800,text:'FIGHT',fight:true}];
-const FACEOFF_DURATION=10350;
-function showFaceoff(){
-  clearFaceoff();
-  if(mapPreview||typeof setTimeout!=='function')return;
-  TEAMS.forEach(team=>{
-    const f=FIGHTERS[picks[TEAMS.indexOf(team)]], url=portraitUrl(picks[TEAMS.indexOf(team)],'portrait');
-    const img=$('faceoff'+cap(team)+'Portrait'), fallback=$('faceoff'+cap(team)+'Fallback');
-    img.src=url;img.alt=url?f.name:'';img.classList.toggle('hidden',!url);
-    fallback.textContent=url?'':f.name[0];fallback.classList.toggle('hidden',!!url);
-    $('faceoff'+cap(team)+'Name').textContent=f.name;
-  });
-  $('faceoffMap').textContent=MAPS.find(m=>m.id===mapId).name.toUpperCase();
-  const countdown=$('faceoffCountdown');
-  countdown.textContent='';countdown.className='faceoff-countdown hidden';
-  faceoffActive=true;syncScreen();
-  $('faceoff').className='faceoff';
-  combatAudio.cheer(FACEOFF_DURATION/1000);
-  for(const beat of FACEOFF_BEATS)faceoffTimers.push(setTimeout(()=>{
-    countdown.textContent=beat.text;
-    countdown.classList.remove('hidden','pop','fight');
-    void countdown.offsetWidth; // restart the pop animation even though the class is reapplied
-    countdown.classList.add(beat.fight?'fight':'pop');
-    combatAudio.countdown(beat.fight);
-    if(beat.fight){
-      faceoffActive=false;commentary.fight();$('faceoff').classList.add('reveal');
-      snapshots.clear();keys.clear();edges.clear();accumulator=0;previous=performance.now();syncScreen();
-    }
-  },beat.at));
-  faceoffTimers.push(setTimeout(()=>{$('faceoff').classList.add('hidden');faceoffTimers.length=0;},FACEOFF_DURATION));
 }
-function cap(s){return s[0].toUpperCase()+s.slice(1);}
-$('start').onclick=()=>start(mapPreview);$('debugStart').onclick=()=>{mapPreview=false;syncPreviewControls();start(true);};$('rematch').onclick=()=>start(debug);
-$('resumeGame').onclick=()=>{commentary.unlock();combatAudio.unlock();presentation.request();socket.emit('game:resume',{},p=>{if(p.error)$('pauseReason').textContent=p.error;});};
-
-$('leaveGame').onclick=()=>socket.emit('game:state',{phase:'lobby'});
-$('pauseLobby').onclick=$('leaveGame').onclick;
-$('resultLobby').onclick=$('leaveGame').onclick;
-$('showStats').onchange=()=> $('stats').classList.toggle('hidden',!$('showStats').checked);
-$('motionEnabled').onchange = resetPoses;
-$('motionPreset').onchange = resetPoses;
-function keyboard(team){const red=team==='red', has=k=>keys.has(k)?1:0, edge=k=>{const hit=edges.has(k);edges.delete(k);return hit;};return{legs:{moveX:red?has('KeyD')-has('KeyA'):has('ArrowRight')-has('ArrowLeft'),moveZ:red?has('KeyW')-has('KeyS'):has('ArrowUp')-has('ArrowDown'),jump:edge(red?'Space':'KeyI')},arm:{turn:red?has('KeyE')-has('KeyQ'):has('KeyL')-has('KeyJ'),punch:edge(red?'KeyF':'KeyK'),power:1}};}
-const bot = createBotController();
-function phone(team,now){const result={};for(const role of ['legs','arm']){const s=snapshots.get(team+':'+role);if(!s||now-s.at>C.staleMs){if(s)s.actions=[];result[role]={};continue;}const action=s.actions.shift();result[role]={...s.p,jump:role==='legs'&&action!==undefined,punch:role==='arm'&&action!==undefined};if(action!==undefined)result[role].power=action;}return result;}
-let previous=performance.now(),accumulator=0;
+socket.on('room:roster', p => { slots = p.slots; ready = slots.length > 0 && slots.every(s => s.connected && s.ready); renderRoster(); if (selection || phase === 'calibrating') renderPreparation(); });
+function syncScreen() {
+  const setup = !['playing', 'paused', 'results'].includes(phase);
+  $('setup').classList.toggle('hidden', !setup); $('gameScreen').classList.toggle('hidden', setup);
+  $('joinStep').classList.toggle('hidden', phase !== 'lobby'); $('preparationStage').classList.toggle('hidden', phase === 'lobby');
+  $('joinBanner').classList.toggle('hidden', phase !== 'lobby'); $('pauseOverlay').classList.toggle('hidden', phase !== 'paused'); $('result').classList.toggle('hidden', phase !== 'results');
+  $('calibrationMode').textContent = mapPreview ? 'MAP PREVIEW / IDLE BOTS' : debug ? 'KEYBOARD / BOT MODE' : ready ? `${slots.length} PHONES READY` : 'CHECK PHONE CALIBRATION';
+  $('phase').textContent = phase === 'playing' ? debug ? 'DEVELOPER MATCH' : match?.mode === 'ffa' ? 'FREE-FOR-ALL / LAST DUO STANDING' : 'RED VS BLUE / SHARED LIVES' : phase.toUpperCase();
+}
+function renderPreparation() {
+  const characterStage = phase.startsWith('character');
+  $('prepEyebrow').textContent = characterStage ? 'FIND YOUR OTHER HALF' : 'EVERY PHONE GETS A VOTE';
+  $('prepTitle').textContent = phase === 'character-select' ? 'PICK YOUR BODY.' : phase === 'character-roll' ? 'LET FATE DECIDE.' : phase === 'map-vote' ? 'WHERE ARE WE DROPPING?' : phase === 'map-roll' ? 'YOUR ARENA AWAITS.' : 'GET A GRIP.';
+  $('prepSubtitle').textContent = characterStage ? 'Choose together on your phones. Agree to lock it in. Disagree and we roll.' : phase === 'calibrating' ? 'Enable motion and calibrate every phone. The brawl starts when everyone is ready.' : 'Six arenas. Majority wins. Tied at the top? We roll for it.';
+  const container = $('partyChoices'); container.replaceChildren();
+  if (characterStage) {
+    const grid = document.createElement('div'); grid.className = 'duo-grid';
+    for (const fighter of match.fighters) {
+      const card = document.createElement('section'); card.className = 'duo-card'; card.dataset.duo = fighter.id; card.style.setProperty('--duo-color', fighter.color);
+      const title = document.createElement('h3'); title.textContent = fighter.label;
+      const image = document.createElement('img'); image.className = 'duo-portrait'; image.alt = ''; image.hidden = true;
+      const picked = document.createElement('strong'); picked.dataset.duoPick = ''; card.append(title, image, picked);
+      fighter.players.forEach((id, i) => {
+        const row = document.createElement('p'), player = slots.find(s => s.id === id), vote = selection?.votes[id];
+        row.textContent = `${player?.name || 'Reconnecting'} · ${i ? 'ARM' : 'LEGS'} · ${CHARACTERS.find(c => c.id === vote)?.name || 'Picking...'}`; card.append(row);
+      }); grid.append(card);
+    } container.append(grid);
+  } else if (selection?.options) {
+    const grid = document.createElement('div'); grid.className = 'choice-grid'; grid.append(...selection.options.map(id => choiceCard(id, 'map'))); container.append(grid);
+  } else {
+    const grid = document.createElement('div'); grid.className = 'duo-grid';
+    for (const slot of slots) {
+      const card = document.createElement('div'); card.className = 'duo-card'; card.style.setProperty('--duo-color', slot.ready ? '#d5ff61' : '#ffab74');
+      const title = document.createElement('h3'); title.textContent = slot.name;
+      const status = document.createElement('p'); status.textContent = slot.message; card.append(title, status); grid.append(card);
+    } container.append(grid);
+  } tickSelection();
+}
+function tickSelection() {
+  if (!selection) { $('selectionClock').textContent = ''; return; }
+  const now = Date.now() + serverOffset;
+  const clock = phase.endsWith('roll') ? '✦' : String(Math.max(0, Math.ceil((selection.deadline - now) / 1000)));
+  if ($('selectionClock').textContent !== clock) $('selectionClock').textContent = clock;
+  if (phase.startsWith('character')) for (const fighter of match.fighters) {
+    const roll = selection.rolls?.[fighter.id], card = document.querySelector(`[data-duo="${fighter.id}"]`); if (!card) continue;
+    const id = roll ? rollFrame(roll, now) : selection.votes[fighter.players[0]] || selection.votes[fighter.players[1]];
+    const character = CHARACTERS.find(c => c.id === id), image = card.querySelector('img');
+    if (character) { if (!image.src.endsWith(character.portrait)) image.src = character.portrait; image.hidden = false; }
+    const label = card.querySelector('[data-duo-pick]'), value = character?.name || 'Waiting for your picks';
+    if (label.textContent !== value) label.textContent = value;
+    card.classList.toggle('rolling', !!roll);
+  } else {
+    const counts = {}; for (const vote of Object.values(selection.votes)) counts[vote] = (counts[vote] || 0) + 1;
+    updateChoices($('partyChoices'), { counts, roll: selection.roll, now });
+  }
+}
+socket.on('game:state', p => {
+  const oldPhase = phase; phase = p.phase; debug = p.debug; match = p.match; selection = p.selection;
+  serverOffset = p.serverTime ? p.serverTime - Date.now() : 0; syncScreen();
+  if (phase === 'playing' && oldPhase !== 'playing') {
+    if (!p.resumed) {
+      sim.configureMatch(debug ? null : match); clearFinish(); resetPoses();
+      if (match) draw?.configure(match.fighters); else draw?.configure([{ id: 'red', character: 'crank', color: '#ff665b' }, { id: 'blue', character: 'squish', color: '#63c7ec' }]);
+      $('mapName').textContent = MAPS.find(m => m.id === sim.mapId)?.name.toUpperCase();
+      introUntil = mapPreview ? 0 : performance.now() + 3400; lastCountdown = '';
+      $('faceoffTitle').textContent = match?.mode === 'ffa' ? `${match.count} DUOS. ONE SURVIVOR.` : 'RED. BLUE. BRAWL.';
+      $('faceoffMap').textContent = MAPS.find(m => m.id === sim.mapId)?.name; $('faceoff').classList.toggle('hidden', !introUntil);
+      if (match?.mode !== 'ffa') commentary.phase('playing', false, { map: sim.mapId });
+    }
+    snapshots.clear(); keys.clear(); edges.clear(); accumulator = 0; previous = performance.now(); error(''); presentation.setPhase(phase); $('gameScreen').focus();
+    if (p.resumed && match?.mode !== 'ffa') commentary.phase('playing', true);
+  } else if (phase !== 'playing') { introUntil = 0; $('faceoff').classList.add('hidden'); presentation.setPhase(phase); commentary.phase(phase); }
+  if (phase === 'paused') { snapshots.clear(); keys.clear(); edges.clear(); $('pauseReason').textContent = `${p.interruption?.key || ''} ${p.interruption?.message || 'Recalibrate every phone to continue.'}`; }
+  if (phase === 'results') {
+    const winner = match?.fighters.find(f => f.id === p.winner); $('winner').textContent = p.winner === 'draw' ? 'DRAW' : `${winner?.label || p.winner.toUpperCase()} WINS!`;
+    $('winner').style.color = winner?.color || (p.winner === 'red' ? '#ff665b' : '#63c7ec');
+  }
+  if (phase === 'lobby') { clearFinish(); snapshots.clear(); renderRoster(); }
+  if (!['lobby', 'playing', 'paused', 'results'].includes(phase)) renderPreparation();
+});
+function start(isDebug = false) { commentary.unlock(); combatAudio.unlock(); presentation.request(); socket.emit('game:start', { debug: isDebug }, result => { if (result.error) { error(result.error); presentation.setPhase(phase); } }); }
+$('start').onclick = () => { mapPreview = false; start(); };
+$('debugStart').onclick = () => { mapPreview = false; sim.setMap($('devMap').value); start(true); };
+$('devMode').onclick = () => { mapPreview = true; sim.setMap($('devMap').value); start(true); };
+$('devMap').replaceChildren(...MAPS.map(m => { const option = document.createElement('option'); option.value = m.id; option.textContent = m.name; return option; }));
+const lobby = () => socket.emit('game:state', { phase: 'lobby' });
+for (const id of ['cancelSetup', 'leaveGame', 'pauseLobby', 'resultLobby']) $(id).onclick = lobby;
+$('rematch').onclick = () => start(debug);
+$('resumeGame').onclick = () => { combatAudio.unlock(); presentation.request(); socket.emit('game:resume', {}, p => { if (p.error) $('pauseReason').textContent = p.error; }); };
+$('combatSoundEnabled').onchange = e => { combatAudio.setEnabled(e.target.checked); draw?.weaponAudio.setEnabled(e.target.checked); };
+$('combatSoundVolume').oninput = e => { combatAudio.setVolume(+e.target.value); draw?.weaponAudio.setVolume(+e.target.value); };
+$('showStats').onchange = () => $('stats').classList.toggle('hidden', !$('showStats').checked);
+$('motionEnabled').onchange = resetPoses; $('motionPreset').onchange = resetPoses;
+addEventListener('keydown', e => {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  if (!keys.has(e.code)) edges.add(e.code); keys.add(e.code);
+});
+addEventListener('keyup', e => keys.delete(e.code)); addEventListener('blur', () => { keys.clear(); edges.clear(); });
+function keyboard(team) {
+  const red = team === 'red', has = k => +keys.has(k), edge = k => { const hit = edges.has(k); edges.delete(k); return hit; };
+  return { legs: { moveX: red ? has('KeyD') - has('KeyA') : has('ArrowRight') - has('ArrowLeft'), moveZ: red ? has('KeyW') - has('KeyS') : has('ArrowUp') - has('ArrowDown'), jump: edge(red ? 'Space' : 'KeyI') }, arm: { turn: red ? has('KeyE') - has('KeyQ') : has('KeyL') - has('KeyJ'), punch: edge(red ? 'KeyF' : 'KeyK'), power: 1 } };
+}
+for (const role of ['legs', 'arm']) socket.on('input:' + role, p => {
+  const s = snapshots.get(p.key) || { seq: -1, lastAction: 0, actions: [], p: {}, at: 0 }; if (p.seq <= s.seq) return;
+  const action = p[role === 'legs' ? 'jumpId' : 'actId']; if (action > s.lastAction) { s.lastAction = action; s.actions.push(p.power ?? 1); if (s.actions.length > 4) s.actions.shift(); }
+  Object.assign(s, { seq: p.seq, p, at: performance.now() }); snapshots.set(p.key, s);
+});
+function phone(id, now) {
+  const result = {};
+  for (const role of ['legs', 'arm']) {
+    const s = snapshots.get(`${id}:${role}`); if (!s || now - s.at > C.staleMs) { if (s) s.actions = []; result[role] = {}; continue; }
+    const action = s.actions.shift(); result[role] = { ...s.p, jump: role === 'legs' && action !== undefined, punch: role === 'arm' && action !== undefined }; if (action !== undefined) result[role].power = action;
+  } return result;
+}
+function livesHUD() {
+  if (!['playing', 'paused', 'results'].includes(phase)) return;
+  $('livesHud').classList.toggle('hidden', match?.mode === 'ffa'); if (match?.mode === 'ffa') return;
+  const max = match?.lives || 3;
+  for (const side of ['red', 'blue']) {
+    let label = $(side + 'Lives'); if (!label) { label = document.createElement('span'); label.id = side + 'Lives'; label.className = side; label.setAttribute('role', 'status'); $('livesHud').append(label); }
+    const lives = sim.teamLives?.[side] ?? sim.fighters.find(f => f.team === side)?.lives ?? max;
+    const value = `${side.toUpperCase()}  ${'●'.repeat(lives)}${'○'.repeat(max - lives)}`;
+    if (label.textContent !== value) { label.textContent = value; label.setAttribute('aria-label', `${side} team: ${lives} of ${max} shared lives remaining`); }
+  }
+}
 function frame(now) {
-  const frameDt = Math.max(0, Math.min((now - previous) / 1000, .1)); previous = now;
-  const finishing = finishAge !== null;
-  const timeScale = finishing ? FINISH_TIME_SCALE : 1;
-  if (phase === 'playing' && !faceoffActive) visualTime += frameDt * timeScale;
-  if (phase === 'playing' && finishing && !document.hidden) {
-    finishAge += frameDt;
-    stepFinish(sim, frameDt * timeScale);
-    motions.forEach((motion, i) => stepMotion(motion, sim.fighters[i], [], frameDt * timeScale, $('motionPreset').value, $('motionEnabled').checked));
-    if (finishAge >= FINISH_DURATION) { phase = 'results'; socket.emit('game:state', {phase:'results',winner:sim.winner}); }
+  const frameDt = Math.max(0, Math.min((now - previous) / 1000, .1)); previous = now; tickSelection();
+  if (introUntil && phase === 'playing') {
+    const remaining = introUntil - now, text = remaining > 400 ? String(Math.ceil((remaining - 400) / 1000)) : 'BRAWL';
+    if (lastCountdown !== text) { $('faceoffCountdown').textContent = text; lastCountdown = text; combatAudio.countdown(text === 'BRAWL'); }
+    if (remaining <= 0) { introUntil = 0; $('faceoff').classList.add('hidden'); snapshots.clear(); accumulator = 0; commentary.fight(); }
+  }
+  const scale = finishAge === null ? 1 : FINISH_TIME_SCALE;
+  if (phase === 'playing' && !introUntil) visualTime += frameDt * scale;
+  if (phase === 'playing' && finishAge !== null && !document.hidden) {
+    finishAge += frameDt; stepFinish(sim, frameDt * scale); motions.forEach((m, i) => stepMotion(m, sim.fighters[i], [], frameDt * scale, $('motionPreset').value, $('motionEnabled').checked));
+    if (finishAge >= FINISH_DURATION) { phase = 'results'; socket.emit('game:state', { phase: 'results', winner: sim.winner }); }
   }
   accumulator += frameDt;
   while (accumulator >= C.tick) {
-    if (phase === 'playing' && !faceoffActive && finishAge === null && !document.hidden) {
-      const inputs = mapPreview ? {} : debug ? {red:keyboard('red'),blue:$('bot').checked?bot(sim):keyboard('blue')} : {red:phone('red',now),blue:phone('blue',now)};
-      for (const team of sim.step(inputs)) {
-        socket.emit('player:hit', {team});
-        draw?.hit(sim.fighters.find(f => f.team === team), sim.motionEvents.find(e => e.type === 'hit' && e.team === team));
-      }
+    if (phase === 'playing' && !introUntil && finishAge === null && !document.hidden) {
+      const inputs = mapPreview ? {} : debug ? { red: keyboard('red'), blue: $('bot').checked ? bot(sim) : keyboard('blue') } : Object.fromEntries(sim.fighters.map(f => [f.team, phone(f.team, now)]));
+      for (const id of sim.step(inputs)) { socket.emit('player:hit', { team: id }); draw?.hit(sim.fighters.find(f => f.team === id), sim.motionEvents.find(e => e.type === 'hit' && e.team === id)); }
       for (const event of sim.motionEvents) combatAudio.event(event);
-      const ringouts = sim.motionEvents.filter(event => event.type === 'ringout');
-      if (ringouts.length) draw?.startKO(ringouts);
-      for (const event of sim.motionEvents) if (event.type === 'respawn') {
-        const index = sim.fighters.findIndex(f => f.team === event.team);
-        resetMotion(motions[index], sim.fighters[index]);
+      const ringouts = sim.motionEvents.filter(e => e.type === 'ringout'); if (ringouts.length) draw?.startKO(ringouts);
+      for (const event of sim.motionEvents) if (event.type === 'respawn') { const i = sim.fighters.findIndex(f => f.team === event.team); resetMotion(motions[i], sim.fighters[i]); }
+      if (debug || match?.mode === 'teams') {
+        const side = id => sim.fighters.find(f => f.team === id)?.side || id;
+        commentary.step(match ? { ...sim, fighters: ['red', 'blue'].map(team => {
+          const fighters = sim.fighters.filter(f => f.side === team);
+          return { team, damage: Math.max(...fighters.map(f => f.damage)), grounded: fighters.every(f => f.grounded), stun: Math.max(...fighters.map(f => f.stun)) };
+        }), motionEvents: sim.motionEvents.map(event => ({ ...event, team: side(event.team), attacker: side(event.attacker) })) } : sim, C.tick);
       }
-      commentary.step(sim,C.tick);
-      motions.forEach((motion, i) => stepMotion(motion, sim.fighters[i], sim.motionEvents, C.tick, $('motionPreset').value, $('motionEnabled').checked));
-      if (sim.winner) finishAge = 0;
-    }
-    accumulator -= C.tick;
+      motions.forEach((m, i) => stepMotion(m, sim.fighters[i], sim.motionEvents, C.tick, $('motionPreset').value, $('motionEnabled').checked)); if (sim.winner) finishAge = 0;
+    } accumulator -= C.tick;
   }
-  motions.forEach(motion => interpolateMotion(motion, phase === 'playing' && finishAge === null ? accumulator / C.tick : 1));
-  for (const f of sim.fighters) {
-    const lives = $(f.team + 'Lives');
-    lives.textContent = '●'.repeat(f.lives) + '○'.repeat(3 - f.lives);
-    lives.setAttribute('aria-label', `${f.team} team: ${f.lives} of 3 lives remaining`);
-  }
-  if (phase !== 'lobby') draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked, finishAge, weapons: sim.weapons.state });
-  if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)}\nheading ${f.heading.toFixed(2)} grounded ${f.grounded}\nspeed ${Math.hypot(f.vx,f.vz).toFixed(2)} cooldown ${f.cooldown.toFixed(2)}`).join('\n\n');
-  commentary.tick();
-  requestAnimationFrame(frame);
+  motions.forEach(m => interpolateMotion(m, phase === 'playing' && finishAge === null ? accumulator / C.tick : 1)); livesHUD();
+  if (['playing', 'paused', 'results'].includes(phase)) draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing' && !introUntil, motionEnabled: $('motionEnabled').checked, finishAge, weapons: sim.weapons.state });
+  if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)} / ${f.damage}%`).join('\n');
+  commentary.tick(); requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-// HTTP activity also keeps the cloud container awake during long matches.
-setInterval(() => { if (['playing','paused'].includes(phase) && !document.hidden) fetch('/health', {cache:'no-store'}).catch(() => {}); }, 60000);
-document.addEventListener('visibilitychange',()=>{previous=performance.now();accumulator=0;if(document.hidden&&['playing','paused'].includes(phase)){commentary.phase('paused');clearFaceoff();phase='paused';socket.emit('game:pause',{});snapshots.clear();keys.clear();edges.clear();}});
+setInterval(() => { if (['playing', 'paused'].includes(phase) && !document.hidden) fetch('/health', { cache: 'no-store' }).catch(() => {}); }, 60000);
+document.addEventListener('visibilitychange', () => { previous = performance.now(); accumulator = 0; if (document.hidden && phase === 'playing') { socket.emit('game:pause', {}); snapshots.clear(); keys.clear(); edges.clear(); } });

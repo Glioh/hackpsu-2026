@@ -141,8 +141,9 @@ export function createWeaponView(scene) {
       bodies.forEach((f, i) => {
         const landed = f.weaponAttack?.type === 'spring' && f.weaponAttack.landed ? f.weaponAttack : null;
         if (landed && !shown.has(landed)) {
-          shown.add(landed); const target = bodies[1 - i]; impacts.push(target);
-          const k = pows[i]; k.age = 0; k.pow.position.set(target.x, target.y + 1.6, target.z); k.ring.position.set(target.x, target.y + 1.1, target.z);
+          shown.add(landed); const target = bodies.find(body => body.team === landed.target);
+          if (!target) return; impacts.push(target);
+          const k = pows[i] ??= { pow: sprite(powTexture), ring: sprite(ringTexture), age: Infinity }; k.age = 0; k.pow.position.set(target.x, target.y + 1.6, target.z); k.ring.position.set(target.x, target.y + 1.1, target.z);
         }
         const m = models[i], type = f.weapon?.type ?? (f.weaponAttack && f.weaponAttack.type !== 'grenade' ? f.weaponAttack.type : null);
         if (held[i]?.type !== type) { held[i]?.obj.removeFromParent(); held[i] = type && templates[type] ? makeHeld(type) : null; }

@@ -21,7 +21,7 @@ test('phone and keyboard left/right agree for both teams at every facing angle',
       const sample=phone.inputSample();assert.equal(sample.valid,true);
       const keys=new Set([team==='red'?(sign<0?'KeyA':'KeyD'):(sign<0?'ArrowLeft':'ArrowRight')]);
       const keyboard={keys,edges:new Set()};
-      vm.runInNewContext(hostSource.match(/^function keyboard\(team\).*$/m)[0],keyboard);
+      vm.runInNewContext(hostSource.slice(hostSource.indexOf('function keyboard(team)'), hostSource.indexOf("for (const role of ['legs', 'arm'])")),keyboard);
       const input=keyboard.keyboard(team).legs;
       assert.ok(Math.abs(input.moveX-sample.x)<1e-6);
       for(const heading of [0,Math.PI/2,Math.PI,-Math.PI/2]) {
@@ -37,7 +37,7 @@ test('phone and keyboard left/right agree for both teams at every facing angle',
 
 test('opposing keys cancel, release damps motion, and device switches share one axis',()=>{
   const keys=new Set(['KeyA','KeyD','ArrowLeft','ArrowRight']),keyboard={keys,edges:new Set()};
-  vm.runInNewContext(hostSource.match(/^function keyboard\(team\).*$/m)[0],keyboard);
+  vm.runInNewContext(hostSource.slice(hostSource.indexOf('function keyboard(team)'), hostSource.indexOf("for (const role of ['legs', 'arm'])")),keyboard);
   for(const team of ['red','blue'])assert.equal(keyboard.keyboard(team).legs.moveX,0);
   keys.delete('KeyA');const right=keyboard.keyboard('red').legs;
   const sim=new Simulation(),f=sim.fighters[0];sim.step({red:{legs:right}});assert.ok(f.vx>0);

@@ -16,7 +16,7 @@ export function createKOEffects(scene) {
   function trigger(fighters) {
     for (const f of fighters) {
       const group = new T.Group(); group.position.set(f.x, -4.5, f.z); scene.add(group);
-      const color = f.team === 'red' ? '#ff456d' : '#47caff';
+      const color = f.color || (f.team === 'red' ? '#ff456d' : '#47caff');
       const beam = sprite('beam', color, group), core = sprite('beam', '#ffffff', group);
       const flare = sprite('flare', '#ffffff', group), ring = sprite('ring', color, group);
       beam.center.set(.5, 0); core.center.set(.5, 0);

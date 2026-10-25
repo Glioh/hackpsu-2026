@@ -1,14 +1,13 @@
 import express from 'express';
 import { installCommentary } from './commentary.js';
 import { createServer } from 'node:http';
-import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
 import QRCode from 'qrcode';
-import { CONFIG, SLOTS, validInput } from '../shared/config.js';
-import { CALIBRATION, validCalibration } from '../shared/calibration.js';
+import { CONFIG } from '../shared/config.js';
+import { installParty } from './party-room.js';
 
-export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500 } = {}) {
+export function createApp(options = {}) {
   const app = express(), http = createServer(app), io = new Server(http, { maxHttpBufferSize: 8192 });
   const rooms = new Map();
   installCommentary(app, io);
@@ -31,140 +30,8 @@ export function createApp({ controllerTimeoutMs = 2500, watchdogIntervalMs = 500
     if (value.length > 512 || !/^https?:\/\//.test(value)) return res.sendStatus(400);
     res.type('svg').send(await QRCode.toString(value, { type: 'svg', margin: 1, width: 220 }));
   });
-  function roster(room) {
-    io.to(room.code).emit('room:roster', { slots: SLOTS.map(key => {
-      const p = room.players.get(key);
-      const status = p ? p.status : 'waiting';
-      return { key, occupied: !!p, connected: !!p?.socketId, ready: !!p?.ready, status, message: CALIBRATION[status] };
-    }) });
-  }
-  function state(room, phase, winner = null, interruption = null, resumed = false) {
-    room.phase = phase; room.interruption = interruption;
-    io.to(room.code).emit('game:state', { phase, winner, debug: room.debug, interruption, resumed });
-  }
-  const allReady = room => SLOTS.every(key => { const p = room.players.get(key); return p?.socketId && p.ready; });
-  function calibrationChanged(room, key, status) {
-    const player = room.players.get(key);
-    player.status = status; player.ready = status === 'calibrated'; player.lastSeen = Date.now();
-    roster(room);
-    if (!player.ready && room.phase === 'playing' && !room.debug) {
-      state(room, 'paused', null, { key, status, message: CALIBRATION[status] });
-    } else if (room.phase === 'paused' && room.interruption?.key && allReady(room)) {
-      state(room, 'playing', null, null, true);
-    }
-  }
-  const watchdog = setInterval(() => {
-    for (const room of rooms.values()) for (const [key, player] of room.players) {
-      if (player.ready && Date.now() - player.lastSeen > controllerTimeoutMs) calibrationChanged(room, key, 'sensor-stale');
-    }
-  }, watchdogIntervalMs);
-  watchdog.unref(); http.once('close', () => clearInterval(watchdog));
-  io.on('connection', socket => {
-    socket.emit('server:hello', { version: CONFIG.version });
-    const reply = (ack, value) => { if (typeof ack === 'function') ack(value); };
-    socket.on('room:create', (_, ack) => {
-      if (socket.data.room) return reply(ack, { error: 'Already in a room.' });
-      let code;
-      do { code = randomBytes(3).toString('hex').toUpperCase(); } while (rooms.has(code));
-      const room = { code, host: socket.id, players: new Map(), revokedTokens: new Set(), phase: 'lobby', debug: false };
-      rooms.set(code, room); socket.data.room = code; socket.data.host = true; socket.join(code);
-      reply(ack, { roomCode: code }); roster(room);
-    });
-    socket.on('room:join', (payload, ack) => {
-      if (socket.data.room) return reply(ack, { error: 'Already assigned. Reload to reconnect.' });
-      const room = rooms.get(String(payload?.roomCode || '').toUpperCase());
-      if (!room) return reply(ack, { error: 'Room not found. Check the code or ask the host.' });
-      if (room.revokedTokens.has(payload?.clientToken)) return reply(ack, { error: 'The host removed this controller. Ask the host before joining again.' });
-      const now = Date.now();
-      for (const [key, p] of room.players) if (!p.socketId && now - p.leftAt > CONFIG.reconnectMs) room.players.delete(key);
-      let entry = [...room.players].find(([, p]) => p.token === payload?.clientToken);
-      if (entry?.[1].socketId) return reply(ack, { error: 'This controller is already connected.' });
-      if (!entry) {
-        const key = SLOTS.find(k => !room.players.has(k));
-        if (!key) return reply(ack, { error: 'All four roles are occupied or reserved for reconnect.' });
-        entry = [key, { token: randomBytes(24).toString('hex') }]; room.players.set(...entry);
-      }
-      const [key, p] = entry;
-      Object.assign(p, { socketId: socket.id, ready: false, status: 'calibration-required', lastSeen: Date.now(), seq: -1 });
-      socket.data.room = room.code; socket.data.key = key; socket.join(room.code);
-      const [team, role] = key.split(':');
-      const assignment = { team, role, clientToken: p.token, roomCode: room.code };
-      reply(ack, assignment); socket.emit('player:assign', assignment);
-      socket.emit('game:state', { phase: room.phase, debug: room.debug, interruption: room.interruption }); roster(room);
-    });
-    socket.on('player:kick', (payload, ack) => {
-      const room = rooms.get(socket.data.room);
-      if (room?.host !== socket.id) return reply(ack, { error: 'Only the host can remove players.' });
-      const key = payload?.key, player = room.players.get(key);
-      if (!player) return reply(ack, { error: 'That player has already left.' });
-      const client = io.sockets.sockets.get(player.socketId);
-      room.revokedTokens.add(player.token);
-      room.players.delete(key);
-      if (client) {
-        client.leave(room.code); client.data = {};
-        client.emit('player:kicked');
-      }
-      roster(room);
-      if (['playing', 'paused'].includes(room.phase) && !room.debug) {
-        state(room, 'paused', null, { key, status: 'kicked', message: 'The host removed this player. Join and calibrate a replacement phone to continue.' });
-      }
-      reply(ack, { ok: true });
-    });
-    socket.on('player:ready', ready => {
-      const room = rooms.get(socket.data.room), p = room?.players.get(socket.data.key);
-      if (p?.socketId === socket.id) calibrationChanged(room, socket.data.key, ready === true ? 'calibrated' : 'calibration-required');
-    });
-    socket.on('player:calibration', payload => {
-      const room = rooms.get(socket.data.room), p = room?.players.get(socket.data.key);
-      if (p?.socketId === socket.id && validCalibration(payload?.status)) calibrationChanged(room, socket.data.key, payload.status);
-    });
-    for (const role of ['legs', 'arm']) socket.on('input:' + role, p => {
-      const room = rooms.get(socket.data.room), player = room?.players.get(socket.data.key);
-      if (!player || player.socketId !== socket.id || !socket.data.key.endsWith(':' + role) || !validInput(role, p) || p.seq <= player.seq) return;
-      player.seq = p.seq; player.lastSeen = Date.now();
-      io.to(room.host).emit('input:' + role, { ...p, key: socket.data.key });
-    });
-    socket.on('game:start', (payload, ack) => {
-      const room = rooms.get(socket.data.room);
-      if (room?.host !== socket.id) return;
-      const debug = payload?.debug === true;
-      if (room.phase === 'paused') return reply(ack, { error: 'Use Resume match after all phones are calibrated.' });
-      if (!debug && !allReady(room)) return reply(ack, { error: 'Four connected, calibrated phones are required.' });
-      room.debug = debug; state(room, 'playing'); reply(ack, { ok: true });
-    });
-    socket.on('game:pause', (_, ack) => {
-      const room = rooms.get(socket.data.room);
-      if (room?.host !== socket.id || !['playing','paused'].includes(room.phase)) return reply(ack, {error:'No active host match.'});
-      state(room, 'paused', null, {status:'host-paused',message:'The host paused the match.'}); reply(ack, {ok:true});
-    });
-    socket.on('game:resume', (_, ack) => {
-      const room = rooms.get(socket.data.room);
-      if (room?.host !== socket.id || room.phase !== 'paused') return reply(ack, {error:'Only the host can resume a paused match.'});
-      if (!room.debug && !allReady(room)) return reply(ack, {error:'Recalibrate all four phones before resuming.'});
-      state(room, 'playing', null, null, true); reply(ack, {ok:true});
-    });
-    socket.on('game:state', p => {
-      const room = rooms.get(socket.data.room);
-      if (room?.host !== socket.id || !['lobby', 'results'].includes(p?.phase)) return;
-      if (p.phase === 'results' && (room.phase !== 'playing' || !['red', 'blue', 'draw'].includes(p.winner))) return;
-      state(room, p.phase, p.winner);
-    });
-    socket.on('player:hit', p => {
-      const room = rooms.get(socket.data.room);
-      if (room?.host === socket.id && room.phase === 'playing' && ['red', 'blue'].includes(p?.team)) for (const [key, player] of room.players) if (key.startsWith(p.team + ':') && player.socketId) io.to(player.socketId).emit('player:hit', { strength: 1 });
-    });
-    socket.on('disconnect', () => {
-      const room = rooms.get(socket.data.room);
-      if (!room) return;
-      if (room.host === socket.id) {
-        io.to(room.code).emit('room:closed');
-        for (const client of io.sockets.sockets.values()) if (client.data.room === room.code) { client.leave(room.code); client.data = {}; }
-        rooms.delete(room.code); return;
-      }
-      const p = room.players.get(socket.data.key);
-      if (p?.socketId === socket.id) { Object.assign(p, { socketId: null, leftAt: Date.now() }); calibrationChanged(room, socket.data.key, 'disconnected'); }
-    });
-  });
+  const disposeParty = installParty(io, rooms, options);
+  http.once('close', disposeParty);
   return { app, http, io, rooms };
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

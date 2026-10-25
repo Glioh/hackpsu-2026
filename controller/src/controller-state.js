@@ -15,7 +15,7 @@ export function controllerScreen({assignment,phase,ready,slots=[],interruption,w
   if (!ready) return {title:'Your phone is out of calibration.',message:'Recalibrate to continue.',tips,recovery:true};
   const affected=slots.filter(s=>!s.ready||!s.connected);
   if (affected.length && (phase==='paused'||phase==='lobby')) {
-    const names=affected.map(s=>s.key.split(':').map(v=>v[0].toUpperCase()+v.slice(1)).join(' '));
+    const names=affected.map(s=>s.name ? `${s.name} (${s.role || 'phone'})` : s.key.split(':').map(v=>v[0].toUpperCase()+v.slice(1)).join(' '));
     return {title:phase==='paused'?'PAUSED':'WAITING',message:`${names.join(', ')} ${names.length===1?'is':'are'} out of calibration. Tell them to recalibrate.`,tips,recovery:false};
   }
   if (phase==='paused') return {title:'PAUSED',message:interruption?.status==='host-paused'?'The host paused the match. Waiting for the host to resume.':'Calibrated. Waiting for the other phones.',tips,recovery:false};

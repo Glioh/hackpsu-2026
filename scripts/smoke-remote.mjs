@@ -22,19 +22,24 @@ try {
   const host = await connect();
   const { roomCode } = await ack(host, 'room:create', {});
   assert.match(roomCode, /^[A-F0-9]{6}$/);
-  const phones = [], roles = [];
+  const phones = [], roles = [], assigned = [];
   for (let i = 0; i < 4; i++) {
     const phone = await connect(); phones.push(phone);
     const assignment = await ack(phone, 'room:join', { roomCode });
-    roles.push(`${assignment.team}:${assignment.role}`);
+    assert.equal(assignment.role, null);
+    assigned.push(new Promise(resolve => phone.on('player:assign', assignment => { phone.assignment = assignment; resolve(); })));
   }
+  assert.equal((await ack(host, 'game:start', {})).ok, true);
+  await Promise.all(assigned);
+  for (const phone of phones) roles.push(`${phone.assignment.fighterId}:${phone.assignment.role}`);
   assert.equal(new Set(roles).size, 4);
   const inputReceived = new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Input relay timed out')), 10000);
     host.once('input:legs', input => { clearTimeout(timeout); resolve(input); });
   });
-  phones[0].emit('input:legs', { seq: 1, moveX: 0.5, moveZ: 0, jumpId: 0 });
-  assert.equal((await inputReceived).key, 'red:legs');
+  const legs = phones.find(phone => phone.assignment.role === 'legs');
+  legs.emit('input:legs', { seq: 1, moveX: 0.5, moveZ: 0, jumpId: 0 });
+  assert.equal((await inputReceived).key, `${legs.assignment.fighterId}:legs`);
   const qr = await fetch(hostOrigin + '/qr?url=' + encodeURIComponent(hostOrigin + '/controller?room=' + roomCode));
   assert.equal(qr.status, 200); assert.match(await qr.text(), /<svg/);
   console.log(JSON.stringify({ ok: true, hostOrigin, socketOrigin, roles, checks: ['HTTPS pages', 'WebSocket host + four controllers', 'role assignment', 'live input relay', 'room QR SVG'] }, null, 2));

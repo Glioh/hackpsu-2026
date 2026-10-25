@@ -1,123 +1,75 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import {Simulation} from '../host/src/simulation.js';
-import {MAPS} from '../host/src/maps.js';
-import {CONFIG as C} from '../shared/config.js';
+import { Simulation } from '../host/src/simulation.js';
+import { MAPS } from '../shared/maps.js';
+import { CHARACTERS, makeMatch, matchRules, rollFrame } from '../shared/party.js';
+import { CONFIG as C } from '../shared/config.js';
 import * as motion from '../host/src/motion.js';
-import {createCombatAudio} from '../host/src/combat-audio.js';
 
-function hostHarness(timed=false){
-  const html=readFileSync(new URL('../host/index.html',import.meta.url),'utf8'),elements=new Map();
-  function element(){const classes=new Set();return {value:'',checked:true,dataset:{},children:[],textContent:'',
-    get className(){return [...classes].join(' ');},set className(value){classes.clear();value.split(' ').forEach(c=>classes.add(c));},
-    classList:{add:c=>classes.add(c),remove:(...names)=>names.forEach(c=>classes.delete(c)),toggle:(c,on)=>on?classes.add(c):classes.delete(c),contains:c=>classes.has(c)},
-    setAttribute(k,v){this[k]=v;},focus(){},append(...items){this.children.push(...items);},
-    replaceChildren(...items){this.children=items;},querySelector(){return {focus(){}};}};}
-  for(const m of html.matchAll(/id="([^"]+)"/g))elements.set(m[1],element());
-  const $=id=>{assert.ok(elements.has(id),'Missing DOM element '+id);return elements.get(id);};
-  const handlers={},emitted=[],steps=[element(),element(),element()];let frame,clock=0,lastInputs,activeSim,winnerShown,winnerHidden=0;const randomChoices=['ice','conveyor','classic'];let randomCalls=0;const timers=new Map();let timerId=0;
-  const socket={on:(event,fn)=>handlers[event]=fn,emit:(event,payload,ack)=>{
-    emitted.push({event,payload});ack?.({});
-  }};
-  const beams=[],frames=[];
-  class TrackedSimulation extends Simulation {
-    constructor(...args){super(...args);activeSim=this;}
-    step(inputs,dt){lastInputs=inputs;return super.step(inputs,dt);}
+function hostHarness() {
+  const elements=new Map();
+  function element(){
+    const classes=new Set();let id='';
+    return {value:'',checked:true,dataset:{},children:[],textContent:'',style:{setProperty(){}},
+      get id(){return id;},set id(value){id=value;elements.set(value,this);},
+      classList:{add:c=>classes.add(c),remove:c=>classes.delete(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c),contains:c=>classes.has(c)},
+      setAttribute(k,v){this[k]=v;},focus(){},append(...items){this.children.push(...items);},
+      replaceChildren(...items){this.children=items;if(items[0]?.value)this.value=items[0].value;},querySelector(){return null;},querySelectorAll(){return [];}};
   }
-  const draw=(...args)=>frames.push(args[4]);draw.startKO=events=>beams.push(...events);draw.setFighter=draw.clearKO=draw.resetMotion=()=>{};
-  const context={...motion,createCombatAudio,Simulation:TrackedSimulation,MAPS,C,SLOTS:[],chooseRandomMap:()=>randomChoices[randomCalls++],
-    createWinnerView:()=>({show(winner,picks){winnerShown={winner,picks};},hide(){winnerHidden++;}}),
-    document:{getElementById:$,querySelectorAll:()=>steps,createElement:element,addEventListener(){},hidden:false},
-    createCommentary:()=>({unlock(){},phase(){},tick(){},step(){},fight(){}}),
-    connectSocket:()=>socket,createRenderer:()=>draw,createPresentation:()=>({request(){},setPhase(){}}),
-    FIGHTERS:{dummy:{name:'Dummy'}},TEAM_FIGHTERS:['dummy','dummy'],createBotController:()=>()=>({}),
-    FINISH_DURATION:2,FINISH_TIME_SCALE:.2,stepFinish(){},URL,location:{origin:'http://localhost:3001'},
-    localStorage:{getItem(){return null;},setItem(){}},addEventListener(){},setInterval(){},
-    performance:{now:()=>clock},requestAnimationFrame:fn=>{frame=fn;}};
-  const source=readFileSync(new URL('../host/src/main.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'');
-  if(timed)Object.assign(context,{setTimeout(fn,delay){const id=++timerId;timers.set(id,{fn,at:clock+delay});return id;},clearTimeout:id=>timers.delete(id)});
+  const html=readFileSync(new URL('../host/index.html',import.meta.url),'utf8');
+  for(const m of html.matchAll(/id="([^"]+)"/g))elements.set(m[1],element());
+  const $=id=>elements.get(id)||null;
+  const handlers={},emitted=[],frames=[],beams=[];let frame,clock=0,lastInputs,sim;
+  class TrackedSimulation extends Simulation{constructor(){super();sim=this;}step(inputs,dt){lastInputs=inputs;return super.step(inputs,dt);}}
+  const draw=(...args)=>frames.push(args[4]);draw.configure=draw.clearKO=draw.resetMotion=()=>{};draw.startKO=events=>beams.push(...events);
+  const socket={connected:true,on:(name,fn)=>handlers[name]=fn,emit:(event,payload,ack)=>{emitted.push({event,payload});ack?.({});}};
+  const context={...motion,Simulation:TrackedSimulation,MAPS,C,CHARACTERS,matchRules,rollFrame,
+    document:{getElementById:$,querySelector:()=>null,createElement:element,addEventListener(){},hidden:false},
+    createCommentary:()=>({unlock(){},phase(){},step(){},tick(){},fight(){}}),
+    createCombatAudio:()=>({unlock(){},event(){},countdown(){}}),connectSocket:()=>socket,createRenderer:()=>draw,
+    createPresentation:()=>({request(){},setPhase(){}}),createBotController:()=>()=>({}),choiceCard:element,updateChoices(){},
+    FINISH_DURATION:2,FINISH_TIME_SCALE:.2,stepFinish(){},URL,location:{origin:'http://localhost:3000'},
+    localStorage:{getItem(){return null;},setItem(){}},addEventListener(){},setInterval(){},performance:{now:()=>clock},requestAnimationFrame:fn=>frame=fn};
+  const source=readFileSync(new URL('../host/src/main.js',import.meta.url),'utf8').replace(/^\uFEFF?import .*;\r?\n/gm,'');
   vm.runInNewContext(source,context);
-  return {$,handlers,emitted,context,html,beams,frames,get sim(){return activeSim;},get activeSim(){return activeSim;},get randomCalls(){return randomCalls;},get winnerShown(){return winnerShown;},get winnerHidden(){return winnerHidden;},get lastInputs(){return lastInputs;},get timerCount(){return timers.size;},
-    advance(to){for(const [id,timer] of [...timers].sort((a,b)=>a[1].at-b[1].at))if(timer.at<=to&&timers.has(id)){clock=timer.at;timers.delete(id);timer.fn();}clock=to;frame(clock);}};
+  return {$,handlers,emitted,sim,frames,beams,get lastInputs(){return lastInputs;},advance(to){clock=to;frame(clock);}};
 }
-
-test('dev button skips crew, survives roster updates, previews idle teams and returns to map selection',()=>{
-  const h=hostHarness(),{$,handlers,emitted,context,html}=h;
-  $('devMode').onclick();assert.equal($('mapStep').classList.contains('hidden'),false);
-  assert.equal($('joinStep').classList.contains('hidden'),true);assert.equal($('start').disabled,false);
-  const slots=['red:legs','red:arm','blue:legs','blue:arm'].map(key=>({key,connected:false,ready:false}));
-  handlers['room:roster']({slots});assert.equal($('start').disabled,false);
-  assert.equal($('calibrationRows').children.length,2);
-  $('start').onclick();assert.equal(emitted.at(-1).event,'game:start');assert.equal(emitted.at(-1).payload.debug,true);
+test('lobby needs even count; dev map preview bypasses phone voting and uses idle fighters',()=>{
+  const h=hostHarness(),{$,handlers}=h;
+  const slots=Array.from({length:5},(_,i)=>({id:String(i),name:'Player '+i,connected:true,ready:false}));
+  handlers['room:roster']({slots});assert.equal($('start').disabled,true);assert.match($('lobbyHint').textContent,/Odd player/);
+  slots.push({id:'5',name:'Sixth',connected:true,ready:false});handlers['room:roster']({slots});
+  assert.equal($('start').disabled,false);assert.match($('lobbyHint').textContent,/Free-for-all/);
+  $('devMap').value='ice';$('devMode').onclick();assert.equal(h.emitted.at(-1).payload.debug,true);
   handlers['game:state']({phase:'playing',debug:true});h.advance(40);
-  assert.equal(JSON.stringify(h.lastInputs),'{}');assert.match($('phase').textContent,/MAP PREVIEW/);
-  $('leaveGame').onclick();assert.equal(emitted.at(-1).payload.phase,'lobby');
-  handlers['game:state']({phase:'lobby',debug:true});assert.equal($('mapStep').classList.contains('hidden'),false);
-  $('devMode').onclick();assert.equal($('start').disabled,true);assert.equal($('joinStep').classList.contains('hidden'),false);
-  $('start').onclick();assert.equal(emitted.at(-1).payload.debug,false);
-  context.pickMap('random');
-  assert.equal(h.activeSim.mapId,'ice');assert.equal(h.randomCalls,1);
-  handlers['game:state']({phase:'playing',debug:true});
-  const arena=h.activeSim.arena;assert.equal(arena.id,'conveyor');
-  assert.match($('mapName').textContent,/RANDOM \/ FACTORY/);
-  handlers['game:state']({phase:'paused',debug:true});
-  handlers['game:state']({phase:'playing',debug:true,resumed:true});
-  assert.equal(h.activeSim.arena,arena,'resume keeps the same chosen arena');assert.equal(h.randomCalls,2);
-  handlers['game:state']({phase:'playing',debug:true});
-  assert.equal(h.activeSim.arena.id,'classic');assert.equal(h.randomCalls,3,'rematch chooses another existing arena');
-  context.pickMap('classic');
-  handlers['game:state']({phase:'results',debug:true,winner:'red'});
-  assert.equal($('winner').textContent,'Dummy wins!');assert.equal(h.winnerShown.winner,'red');
-  assert.equal(JSON.stringify(h.winnerShown.picks),'["dummy","dummy"]');
-  assert.equal($('gameScreen').classList.contains('showing-results'),true);
-  const resultHtml=html.slice(html.indexOf('<div id="result"'),html.indexOf('</section>',html.indexOf('<div id="result"')));
-  assert.equal((resultHtml.match(/<button/g)||[]).length,2);
-  assert.match(resultHtml,/>Play again</);assert.match(resultHtml,/>Return to Lobby</);
-  $('rematch').onclick();assert.equal(emitted.at(-1).event,'game:start');
-  const hiddenBefore=h.winnerHidden;handlers['game:state']({phase:'playing',debug:true});
-  assert.ok(h.winnerHidden>hiddenBefore);assert.equal($('gameScreen').classList.contains('showing-results'),false);
-  handlers['game:state']({phase:'results',debug:true,winner:'draw'});assert.equal($('winner').textContent,'Draw!');
-  assert.equal(h.winnerShown.winner,'draw');
-  $('resultLobby').onclick();assert.equal(emitted.at(-1).payload.phase,'lobby');
+  assert.equal(JSON.stringify(h.lastInputs),'{}');assert.equal(h.sim.mapId,'ice');
+  $('leaveGame').onclick();assert.equal(h.emitted.at(-1).payload.phase,'lobby');
 });
-
-test('host shows life circles and every beam, with finish effects only after final life',()=>{
+test('dynamic shared-life HUD follows team pool, hides entirely in FFA',()=>{
   const h=hostHarness(),{$,handlers,sim}=h;
-  $('devMode').onclick(); handlers['game:state']({phase:'playing',debug:true});
-  h.advance(40); assert.equal($('redLives').textContent,'●●●');
-  sim.fighters[0].y=-6; h.advance(80);
-  assert.equal($('redLives').textContent,'●●○'); assert.equal(h.beams.length,1);
-  assert.equal(h.frames.at(-1).finishAge,null);
-  handlers['game:state']({phase:'paused',debug:true});
-  const remaining=sim.fighters[0].respawnRemaining;
-  h.advance(120);assert.equal(sim.fighters[0].respawnRemaining,remaining);
-  handlers['game:state']({phase:'playing',debug:true,resumed:true});
-  for(let time=160;time<=1760;time+=40)h.advance(time);
-  assert.equal(sim.fighters[0].respawnRemaining,0);
-  sim.fighters[0].y=-6; h.advance(1800);
-  assert.equal($('redLives').textContent,'●○○');assert.equal(h.beams.length,2);
-  assert.equal(h.frames.at(-1).finishAge,null);
-  for(let time=1840;time<=3440;time+=40)h.advance(time);
-  sim.fighters[0].y=-6;h.advance(3480);
-  assert.equal($('redLives').textContent,'○○○');assert.equal(h.beams.length,3);
-  assert.equal(h.frames.at(-1).finishAge,0);assert.equal(sim.winner,'blue');
-  handlers['game:state']({phase:'playing',debug:true});h.advance(3520);
-  assert.equal($('redLives').textContent,'●●●');assert.equal(h.frames.at(-1).finishAge,null);
+  const match={...makeMatch(Array.from({length:8},(_,i)=>String(i))),mapId:'classic'};
+  handlers['game:state']({phase:'playing',debug:false,match});h.advance(3500);
+  assert.match($('redLives').textContent,/RED  \u25cf\u25cf/);
+  sim.fighters.find(f=>f.side==='red').y=-7;h.advance(3540);
+  assert.match($('redLives').textContent,/RED  \u25cf\u25cb/);assert.equal(h.beams.length,1);assert.equal(h.frames.at(-1).finishAge,null);
+  handlers['game:state']({phase:'lobby'});
+  const ffa={...makeMatch(Array.from({length:6},(_,i)=>String(i))),mapId:'classic'};
+  handlers['game:state']({phase:'playing',debug:false,match:ffa});h.advance(3600);
+  assert.equal($('livesHud').classList.contains('hidden'),true);assert.equal(sim.fighters.length,3);
 });
-
-test('faceoff freezes combat until FIGHT, keeps countdown styling and cancels on pause/disconnect',()=>{
- const h=hostHarness(true),{$,handlers}=h;
- $('debugStart').onclick();assert.equal(h.timerCount,0,'rejected or unacknowledged start cannot show intro');
- handlers['game:state']({phase:'playing',debug:true});h.advance(6100);assert.equal(h.lastInputs,undefined);
- h.advance(6200);assert.equal($('faceoffCountdown').textContent,'3');assert.ok($('faceoffCountdown').classList.contains('faceoff-countdown'));
- h.advance(7400);assert.equal($('faceoffCountdown').textContent,'2');
- h.advance(8600);assert.equal($('faceoffCountdown').textContent,'1');assert.equal(h.lastInputs,undefined);
- h.advance(9800);assert.equal($('faceoffCountdown').textContent,'FIGHT');h.advance(9840);assert.ok(h.lastInputs);
- h.advance(10350);assert.ok($('faceoff').classList.contains('hidden'));assert.equal(h.timerCount,0);
- handlers['game:state']({phase:'playing',debug:true});assert.equal(h.timerCount,5);
- handlers['game:state']({phase:'paused',debug:true});assert.equal(h.timerCount,0);assert.ok($('faceoff').classList.contains('hidden'));
- handlers['game:state']({phase:'playing',debug:true,resumed:true});assert.equal(h.timerCount,0);
- handlers['game:state']({phase:'playing',debug:true});handlers.disconnect();assert.equal(h.timerCount,0);
+test('two-life party setup never reads the previous three-life developer fighters',()=>{
+  const h=hostHarness(),match={...makeMatch(['0','1','2','3']),mapId:'classic'};
+  h.handlers['game:state']({phase:'character-select',debug:false,match,selection:{votes:{},rolls:{},deadline:Date.now()+25000}});
+  assert.doesNotThrow(()=>h.advance(40));
+});
+test('intro holds combat, begins after countdown, and cancels on pause or disconnect',()=>{
+  const h=hostHarness(),{$,handlers}=h;
+  handlers['game:state']({phase:'playing',debug:true});h.advance(500);
+  assert.equal(h.lastInputs,undefined);assert.equal($('faceoffCountdown').textContent,'3');
+  h.advance(1600);assert.equal($('faceoffCountdown').textContent,'2');h.advance(2600);assert.equal($('faceoffCountdown').textContent,'1');
+  h.advance(3500);assert.ok(h.lastInputs);assert.equal($('faceoff').classList.contains('hidden'),true);
+  handlers['game:state']({phase:'paused',debug:true});assert.equal($('faceoff').classList.contains('hidden'),true);
+  handlers['game:state']({phase:'playing',debug:true,resumed:true});handlers.disconnect();assert.equal($('setup').classList.contains('hidden'),false);
 });

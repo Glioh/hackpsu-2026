@@ -1,79 +1,90 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { io as connect } from 'socket.io-client';
-import { createApp } from '../server/index.js';
-const waitEvent=(socket,name)=>new Promise(resolve=>socket.once(name,resolve));
-const emit=(socket,name,p)=>new Promise(resolve=>socket.emit(name,p,resolve));
+import { lobby, event, emit, startMatch } from './helpers/party.js';
 
-test('room lifecycle: four unique slots, readiness, authorization, reconnect, rematch, host close',async t=>{
-  const {http,io}=createApp();await new Promise(resolve=>http.listen(0,'127.0.0.1',resolve));
-  const url='http://127.0.0.1:'+http.address().port,sockets=[];
-  const client=async()=>{const s=connect(url,{forceNew:true,reconnection:false});sockets.push(s);await waitEvent(s,'connect');return s;};
-  t.after(async()=>{sockets.forEach(s=>s.disconnect());await new Promise(resolve=>io.close(resolve));});
-  assert.equal((await fetch(url+'/health')).status,200);
-  for(const route of ['/','/controller','/vendor/three/three.module.js','/vendor/three/addons/loaders/GLTFLoader.js','/host/assets/characters/sir_squish.glb','/host/assets/characters/crank.glb','/host/assets/characters/nik.glb','/host/assets/characters/toast_malone.glb','/host/assets/characters/conehead.glb','/host/assets/characters/captain_bubbles.glb','/shared/config.js'])assert.equal((await fetch(url+route)).status,200);
-  const host=await client(),created=await emit(host,'room:create',{}),roomCode=created.roomCode;
-  assert.match(roomCode,/^[A-F0-9]{6}$/);
-  assert.ok((await emit(host,'game:start',{})).error);
-  const phones=[],assignments=[];
-  for(let i=0;i<4;i++){const p=await client();phones.push(p);assignments.push(await emit(p,'room:join',{roomCode}));}
-  assert.equal(new Set(assignments.map(p=>p.team+':'+p.role)).size,4);
-  const fifth=await client();assert.ok((await emit(fifth,'room:join',{roomCode})).error);
-  let relayed=[];host.on('input:legs',p=>relayed.push(p));host.on('input:arm',p=>relayed.push(p));
-  phones[0].emit('input:arm',{seq:0,turn:1,power:1});
-  phones[0].emit('input:legs',{seq:1,moveX:1,moveZ:0,team:'blue',key:'blue:legs'});
-  await new Promise(resolve=>setTimeout(resolve,50));assert.equal(relayed.length,1);assert.equal(relayed[0].key,'red:legs');
-  phones[0].emit('input:legs',{seq:1,moveX:1,moveZ:0});phones[0].emit('input:legs',{seq:2,moveX:99,moveZ:0});
-  await new Promise(resolve=>setTimeout(resolve,50));assert.equal(relayed.length,1);
-  phones.forEach(p=>p.emit('player:ready',true));await new Promise(resolve=>setTimeout(resolve,50));
-  let stateEvent=waitEvent(phones[0],'game:state');assert.equal((await emit(host,'game:start',{})).ok,true);assert.equal((await stateEvent).phase,'playing');
-  stateEvent=waitEvent(phones[0],'game:state');host.emit('game:state',{phase:'results',winner:'red'});assert.equal((await stateEvent).winner,'red');
-  assert.equal((await emit(host,'game:start',{})).ok,true);
-  stateEvent=waitEvent(host,'game:state');phones[0].disconnect();assert.equal((await stateEvent).phase,'paused');
-  assert.ok((await emit(host,'game:start',{})).error);
-  const replacement=await client(),reassigned=await emit(replacement,'room:join',{roomCode,clientToken:assignments[0].clientToken});assert.equal(reassigned.team,'red');assert.equal(reassigned.role,'legs');
-  const closed=waitEvent(replacement,'room:closed');host.disconnect();await closed;
-  await new Promise(resolve=>setTimeout(resolve,20));assert.ok((await emit(replacement,'room:join',{roomCode})).error);
+test('lobby accepts names beyond four, defers roles and rejects odd start counts', async t => {
+  const c = await lobby(t, 5);
+  assert.ok(c.phones.every(p => p.assignment.role === null));
+  assert.equal(new Set(c.phones.map(p => p.assignment.playerId)).size, 5);
+  assert.ok((await emit(c.host, 'game:start')).error);
+  const sixth = await c.client(); c.phones.push(sixth);
+  await emit(sixth, 'room:join', { roomCode:c.roomCode, name:'Sixth' });
+  const final = await startMatch(c);
+  assert.equal(final.match.mode, 'ffa'); assert.equal(final.match.count, 3); assert.equal(final.phase, 'playing');
+  assert.equal(c.room.players.size, 6);
+  const late = await c.client(); assert.ok((await emit(late,'room:join',{roomCode:c.roomCode})).error);
 });
-
-test('debug start is explicitly available without phones',async t=>{
-  const {http,io}=createApp();await new Promise(resolve=>http.listen(0,'127.0.0.1',resolve));
-  const host=connect('http://127.0.0.1:'+http.address().port,{reconnection:false});
-  t.after(async()=>{host.disconnect();await new Promise(resolve=>io.close(resolve));});
-  await waitEvent(host,'connect');await emit(host,'room:create',{});assert.equal((await emit(host,'game:start',{debug:true})).ok,true);
+test('8 and 12 phones receive balanced teams; vote changes count once; only top maps can win', async t => {
+  for (const count of [8,12]) {
+    const c = await lobby(t, count);
+    assert.equal((await emit(c.host,'game:start')).ok,true);
+    assert.equal(c.room.match.mode,'teams'); assert.equal(c.room.match.lives,count===8?2:3);
+    assert.equal(c.room.match.fighters.filter(f=>f.side==='red').length,count/4);
+    const mapReady=event(c.host,'game:state',s=>s.phase==='map-vote');
+    await emit(c.phones[0],'character:vote',{id:'squish'});
+    await emit(c.phones[0],'character:vote',{id:'tung'});
+    for(let i=1;i<count;i++)await emit(c.phones[i],'character:vote',{id:'crank'});
+    const state=await mapReady, [a,b]=state.selection.options;
+    assert.equal(new Set(state.selection.options).size,6);
+    assert.ok((await emit(c.host,'map:vote',{id:a})).error);
+    assert.ok((await emit(c.phones[0],'map:vote',{id:'not-a-map'})).error);
+    const rolled=event(c.host,'game:state',s=>s.phase==='map-roll');
+    for(let i=0;i<count;i++)await emit(c.phones[i],'map:vote',{id:i%2?a:b});
+    const result=await rolled; assert.ok([a,b].includes(result.match.mapId));
+    assert.equal(result.selection.roll.frames.at(-1).id,result.match.mapId);
+  }
 });
-
-test('only the room host can kick, removed phones stop receiving and sending, and replacements resume play',async t=>{
-  const {http,io,rooms}=createApp({controllerTimeoutMs:60000});
-  await new Promise(resolve=>http.listen(0,'127.0.0.1',resolve));
-  const sockets=[],url='http://127.0.0.1:'+http.address().port;
-  const client=async()=>{const s=connect(url,{forceNew:true,reconnection:false});sockets.push(s);await waitEvent(s,'connect');return s;};
-  t.after(async()=>{sockets.forEach(s=>s.disconnect());await new Promise(resolve=>io.close(resolve));});
-  const host=await client(),{roomCode}=await emit(host,'room:create',{}),phones=[],assignments=[];
-  for(let i=0;i<4;i++){const phone=await client();phones.push(phone);assignments.push(await emit(phone,'room:join',{roomCode}));phone.emit('player:ready',true);}
-  const otherHost=await client();await emit(otherHost,'room:create',{});
-  assert.ok((await emit(phones[0],'player:kick',{key:'blue:arm'})).error);
-  assert.ok((await emit(otherHost,'player:kick',{key:'red:legs'})).error);
-  assert.ok((await emit(host,'player:kick',{key:'invalid'})).error);
-  // Acknowledgement on the same connection guarantees all preceding ready messages were processed.
-  await emit(phones[3],'player:kick',{key:'invalid'});
-  assert.equal((await emit(host,'game:start',{})).ok,true);
-  const kicked=waitEvent(phones[0],'player:kicked'),paused=waitEvent(host,'game:state'),roster=waitEvent(host,'room:roster');
-  assert.equal((await emit(host,'player:kick',{key:'red:legs'})).ok,true);
-  await kicked;assert.equal((await paused).phase,'paused');
-  assert.ok((await emit(phones[0],'room:join',{roomCode,clientToken:assignments[0].clientToken})).error);
-  const slot=(await roster).slots.find(s=>s.key==='red:legs');assert.equal(slot.occupied,false);assert.equal(slot.connected,false);
-  let relayed=0,leaked=0;host.on('input:legs',()=>relayed++);phones[0].on('room:roster',()=>leaked++);
-  phones[0].emit('input:legs',{seq:1,moveX:1,moveZ:0});phones[0].emit('player:ready',true);
-  const replacement=await client(),assignment=await emit(replacement,'room:join',{roomCode});
-  assert.equal(assignment.team+':'+assignment.role,'red:legs');
-  const resumed=waitEvent(host,'game:state');replacement.emit('player:ready',true);
-  assert.equal((await resumed).resumed,true);assert.equal(relayed,0);assert.equal(leaked,0);
-  assert.equal(rooms.get(roomCode).players.get('red:legs').socketId,replacement.id);
-  // Disconnected roles are reserved until the host explicitly frees them.
-  const disconnected=waitEvent(host,'room:roster');phones[1].disconnect();await disconnected;
-  assert.equal((await emit(host,'player:kick',{key:'red:arm'})).ok,true);
-  assert.equal(rooms.get(roomCode).players.has('red:arm'),false);
-  const reconnect=await client();
-  assert.ok((await emit(reconnect,'room:join',{roomCode,clientToken:assignments[1].clientToken})).error);
+test('input relay uses assigned pair/role, rejects spoofing, duplicates and oversized input', async t => {
+  const c=await lobby(t);await startMatch(c);
+  const phone=c.phones[0], p=c.room.players.get(phone.assignment.playerId), other=p.role==='legs'?'arm':'legs', relayed=[];
+  c.host.on('input:'+p.role,data=>relayed.push(data));
+  phone.emit('input:'+other,{seq:0,moveX:1,moveZ:0,turn:1,power:1});
+  const next=event(c.host,'input:'+p.role);
+  const data={seq:1,moveX:1,moveZ:0,turn:1,power:1,key:'spoof',team:'spoof'};
+  phone.emit('input:'+p.role,data);assert.equal((await next).key,`${p.fighterId}:${p.role}`);
+  phone.emit('input:'+p.role,data);phone.emit('input:'+p.role,{...data,seq:2,moveX:99,turn:99});
+  await emit(c.host,'game:pause');assert.equal(relayed.length,1);
+});
+test('host removal revokes token, returns active room to lobby, rejects controller kicks', async t => {
+  const c=await lobby(t);await startMatch(c);
+  const p=c.phones[0].assignment;
+  assert.ok((await emit(c.phones[0],'player:kick',{key:p.playerId})).error);
+  const removed=event(c.phones[0],'player:kicked'), reset=event(c.host,'game:state',s=>s.phase==='lobby');
+  assert.equal((await emit(c.host,'player:kick',{key:p.playerId})).ok,true);await removed;await reset;
+  assert.equal(c.room.players.size,3);assert.equal(c.room.match,null);
+  assert.ok((await emit(c.phones[0],'room:join',{roomCode:c.roomCode,clientToken:p.clientToken})).error);
+  const replacement=await c.client();assert.equal((await emit(replacement,'room:join',{roomCode:c.roomCode,name:'Replacement'})).role,null);
+});
+test('host close expires room, debug starts without phones, setup cancellation clears timers', async t => {
+  const c=await lobby(t);await emit(c.host,'game:start');
+  assert.equal(c.room.phase,'character-select');c.host.emit('game:state',{phase:'lobby'});
+  await event(c.host,'game:state',s=>s.phase==='lobby');assert.equal(c.room.selection,null);
+  assert.equal((await emit(c.host,'game:start',{debug:true})).ok,true);
+  const closed=event(c.phones[0],'room:closed');c.host.disconnect();await closed;assert.equal(c.rooms.has(c.roomCode),false);
+});
+test('selection deadlines resolve missing votes and calibration gates gameplay', async t => {
+  const c=await lobby(t,4,{selectionMs:30});
+  const final=event(c.host,'game:state',s=>s.phase==='calibrating');await emit(c.host,'game:start');await final;
+  assert.ok(c.room.match.mapId);assert.ok(c.room.match.fighters.every(f=>f.character));
+  const playing=event(c.host,'game:state',s=>s.phase==='playing');c.phones.forEach(p=>p.emit('player:ready',true));await playing;
+});
+test('keep playing retains matchup and pauses safely when a phone needs calibration', async t => {
+  const c = await lobby(t); await startMatch(c);
+  const match = structuredClone(c.room.match);
+  for (const needsCalibration of [false, true]) {
+    const results = event(c.host, 'game:state', s => s.phase === 'results');
+    c.host.emit('game:state', { phase: 'results', winner: 'red' }); await results;
+    assert.ok((await emit(c.phones[0], 'game:start')).error);
+    if (needsCalibration) {
+      const roster = event(c.host, 'room:roster', s => s.slots.some(p => !p.ready));
+      c.phones[0].emit('player:ready', false); await roster;
+    }
+    assert.equal((await emit(c.host, 'game:start')).ok, true);
+    assert.deepEqual(c.room.match, match); assert.equal(c.room.winner, null);
+    assert.equal(c.room.phase, needsCalibration ? 'paused' : 'playing');
+    if (needsCalibration) {
+      const resumed = event(c.host, 'game:state', s => s.phase === 'playing' && s.resumed);
+      c.phones[0].emit('player:ready', true); await resumed;
+    }
+  }
 });

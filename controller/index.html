@@ -1,10 +1,12 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#000000"><title>Two-Body Brawl Controller</title><link rel="stylesheet" href="/shared/style.css"><link rel="stylesheet" href="/controller/style.css"></head>
-<body><header><div class="brand">TWO-BODY <span>BRAWL</span></div><span id="connection" class="badge">CONNECTING</span></header><main>
-<section id="join" class="panel"><div class="eyebrow">YOUR FRIENDSHIP IS THE CONTROLLER</div><h1>JOIN THE<br><span>CHAOS.</span></h1><p>Four phones. Two fighters. Find your other half and try to stay on the platform.</p><form id="joinform"><label for="room">ROOM CODE</label><input id="room" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="ABC123" required><button>Join the crew</button></form><a class="preview-link" href="/controller?preview=1">Preview mobile controller</a></section>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#000000"><title>Two-Body Brawl Controller</title><link rel="stylesheet" href="/shared/style.css"><link rel="stylesheet" href="/controller/style.css"><link rel="stylesheet" href="/shared/party.css"><link rel="stylesheet" href="/controller/party.css"></head>
+<body><main>
+<section id="join" class="panel"><h1>JOIN THE<br><span>CHAOS.</span></h1><p>Join the lobby. The host will pair you up when the match starts.</p><form id="joinform"><label for="nickname">YOUR NAME</label><input id="nickname" maxlength="20" autocomplete="nickname" placeholder="Your nickname" required><label for="room">ROOM CODE</label><input id="room" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="ABC123" required><button>Join the crew</button></form><a class="preview-link" href="/controller?preview=1">Preview mobile controller</a></section>
 <section id="controller" class="hidden">
   <div id="team" class="controller-identity"></div>
-  <section class="action-screen" aria-label="Controller action and status">
+  <section id="phoneLobby" class="phone-lobby hidden"><div class="eyebrow">YOU'RE IN THE LOBBY</div><h1 id="lobbyName"></h1><p>Waiting for the host to start. You'll be matched with a teammate and assigned a body part then.</p><div class="waiting-dots" aria-hidden="true"><i></i><i></i><i></i></div><p id="phonePlayerCount"></p></section>
+  <section id="phoneSelection" class="hidden" aria-live="polite"><div class="eyebrow" id="phoneSelectionEyebrow"></div><h1 id="phoneSelectionTitle"></h1><p id="partnerName"></p><p id="phoneSelectionHint"></p><div id="phoneChoices" class="choice-grid"></div><p id="phoneSelectionStatus" role="status"></p><span id="phoneSelectionClock" class="selection-clock"></span></section>
+  <section id="phoneAction" class="action-screen" aria-label="Controller action and status">
     <h1 id="currentAction">READY</h1>
     <p id="screenMessage" role="status"></p>
     <p id="controlTips"></p>
@@ -15,6 +17,7 @@
     </section>
   </section>
   <details class="controller-settings"><summary>Controller settings</summary>
+    <p id="connection" role="status">CONNECTING</p>
     <button id="recalibrate" class="secondary">Recalibrate this grip</button>
     <label class="flip"><input type="checkbox" id="flip"> Reverse steering direction</label>
     <details><summary>Sensor diagnostics</summary><pre id="diagnostics"></pre></details>

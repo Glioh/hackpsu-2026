@@ -107,16 +107,19 @@ export function createWeapons(seed = 1) {
         a.t += dt;
         if (a.t >= ATTACK_TIME[a.type]) { f.weaponAttack = null; return; }
         if (a.landed || a.type === 'grenade') return;
-        const target = fighters[1 - i], spec = WEAPONS[a.type], r = rigs[1 - i].radius;
-        if (target.respawnRemaining || target.lives === 0) return;
-        const dx = target.x - f.x, dz = target.z - f.z, s = Math.sin(f.heading), c = Math.cos(f.heading);
-        const forward = dx * s + dz * c, side = dx * c - dz * s;
-        if (Math.abs(target.y - f.y) > 1.3 || forward <= 0) return;
-        let inReach = false;
-        if (a.type === 'spring') inReach = springExtension(a.t) > .6 && forward < spec.reach * springExtension(a.t) + r && Math.abs(side) < spec.width + r;
-        else inReach = a.t > .04 && a.t < .2 && Math.hypot(dx, dz) < spec.reach + r && Math.abs(Math.atan2(side, forward)) < spec.arc;
-        if (!inReach) return;
-        a.landed = true;
+        const spec = WEAPONS[a.type];
+        const target = fighters.find((target, j) => {
+          if (!sim.enemies(f, target) || target.respawnRemaining || target.lives === 0) return false;
+          const dx = target.x - f.x, dz = target.z - f.z, s = Math.sin(f.heading), c = Math.cos(f.heading), r = rigs[j].radius;
+          const forward = dx * s + dz * c, side = dx * c - dz * s;
+          if (Math.abs(target.y - f.y) > 1.3 || forward <= 0) return false;
+          return a.type === 'spring'
+            ? springExtension(a.t) > .6 && forward < spec.reach * springExtension(a.t) + r && Math.abs(side) < spec.width + r
+            : a.t > .04 && a.t < .2 && Math.hypot(dx, dz) < spec.reach + r && Math.abs(Math.atan2(side, forward)) < spec.arc;
+        });
+        if (!target) return;
+        const dx = target.x - f.x, dz = target.z - f.z;
+        a.landed = true; a.target = target.team;
         const d = Math.hypot(dx, dz) || 1;
         hits.push(strike(f, target, dx / d, dz / d, spec.damage, spec.knockback, a.type, events));
       });
@@ -134,6 +137,8 @@ export function createWeapons(seed = 1) {
         events.push({ type: 'explosion', x: g.x, y: g.y, z: g.z, radius: spec.radius, owner: g.owner });
         for (const target of fighters) {
           if (target.respawnRemaining || target.lives === 0) continue;
+          const owner = fighters.find(f => f.team === g.owner);
+          if (owner && owner !== target && !sim.enemies(owner, target)) continue;
           const dx = target.x - g.x, dz = target.z - g.z, d = Math.hypot(dx, dz, target.y + .6 - g.y);
           if (d > spec.radius) continue;
           const falloff = 1 - d / spec.radius, flat = Math.hypot(dx, dz);
