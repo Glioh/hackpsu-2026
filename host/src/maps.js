@@ -5,11 +5,13 @@
 // fighters standing on it (moving platforms, conveyor belts), optional grip (< 1 = slippery), and a state
 // ('solid' | 'warn' | 'gone' | 'lava' | 'falling') that the renderer shows. Only pieces with solid === true hold you up.
 import { CONFIG as C } from '../../shared/config.js';
+import { configureRooftop } from './rooftop-physics.js';
 
 export const MAPS = [
   { id: 'classic', name: 'Classic Ring', tier: 'Early', blurb: 'Solid floor. Learn to shove.' },
   { id: 'ice', name: 'Ice Rink', tier: 'Early', blurb: 'No grip. Momentum carries you off the edge.' },
   { id: 'quake', name: 'Earthquake Arena', tier: 'Early', blurb: 'Tremors bounce everyone around.' },
+  { id: 'skyline', name: 'Skyline Rooftop', tier: 'Mid', blurb: 'Climb ramps and stairs, brawl around rooftop utilities, and knock rivals off open edges.' },
   { id: 'tiles', name: 'Disappearing Tiles', tier: 'Mid', blurb: 'Blinking tiles drop out, then come back.' },
   { id: 'split', name: 'Splitting Floor', tier: 'Mid', blurb: 'The floor splits in half, then slams shut.' },
   { id: 'platforms', name: 'Moving Platforms', tier: 'Mid', blurb: 'A small island and platforms that drift past.' },
@@ -59,6 +61,10 @@ export function createArena(id = 'classic', seed = 1) {
   const tick = (p, dt, next) => { if ((p.t -= dt) <= 0) Object.assign(p, next(p)); };
 
   switch (id) {
+    case 'skyline':
+      configureRooftop(arena);
+      break;
+
     case 'ice':
       arena.pieces = [piece(0, 0, C.arenaX, C.arenaZ, { kind: 'ice', grip: .12 })];
       break;

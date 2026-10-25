@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="300" viewBox="0 0 240 300">
+<defs><linearGradient id="interior" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14152A"/><stop offset="1" stop-color="#0D0E20"/></linearGradient><linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A3C58"/><stop offset="0.5" stop-color="#2A2C44"/><stop offset="1" stop-color="#2A2C44"/></linearGradient><filter id="halo" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<pattern id="hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="14" fill="#000000" fill-opacity=".35"/></pattern></defs>
+
+<path d="M30 4H210L236 30V270L210 296H30L4 270V30Z" fill="#0B0C1A"/>
+<path d="M34 8H206L232 34V266L206 292H34L8 266V34Z" fill="url(#rim)"/>
+<path d="M46 20H194L220 46V254L194 280H46L20 254V46Z" fill="#0B0C1A"/>
+<path d="M49 23H191L217 49V251L191 277H49L23 251V49Z" fill="url(#interior)"/>
+<path d="M49 30H191" stroke="#ffffff" stroke-opacity=".08" stroke-width="10"/>
+<circle cx="34" cy="12" r="4" fill="#3A3C58" stroke="#0B0C1A" stroke-width="2"/><circle cx="206" cy="12" r="4" fill="#3A3C58" stroke="#0B0C1A" stroke-width="2"/><circle cx="34" cy="288" r="4" fill="#3A3C58" stroke="#0B0C1A" stroke-width="2"/><circle cx="206" cy="288" r="4" fill="#3A3C58" stroke="#0B0C1A" stroke-width="2"/><rect x="22" y="22" width="196" height="256" fill="url(#hatch)"/>
+<g transform="translate(120 150)" stroke="#0B0C1A" stroke-width="4" stroke-linejoin="round"><path d="M-22 -6V-22A22 22 0 0 1 22 -22V-6" fill="none" stroke="#8A8DB0" stroke-width="10"/><rect x="-34" y="-8" width="68" height="52" rx="8" fill="#8A8DB0"/><circle cy="12" r="7" fill="#0B0C1A" stroke="none"/><rect x="-3" y="12" width="6" height="16" fill="#0B0C1A" stroke="none"/></g>
+</svg>

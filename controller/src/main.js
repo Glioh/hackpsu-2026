@@ -2,6 +2,7 @@ import { Sensors } from './sensors.js';
 import { setupControllerPreview } from './preview.js';
 import { actionLabel, controllerScreen } from './controller-state.js';
 import { createHitFeedback } from './hit-feedback.js';
+import { requestVibration, vibrationMessage } from './vibration.js';
 import { connectSocket } from '../../shared/connection.js';
 const $=id=>document.getElementById(id);
 const previewMode=new URLSearchParams(location.search).get('preview')==='1';
@@ -85,6 +86,9 @@ $('recalibrate').onclick=()=>{
   invalidate('Hold your phone comfortably in portrait, then tap Recalibrate.');
   if(preview)preview.invalidateLocal();
   $('calibrate').focus();
+};
+$('testVibration').onclick=()=>{
+  $('vibrationStatus').textContent=vibrationMessage(requestVibration());
 };
 addEventListener('orientationchange',()=>invalidate('Return to portrait, then recalibrate.','orientation-error'));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate('This phone was backgrounded. Recalibrate to rejoin.','backgrounded');});

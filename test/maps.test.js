@@ -8,8 +8,8 @@ const run = (sim, seconds, inputs = () => ({})) => { for (let i = 0; i < Math.ro
 // Keep blue parked far away so it does not interfere.
 const solo = (map, seed = 1) => { const s = new Simulation(map, seed); return s; };
 
-test('nine maps in early / mid / late order, each building a floor the fighters spawn on', () => {
-  assert.deepEqual(MAPS.map(m => m.tier), ['Early', 'Early', 'Early', 'Mid', 'Mid', 'Mid', 'Late', 'Late', 'Late']);
+test('ten maps in early / mid / late order, each building a floor the fighters spawn on', () => {
+  assert.deepEqual(MAPS.map(m => m.tier), ['Early', 'Early', 'Early', 'Mid', 'Mid', 'Mid', 'Mid', 'Late', 'Late', 'Late']);
   for (const { id } of MAPS) {
     const a = createArena(id, 1);
     assert.equal(a.id, id);

@@ -6,11 +6,13 @@ import { createMotion, resetMotion, stepMotion, interpolateMotion } from './moti
 import { createPresentation } from './presentation.js';
 import { FIGHTERS, TEAM_FIGHTERS } from './fighter-model.js';
 import { MAPS } from './maps.js';
+import { FINISH_DURATION, FINISH_TIME_SCALE, stepFinish } from './ko-finish.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
 const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
 const presentation = createPresentation($('gameScreen'));
 function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); draw?.resetMotion(); }
-let draw;
+let draw, finishAge = null, visualTime = 0;
+function clearFinish() { finishAge = null; draw?.clearKO(); }
 try { draw = createRenderer($('arena'), (index, rig) => sim.setCombatRig(index, rig)); } catch { $('arena').textContent = 'WebGL is unavailable. Open the host in a browser with hardware acceleration.'; }
 let roomCode = '', phase = 'lobby', debug = false, snapshots = new Map(), ready = false;
 let setupStep = 0, connectedCount = 0;
@@ -52,7 +54,7 @@ addEventListener('keydown', e => { if (['INPUT','TEXTAREA'].includes(e.target.ta
 addEventListener('keyup', e => keys.delete(e.code)); addEventListener('blur',()=>{keys.clear();edges.clear();});
 function createRoom() { socket.emit('room:create', {}, p => { if (p.error) return $('error').textContent = p.error; roomCode = p.roomCode; $('code').textContent = roomCode; updateURL(); }); }
 socket.on('connect', createRoom);
-socket.on('disconnect',()=>{phase='lobby';ready=false;connectedCount=0;syncScreen();$('chooseSprites').disabled=true;snapshots.clear();presentation.setPhase(phase);$('pauseOverlay').classList.add('hidden');$('phase').textContent='HOST DISCONNECTED · RECONNECTING';$('start').disabled=true;$('error').textContent='Connection lost. Reconnecting creates a new room; phones must rejoin.';});
+socket.on('disconnect',()=>{phase='lobby';clearFinish();ready=false;connectedCount=0;syncScreen();$('chooseSprites').disabled=true;snapshots.clear();presentation.setPhase(phase);$('pauseOverlay').classList.add('hidden');$('phase').textContent='HOST DISCONNECTED · RECONNECTING';$('start').disabled=true;$('error').textContent='Connection lost. Reconnecting creates a new room; phones must rejoin.';});
 function updateURL() {
   let origin = $('origin').value.trim() || location.origin;
   try { const url=new URL(origin); if (!['http:','https:'].includes(url.protocol)) throw Error(); origin=url.origin; } catch { $('error').textContent='Enter a valid HTTP(S) origin.';return; }
@@ -71,7 +73,7 @@ picks.forEach((id,i)=>draw?.setFighter(i,id));renderPicks();
 let mapId=MAPS.some(m=>m.id===localStorage.getItem('brawl-map'))?localStorage.getItem('brawl-map'):MAPS[0].id;
 const nextMapId=()=>MAPS[(MAPS.findIndex(m=>m.id===mapId)+1)%MAPS.length].id;
 function renderMaps(){const locked=phase==='playing'||phase==='paused',map=MAPS.find(m=>m.id===mapId);$('mapPicks').replaceChildren(...['Early','Mid','Late'].map(tier=>{const group=document.createElement('div');group.className='tier';const label=document.createElement('small');label.textContent=tier;const choices=document.createElement('div');choices.append(...MAPS.filter(m=>m.tier===tier).map(m=>{const b=document.createElement('button');b.className='secondary';b.textContent=m.name;b.title=m.blurb;b.setAttribute('aria-pressed',m.id===mapId);b.disabled=locked;b.onclick=()=>pickMap(m.id);return b;}));group.append(label,choices);return group;}));$('mapBlurb').textContent=map.blurb;$('mapName').textContent=map.name.toUpperCase();$('nextMap').textContent='Next: '+MAPS.find(m=>m.id===nextMapId()).name+' ↗';}
-function pickMap(id){mapId=id;localStorage.setItem('brawl-map',id);sim.setMap(id);resetPoses();renderMaps();}
+function pickMap(id){mapId=id;localStorage.setItem('brawl-map',id);sim.setMap(id);clearFinish();resetPoses();renderMaps();}
 pickMap(mapId);
 socket.on('room:roster', p => {
   ready = p.slots.every(s=>s.connected&&s.ready);
@@ -101,6 +103,7 @@ for(const role of ['legs','arm'])socket.on('input:'+role,p=>{
 socket.on('game:state',p=>{
   phase=p.phase; debug=p.debug;
   syncScreen();
+  if (phase === 'lobby') clearFinish();
   presentation.setPhase(phase);
   $('pauseOverlay').classList.toggle('hidden', phase !== 'paused');
   $('calibrationMode').textContent = debug ? 'KEYBOARD / BOT MODE' : 'PHONE CALIBRATION';
@@ -112,7 +115,7 @@ socket.on('game:state',p=>{
     $('resumeGame').focus();
   }
   $('result').classList.toggle('hidden',phase!=='results');
-  if(phase==='playing'){if(!p.resumed){sim.reset();resetPoses();}snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
+  if(phase==='playing'){if(!p.resumed){sim.reset();clearFinish();resetPoses();}snapshots.clear();accumulator=0;previous=performance.now();keys.clear();edges.clear();$('error').textContent='';$('gameScreen').focus();}
   if(phase==='results'){$('winner').textContent=p.winner==='draw'?'DRAW':p.winner.toUpperCase()+' WINS!';$('winner').className=p.winner;$('resultType').textContent='RING-OUT';}
   if(phase==='lobby')snapshots.clear();
   renderPicks();renderMaps();
@@ -132,18 +135,31 @@ function bot(){const [target,f]=sim.fighters,dx=target.x-f.x,dz=target.z-f.z,des
 function phone(team,now){const result={};for(const role of ['legs','arm']){const s=snapshots.get(team+':'+role);if(!s||now-s.at>C.staleMs){if(s)s.actions=[];result[role]={};continue;}const action=s.actions.shift();result[role]={...s.p,jump:role==='legs'&&action!==undefined,punch:role==='arm'&&action!==undefined};if(action!==undefined)result[role].power=action;}return result;}
 let previous=performance.now(),accumulator=0;
 function frame(now) {
-  accumulator += Math.max(0, Math.min((now - previous) / 1000, .1)); previous = now;
+  const frameDt = Math.max(0, Math.min((now - previous) / 1000, .1)); previous = now;
+  const finishing = finishAge !== null;
+  const timeScale = finishing ? FINISH_TIME_SCALE : 1;
+  if (phase === 'playing') visualTime += frameDt * timeScale;
+  if (phase === 'playing' && finishing && !document.hidden) {
+    finishAge += frameDt;
+    stepFinish(sim, frameDt * timeScale);
+    motions.forEach((motion, i) => stepMotion(motion, sim.fighters[i], [], frameDt * timeScale, $('motionPreset').value, $('motionEnabled').checked));
+    if (finishAge >= FINISH_DURATION) { phase = 'results'; socket.emit('game:state', {phase:'results',winner:sim.winner}); }
+  }
+  accumulator += frameDt;
   while (accumulator >= C.tick) {
-    if (phase === 'playing' && !document.hidden) {
+    if (phase === 'playing' && finishAge === null && !document.hidden) {
       const inputs = debug ? {red:keyboard('red'),blue:$('bot').checked?bot():keyboard('blue')} : {red:phone('red',now),blue:phone('blue',now)};
-      for (const team of sim.step(inputs)) socket.emit('player:hit', {team});
+      for (const team of sim.step(inputs)) {
+        socket.emit('player:hit', {team});
+        draw?.hit(sim.fighters.find(f => f.team === team));
+      }
       motions.forEach((motion, i) => stepMotion(motion, sim.fighters[i], sim.motionEvents, C.tick, $('motionPreset').value, $('motionEnabled').checked));
-      if (sim.winner) { phase = 'results'; socket.emit('game:state', {phase:'results',winner:sim.winner}); }
+      if (sim.winner) { finishAge = 0; draw?.startKO(sim.fighters.filter(f => f.y < C.eliminationY)); }
     }
     accumulator -= C.tick;
   }
-  motions.forEach(motion => interpolateMotion(motion, phase === 'playing' ? accumulator / C.tick : 1));
-  if (phase !== 'lobby') draw?.(renderFighters, now / 1000, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked });
+  motions.forEach(motion => interpolateMotion(motion, phase === 'playing' && finishAge === null ? accumulator / C.tick : 1));
+  if (phase !== 'lobby') draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked, finishAge });
   if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)}\nheading ${f.heading.toFixed(2)} grounded ${f.grounded}\nspeed ${Math.hypot(f.vx,f.vz).toFixed(2)} cooldown ${f.cooldown.toFixed(2)}`).join('\n\n');
   requestAnimationFrame(frame);
 }

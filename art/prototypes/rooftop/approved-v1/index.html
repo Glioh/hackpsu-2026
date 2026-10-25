@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Skyline — rooftop concept</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#182c32;color:#f1e9d5;font:14px system-ui,sans-serif}canvas{display:block;width:100vw;height:100vh}header{position:absolute;top:32px;left:36px;pointer-events:none}small{letter-spacing:.2em;color:#bad0c7}h1{font-size:48px;font-weight:500;letter-spacing:-.06em;margin:7px 0}p{color:#c2d0c7;max-width:340px;line-height:1.6}nav{position:absolute;bottom:28px;left:36px;display:flex;gap:8px;flex-wrap:wrap}button,a{font:inherit;border:1px solid #82988b;background:#213b3b;color:#f1e9d5;padding:11px 16px;border-radius:4px;cursor:pointer;text-decoration:none}button:hover,a:hover{background:#3d6058}#hint{position:absolute;bottom:30px;right:30px;color:#d3dece;font-size:12px}@media(max-width:700px){h1{font-size:34px}header{top:18px;left:20px}p{max-width:250px}nav{left:20px;bottom:45px}#hint{left:20px;bottom:15px}}</style>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script></head>
+<body><header><small>TWO-BODY BRAWL · ENVIRONMENT STUDY</small><h1>SKYLINE</h1><p>A rooftop above the city.<br>Compact split-level roofs, open drop edges,<br>and a long way down.</p><small>3D CONCEPT · NOT IN GAME</small></header><nav><button data-view="hero">Perspective</button><button data-view="top">Map view</button><button data-view="combat">Player height</button><button id="city">Hide skyline</button><a href="rooftop.glb" download>Download 3D model</a></nav><div id="hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
+<script type="module">
+import * as T from 'three';import {OrbitControls} from 'three/addons/controls/OrbitControls.js';import {createRooftop,createCity} from './scene.mjs';
+const scene=new T.Scene();scene.background=new T.Color('#526f72');scene.fog=new T.Fog('#526f72',75,190);
+const camera=new T.PerspectiveCamera(42,innerWidth/innerHeight,.1,400);camera.position.set(40,33,43);
+const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;document.body.prepend(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,0,0);controls.enableDamping=true;controls.maxDistance=125;controls.minDistance=8;controls.maxPolarAngle=Math.PI*.75;
+scene.add(new T.HemisphereLight('#f6e4bf','#597b83',2.6));const sun=new T.DirectionalLight('#ffd6a1',3.8);sun.position.set(-25,40,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-28,right:28,top:28,bottom:-28,near:1,far:100});sun.shadow.normalBias=.04;scene.add(sun);
+scene.add(createRooftop());const city=createCity();scene.add(city);
+const ground=new T.Mesh(new T.PlaneGeometry(500,500),new T.MeshStandardMaterial({color:'#455e61'}));ground.rotation.x=-Math.PI/2;ground.position.y=-24;ground.receiveShadow=true;scene.add(ground);
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{const v=b.dataset.view;camera.position.set(...({hero:[40,33,43],top:[0,58,.1],combat:[27,9,30]}[v]));controls.target.set(0,v==='combat'?1:0,0);controls.update();});
+document.querySelector('#city').onclick=e=>{city.visible=!city.visible;e.target.textContent=city.visible?'Hide skyline':'Show skyline';};
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});window.rooftopPrototype={scene,camera,renderer};
+</script></body></html>
