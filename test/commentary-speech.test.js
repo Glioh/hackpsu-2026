@@ -17,7 +17,7 @@ test('unrendered contextual lines use speech fallback and cancel on fight or com
  try{
  commentary.unlock();await new Promise(resolve=>setImmediate(resolve));
  commentary.phase('playing',false,{map:'piano',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();await new Promise(resolve=>setImmediate(resolve));
- assert.match(spoken[0].text,/piano|keys/i);assert.match(element('commentaryCaption').textContent,/Rex|Vera/);
+ assert.match(spoken[0].text,/piano|keys/i);assert.equal(element('commentaryCaption').textContent,spoken[0].text);
  commentary.fight();assert.ok(cancelled>0);assert.equal(element('commentaryCaption').textContent,'');
  await new Promise(resolve=>setImmediate(resolve));
  commentary.phase('playing',false,{map:'station',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();await new Promise(resolve=>setImmediate(resolve));

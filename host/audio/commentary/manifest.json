@@ -2,7 +2,7 @@
   "version": 1,
   "clips": {
     "heavy_hit-red-0": {
-      "key": "3479cf79662e1c1f034fd78e4cc3e567deeee8b07740a55308264b047699eb2a",
+      "key": "0dccf3d3d67c8f407f6e332bab8e2f2e9f14e286e3ab3ef9dd2d6b9357649507",
       "offset": 0,
       "text": "Red lands a huge uppercut!",
       "speaker": "a"
@@ -14,7 +14,7 @@
       "speaker": "b"
     },
     "pressure_run-red-0": {
-      "key": "8457b6c39d42fa324798be10bb6ef430c388b129c792ab661dd9af02fe32cc93",
+      "key": "171bafb01382d7c48a38d1a22c887a03ef8d2aa133bf11066aca2140ea195a21",
       "offset": 0,
       "text": "Red: three unanswered hits!",
       "speaker": "a"
@@ -32,15 +32,15 @@
       "speaker": "b"
     },
     "counter_swing-red-1": {
-      "key": "a3cda940d21dab85eda8e149f977f694c29ba7f60ba90029552d9cf5e94a7f17",
+      "key": "41493d6db43e35c9e69177b2adc53a6bf2e9a085bf3c3fa5b50759933b74c0e0",
       "offset": 0,
       "text": "Red turns the pressure around!",
       "speaker": "a"
     },
     "hazard_impact-red-0": {
-      "key": "8df75de9e11696246832fe484277fd5c39535193753d3d53438f26aa6f636707",
+      "key": "25cd7aed21bc1f470ef9e7d09be814d0d26e157fcfee2fc2fe27abcaf3b8ba05",
       "offset": 0,
-      "text": "Red gets caught by the train!",
+      "text": "Red gets caught by the arena!",
       "speaker": "a"
     },
     "hazard_impact-red-1": {
@@ -50,7 +50,7 @@
       "speaker": "b"
     },
     "ring_out-red-0": {
-      "key": "58bbdc8cd78eba23515fa4e5ee49698725210c00dcb643b753080d9700538118",
+      "key": "b3f8ed590fa643e418b4a1df79444931dd735674422420e6861758ab284ea416",
       "offset": 0,
       "text": "Red wins! The other team goes over the edge!",
       "speaker": "a"
@@ -62,7 +62,7 @@
       "speaker": "b"
     },
     "train_finish-red-0": {
-      "key": "6be1b589e02acfc45efd39874ed3f34432a4553e24cf2f036182371597cf2e6f",
+      "key": "675e06ceb2280e308d8953ab49d76d1a284f111243a2a97c4ef673207d7c4401",
       "offset": 0,
       "text": "Red wins after that train collision!",
       "speaker": "a"
@@ -74,7 +74,7 @@
       "speaker": "b"
     },
     "heavy_hit-blue-0": {
-      "key": "f1d95b44f789f1a4bdf1a3fbb1f330dcce2817f63376139b2ea8a03a740feb45",
+      "key": "5308dfcf0265e92d8b1bffc70f303757137a7abb322f1b26a13c382d7a6bc754",
       "offset": 0,
       "text": "Blue lands a huge uppercut!",
       "speaker": "a"
@@ -86,7 +86,7 @@
       "speaker": "b"
     },
     "pressure_run-blue-0": {
-      "key": "eea831f2fbf5fd33cedf48211c9cb864a88f136a0f4205b65d99b6e8c6816d25",
+      "key": "73c9398f6c07d2e58d9b8d34fd8221d3298a93f8b42d38498a10f668884077e4",
       "offset": 0,
       "text": "Blue: three unanswered hits!",
       "speaker": "a"
@@ -104,15 +104,15 @@
       "speaker": "b"
     },
     "counter_swing-blue-1": {
-      "key": "5e068ce2a88c548e2a9654afd36a60ddb2c2830b3c31966fb35ec770fc4b35b3",
+      "key": "2593f1214388ef2870ce51e0cd4fbfe5f75c1cef8d63d60cec923acb7968b128",
       "offset": 0,
       "text": "Blue turns the pressure around!",
       "speaker": "a"
     },
     "hazard_impact-blue-0": {
-      "key": "9f75ffe2650966e8bd2ac70bf91a3df2f8b6489171eb2ad5f8012cf18bd8d62c",
+      "key": "bfabcaa19b8d92f258e38a10386438d941df9303468c907ad59c9d80ca95a715",
       "offset": 0,
-      "text": "Blue gets caught by the train!",
+      "text": "Blue gets caught by the arena!",
       "speaker": "a"
     },
     "hazard_impact-blue-1": {
@@ -122,7 +122,7 @@
       "speaker": "b"
     },
     "ring_out-blue-0": {
-      "key": "a074e9456de700021be1f211ff735a22ceb9e0830f325ed7862368b0674ea72c",
+      "key": "4d5f2711899e47a6ea7385ace62b067f75808c08e9e0e0d309ecbcb3960b8d1c",
       "offset": 0,
       "text": "Blue wins! The other team goes over the edge!",
       "speaker": "a"
@@ -134,7 +134,7 @@
       "speaker": "b"
     },
     "train_finish-blue-0": {
-      "key": "fb17dd7da1b3c9ee86ba3a998e4e7b391c8357fb74238b956160ac13c6fc810d",
+      "key": "66ca515954f859753515e5fa3cf2e306756d9c56ca6ca2f2465f6f68a39b5782",
       "offset": 0,
       "text": "Blue wins after that train collision!",
       "speaker": "a"
@@ -146,7 +146,7 @@
       "speaker": "b"
     },
     "round_start-any-0": {
-      "key": "6c34ae6a5eb2572c3c7b6c60417c474abea07ddedfe7d55aa43a2d0ec6ebc4fb",
+      "key": "0bb629df3bf88102ecd1f4abf5abefc9ebc2471b732a0a61b5e706a057215d7e",
       "offset": 0,
       "text": "Two bodies, four operators. Let the brawl begin!",
       "speaker": "a"
@@ -158,7 +158,7 @@
       "speaker": "b"
     },
     "trade-any-0": {
-      "key": "18f9c6e4e4481d44b2928d9d9ec51018c1a1f35edef067350c82110ce2c819a2",
+      "key": "634bd6bd945f6a637764c947dbe4f70815981812e594a9e4f507ea762a6049c4",
       "offset": 0,
       "text": "Both uppercuts connect!",
       "speaker": "a"
@@ -170,7 +170,7 @@
       "speaker": "b"
     },
     "double_fall-any-0": {
-      "key": "308ea9224f9527e752e9d88bcc2762191e2c3161fead5314725024c180999081",
+      "key": "0b7e88564c1e5a77fd0c4f4137a12ca58101da1147eff943571a63d36b603fd9",
       "offset": 0,
       "text": "Both go over! This round is a draw!",
       "speaker": "a"
@@ -188,7 +188,7 @@
       "speaker": "b"
     },
     "quiet_brawl-any-1": {
-      "key": "21123e380619423052d860cb64b5e63cc46e4fcafee14bccaf33f3b966cd4fab",
+      "key": "e7c27ac478ec8d909ba9a070b8f6d87e61fd060b099c393819272fa2e41842b0",
       "offset": 0,
       "text": "I once waited this long for an opening. Worth every second.",
       "speaker": "a"
@@ -200,25 +200,25 @@
       "speaker": "b"
     },
     "countdown-0": {
-      "key": "ac8ade88bcc9584c459e6db0c9fcf36744a4e16ce4c9693b49115eccbc5b9368",
+      "key": "f13f9bd63f27bd6393ef8bd264a9f0817c2e82ab9fbb8662508a8923ac3fe018",
       "offset": 0,
       "text": "Three!",
       "speaker": "a"
     },
     "countdown-1": {
-      "key": "2283a058604733b5ddd10036c5cb5ffe70be321bf8b09f96eaad0e17d1493a57",
+      "key": "a4c9a653a9141464e3c6bb92256ad1c971a67ed03d46574ec8bbf4fa99ab7c0a",
       "offset": 0,
       "text": "Two!",
       "speaker": "a"
     },
     "countdown-2": {
-      "key": "33fa782e750bba780d61a742dbd9c660dd0f5a4575e32a9f494d1a8a52b7aa28",
+      "key": "231963eea69b44278f644edc908eadeb988f361ca7d60a1a16a138a1ae5e5b2b",
       "offset": 0,
       "text": "One!",
       "speaker": "a"
     },
     "countdown-3": {
-      "key": "0b868cfa4d7561e1c316dc380cf2c51f5a995272c91cab7f6205e3b8dcdc437c",
+      "key": "9c5050f747e2e84d2f0df3410f43c1b2f30b3781f30d2c34845d4e6789734359",
       "offset": 0,
       "text": "Start!",
       "speaker": "a"
@@ -318,6 +318,102 @@
       "offset": 0,
       "text": "Welcome to the factory. Please keep hands, feet, and unresolved grudges off the conveyor.",
       "speaker": "b"
+    },
+    "round_start-any-classic-0": {
+      "key": "c5c67a600c400b225ab2e6408085f7e57b8e01d0e0cf6e424ce6dbd2835bc947",
+      "offset": 0,
+      "text": "Classic Ring. Solid ground, open edges. Tonight the floor has an alibi.",
+      "speaker": "a"
+    },
+    "round_start-any-ice-0": {
+      "key": "8e6327deb0b9ae3cce623d0ae57e380c8848037559ed01e5266c6c3d03b70ffe",
+      "offset": 0,
+      "text": "Welcome to the Ice Rink. Brakes are not included.",
+      "speaker": "a"
+    },
+    "round_start-any-quake-0": {
+      "key": "8c93eaf3f5546ed7cee4cc2f85c93ae523f572133310fa24733dd1fe99077d8c",
+      "offset": 0,
+      "text": "Earthquake Arena. These rock shelves are about to have a disagreement.",
+      "speaker": "a"
+    },
+    "round_start-any-skyline-0": {
+      "key": "3296f5d85e283e7145697d6369dad2aa1f9050bbbef17eb9201364adb860efaa",
+      "offset": 0,
+      "text": "Skyline Rooftop. Stairs, ramps, and a very long trip down.",
+      "speaker": "a"
+    },
+    "round_start-any-station-0": {
+      "key": "d2fcd3b40489a4ffce09a767d609927dc89788f7e374b3fea0cb91666764f5b5",
+      "offset": 0,
+      "text": "Crossline Station. Watch the warning signals. These trains do not stop for boxing.",
+      "speaker": "a"
+    },
+    "round_start-any-mountain-0": {
+      "key": "33c63b8bb29264fc1e103f7b6ae29464ba732efa648b1fc997e874ef05715fe8",
+      "offset": 0,
+      "text": "Cloudpeak Dojo. Stone terraces above the clouds, with cliffs below every bad decision.",
+      "speaker": "a"
+    },
+    "round_start-any-twinspire-0": {
+      "key": "566760274f447052dc410f367f15f7dec78a9594ad12afe99ce0e05f85ad9e76",
+      "offset": 0,
+      "text": "Twinspire. Two skyscrapers, two skybridges, one argument that will not stay on its own roof.",
+      "speaker": "a"
+    },
+    "round_start-any-piano-0": {
+      "key": "57c8abc785093069fb8d8d968058c7f1e8caaea2b9830cd7b0396bd7aa310d06",
+      "offset": 0,
+      "text": "Forte Grand Piano. Eighty-eight playable keys, and tonight we are hitting more than notes.",
+      "speaker": "a"
+    },
+    "round_start-any-archery-0": {
+      "key": "df0dc7d4531055894062d67bbf56368aa22eefcfde153aaef5d23fe211c23b8c",
+      "offset": 0,
+      "text": "Bullseye Brawl. A giant target, incoming arrows. Do not stand in the marked circles.",
+      "speaker": "a"
+    },
+    "round_start-any-sumo-0": {
+      "key": "020b7a5c108023d4bc83d254a9aecfcc11b038d62ec82344c15acdc5ad527a9e",
+      "offset": 0,
+      "text": "Sumo Laser Arena. Three giant champions are taking aim. Watch the marked spots.",
+      "speaker": "a"
+    },
+    "round_start-any-tiles-0": {
+      "key": "1260f67dbf5bbdabec70a96cbf20271fec999646b4ad6ea28592e0132ff3aa51",
+      "offset": 0,
+      "text": "Disappearing Tiles. If the floor starts blinking, take the hint.",
+      "speaker": "a"
+    },
+    "round_start-any-split-0": {
+      "key": "4ec8a9be7f0621ce8fcbe3979bf2517e42d7c29b09613cdc4ce8e3204f3b9fa9",
+      "offset": 0,
+      "text": "Splitting Floor. The arena opens up, then slams shut. Choose your side carefully.",
+      "speaker": "a"
+    },
+    "round_start-any-platforms-0": {
+      "key": "71615382635dbb559fb47ead6cd5587bd6e7082ea96a1271b09bd54f9fef4b56",
+      "offset": 0,
+      "text": "Moving Platforms. A small island and drifting floors. Time your crossings.",
+      "speaker": "a"
+    },
+    "round_start-any-lava-0": {
+      "key": "601edeb03cec1d8061185ef8b9659af7293aeffbd4610330cd9c9affa18ce644",
+      "offset": 0,
+      "text": "Lava Floor. Watch those eruptions. The ground is about to get personal.",
+      "speaker": "a"
+    },
+    "round_start-any-falling-0": {
+      "key": "1cb5d48a49930052eac44b2317bcb89c70e79d6d97c9e7726e05f50d38c71268",
+      "offset": 0,
+      "text": "Falling Platform Arena. These tiles crumble underfoot, and they never come back.",
+      "speaker": "a"
+    },
+    "round_start-any-conveyor-0": {
+      "key": "6e34361e0015b0247088c820fc0c503b76f2af4fcfaa354116bb3f54d2e839a8",
+      "offset": 0,
+      "text": "Factory chaos. The belts carry you toward the edge, then reverse. Watch your footing.",
+      "speaker": "a"
     }
   }
 }

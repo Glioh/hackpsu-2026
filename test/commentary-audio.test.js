@@ -34,18 +34,19 @@ function harness({ live = false, stream, dialogue } = {}) {
   return { api, nodes, advance, elements, callbacks, spoken, get context() { return context; } };
 }
 
-test('failed live second voice keeps captions instead of substituting a browser voice',async t=>{
+test('failed live announcer keeps captions instead of substituting a browser voice',async t=>{
   let calls=0;
   const h=harness({live:true,stream:async()=>{
-    if(++calls===2)return {ok:false,status:502,json:async()=>({error:'Announcer B custom voice unavailable.'})};
+    if(++calls===2)return {ok:false,status:502,json:async()=>({error:'Announcer A custom voice unavailable.'})};
     let read=false;return {ok:true,body:{getReader:()=>({read:async()=>read?{done:true}:(read=true,{done:false,value:Uint8Array.of(0,0)})})}};
   }});
   t.after(()=>h.api.phase('paused'));
   await flush();h.api.phase('playing');h.api.tick();await flush();
   h.nodes[0].end();await flush();
   h.advance(3,[{type:'hit',source:'fighter',attacker:'red',team:'blue',damage:16}]);h.api.tick();await flush();
-  assert.equal(calls,2);assert.match(h.elements.get('commentaryCaption').textContent,/Vera:/);
-  assert.equal(h.spoken.length,0);assert.match(h.elements.get('commentaryStatus').textContent,/Announcer B custom voice unavailable/);
+  assert.equal(calls,2);assert.ok(h.elements.get('commentaryCaption').textContent);
+  assert.ok(!h.elements.get('commentaryCaption').textContent.includes('Vera:'));
+  assert.equal(h.spoken.length,0);assert.match(h.elements.get('commentaryStatus').textContent,/Announcer A custom voice unavailable/);
 });
 
 test('local voices wait for actual audio ending, even when audio clock stalls past clip duration', async t => {
@@ -84,7 +85,7 @@ test('announcer countdown uses ready voice clips on each beat, interrupts dialog
   h.api.countdown(0);assert.equal(h.nodes.length,count);
 });
 
-test('B gives the opening line after A finishes the countdown',async t=>{
+test('the same announcer gives the opening line after the countdown',async t=>{
  const h=harness();t.after(()=>h.api.phase('paused'));
  await flush();h.api.phase('playing',false,{map:'piano'});
  for(let i=0;i<4;i++)h.api.countdown(i);
@@ -92,7 +93,7 @@ test('B gives the opening line after A finishes the countdown',async t=>{
  h.nodes.at(-1).end();h.advance(1.3);h.api.tick();await flush();
  assert.equal(h.nodes.length,count+1);
  const opening=SCRIPTS.find(script=>script.id===h.api.metrics.at(-1).script);
- assert.equal(opening.speaker,'b');assert.equal(opening.event,'round_start');assert.equal(opening.map,'piano');
+ assert.equal(opening.speaker,'a');assert.equal(opening.event,'round_start');assert.equal(opening.map,'piano');
 });
 
 test('late canceled stream cannot stop newer ElevenLabs speech', async t => {
@@ -113,24 +114,18 @@ test('late canceled stream cannot stop newer ElevenLabs speech', async t => {
   assert.equal(h.nodes[1].stopped, undefined);
 });
 
-test('generated narrator reply waits for lead audio and both turns enter next game context', async t => {
-  const requests = [];
-  const h = harness({ live: true, dialogue: async payload => {
-    requests.push(payload);
-    return { ok: true, json: async () => ({ turns: [
-      { id: 'lead', speaker: payload.firstSpeaker, text: 'Four operators enter the ring.' },
-      { id: 'reply', speaker: payload.firstSpeaker === 'a' ? 'b' : 'a', text: 'Rex, hopefully their plans enter together.' },
-    ] }) };
-  }, stream: async () => { let read = false; return { ok: true, body: { getReader: () => ({ read: async () => read ? { done: true } : (read = true, { done: false, value: Uint8Array.of(0, 0) }) }) } }; } });
-  t.after(() => h.api.phase('paused'));
-  await flush(); h.api.phase('playing', false, { map: 'piano', fighters: { red: 'tung', blue: 'bubbles' } }); h.api.tick(); await flush();
-  assert.equal(requests[0].game.map, 'piano'); assert.equal(requests[0].game.fighters[0].character, 'tung');
-  assert.equal(h.nodes.length, 1); assert.equal(requests[0].history.length, 0);
-  h.nodes[0].end(); await flush(); assert.equal(h.nodes.length, 2);
-  h.nodes[1].end(); await flush();
-  h.advance(3, [{ type: 'hit', source: 'fighter', attacker: 'red', team: 'blue', damage: 16 }]); h.api.tick(); await flush();
-  assert.equal(requests.length, 2);
-  assert.deepEqual(requests[1].history.map(turn => turn.text), ['Four operators enter the ring.', 'Rex, hopefully their plans enter together.']);
+test('single announcer ignores two-person dialogue and uses A for every event',async t=>{
+ const h=harness({dialogue:()=>assert.fail('two-person dialogue must not be requested')});
+ t.after(()=>h.api.phase('paused'));
+ await flush();h.api.phase('playing',false,{map:'piano'});h.api.tick();await flush();
+ assert.equal(h.nodes.length,1);h.nodes[0].end();await flush();
+ assert.equal(h.nodes.length,1,'no second announcer reply');
+ for(let i=0;i<3;i++){
+  h.advance(3,[{type:'hit',source:'fighter',attacker:i%2?'blue':'red',team:i%2?'red':'blue',damage:16}]);
+  h.api.tick();await flush();h.nodes.at(-1).end();await flush();
+ }
+ assert.equal(h.api.metrics.length,4);
+ for(const metric of h.api.metrics)assert.equal(SCRIPTS.find(s=>s.id===metric.script).speaker,'a');
 });
 
 test('streamed voices wait for every scheduled PCM chunk to end and pause stops them', async t => {

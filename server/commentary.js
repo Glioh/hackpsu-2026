@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { SCRIPTS, scriptById } from '../shared/commentary-scripts.js';
 import express from 'express';
 import { generateDialogue, validDialogue } from './commentary-dialogue.js';
-export function configuration(env=process.env){return {key:env.ELEVENLABS_API_KEY,a:env.ELEVENLABS_VOICE_A||'qP6sk0PHiZEiIExgqoEz',b:env.ELEVENLABS_VOICE_B||'qP6sk0PHiZEiIExgqoEz',model:env.ELEVENLABS_MODEL_ID||'eleven_flash_v2_5',live:env.COMMENTARY_LIVE==='1',dialogue:env.COMMENTARY_DIALOGUE==='1',agent:env.ELEVENLABS_COMMENTARY_AGENT_ID};}
+export function configuration(env=process.env){return {key:env.ELEVENLABS_API_KEY,a:env.ELEVENLABS_VOICE_A||'qP6sk0PHiZEiIExgqoEz',b:env.ELEVENLABS_VOICE_A||'qP6sk0PHiZEiIExgqoEz',model:env.ELEVENLABS_MODEL_ID||'eleven_flash_v2_5',live:env.COMMENTARY_LIVE==='1',dialogue:false,agent:env.ELEVENLABS_COMMENTARY_AGENT_ID};}
 export function cacheKey(script,config,format='mp3_44100_128'){return createHash('sha256').update(JSON.stringify([script,config[script.speaker],config.model,format,'mix-1'])).digest('hex');}
 export async function synthesize(script,config,{format='mp3_44100_128',signal,fetcher=fetch}={}){
  if(!config.key||!config[script.speaker])throw Error('Voice credentials missing');

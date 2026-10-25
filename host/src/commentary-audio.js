@@ -1,9 +1,8 @@
 import {CommentaryDetector,CommentaryDirector} from './commentary.js';
 import {SCRIPTS} from '../../shared/commentary-scripts.js';
+const announcerScripts=SCRIPTS.filter(script=>script.speaker==='a');
 export function createCommentary(socket){
  const detector=new CommentaryDetector();let round=0,context,gain,catalog={clips:{}},token,enabled=true,muted=false,volume=.75,loadPromise,catalogPromise;
- let game={map:'classic',winner:null,fighters:['red','blue'].map(team=>({team,damage:0,grounded:true}))};
- let match={};
  const buffers=new Map(),active=new Set(),metrics=[];
  const caption=document.getElementById('commentaryCaption'),status=document.getElementById('commentaryStatus');
  let speaking=false;
@@ -11,7 +10,7 @@ export function createCommentary(socket){
  function audioContext(){if(!context){context=new AudioContext({latencyHint:'interactive'});gain=context.createGain();gain.connect(context.destination);gain.gain.value=muted?0:volume;}return context;}
  async function preload(){
   try{catalogPromise=fetch('/api/commentary/catalog').then(r=>r.json());catalog=await catalogPromise;
-   const ctx=audioContext();const entries=Object.entries(catalog.clips);let cursor=0;
+   const ctx=audioContext();const entries=Object.entries(catalog.clips).filter(([id])=>announcerScripts.some(script=>script.id===id));let cursor=0;
    await Promise.all(Array.from({length:Math.min(3,entries.length)},async()=>{while(cursor<entries.length){const [id,clip]=entries[cursor++];try{const response=await fetch(clip.url);if(response.ok)buffers.set(id,await ctx.decodeAudioData(await response.arrayBuffer()));}catch{}}}));
    status.textContent=`${buffers.size} voice clips ready${catalog.dialogue?' · fresh dialogue':' · scripted fallback'}${catalog.live?' · live voices':buffers.size?'':' · captions only'}`;
   }catch{status.textContent='Captions only · voice bank unavailable';}
@@ -71,21 +70,7 @@ export function createCommentary(socket){
   }
   await wait(Math.max(1800,script.text.split(/\s+/).length*280),signal);return !signal.aborted;
  }
- async function prepare(event,history,firstSpeaker,signal){
-  if(catalogPromise)await catalogPromise;
-  if(!catalog.dialogue||!token||signal.aborted)return null;
-  const request=new AbortController(),cancel=()=>request.abort();signal.addEventListener('abort',cancel,{once:true});const timer=setTimeout(cancel,5500);
-  try{
-   const response=await fetch('/api/commentary/dialogue',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({round,event:{type:event.type,team:event.team==='draw'?null:event.team,time:event.time,hazard:event.evidence?.hazard},game,history,firstSpeaker}),signal:request.signal});
-   if(!response.ok)throw Error('Dialogue unavailable');
-   const result=await response.json();
-   if(!Array.isArray(result.turns)||result.turns.length!==2||result.turns.some((turn,i)=>turn.speaker!==[firstSpeaker,firstSpeaker==='a'?'b':'a'][i]||typeof turn.id!=='string'||typeof turn.text!=='string'||!turn.text.trim()||turn.text.length>180))throw Error('Invalid dialogue');
-   status.textContent=catalog.live?'Fresh dialogue · live voices':'Fresh dialogue · captions only';
-   return result.turns.map(turn=>({...turn,generated:true}));
-  }catch(error){if(!signal.aborted)status.textContent='Scripted fallback · fresh dialogue unavailable';throw error;}
-  finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);request.abort();}
- }
- const director=new CommentaryDirector({play,prepare,stop,clock:()=>detector.time,caption:(text,speaker)=>{caption.textContent=text?`${speaker==='a'?'Rex':'Vera'}: ${text}`:'';}});
+ const director=new CommentaryDirector({play,stop,clock:()=>detector.time,caption:text=>{caption.textContent=text;}});
  function offer(event){event.observedAt=performance.now();if(catalog.dialogue||catalog.live)event.expires=Math.max(event.expires,event.time+5);director.offer(event);}
  document.getElementById('commentaryEnabled').onchange=e=>{enabled=e.target.checked;if(!enabled)director.cancel();};
  document.getElementById('commentaryMute').onchange=e=>{muted=e.target.checked;if(gain)gain.gain.value=muted?0:volume;if(muted)director.cancel();};
@@ -94,7 +79,7 @@ export function createCommentary(socket){
  socket.on('disconnect',()=>{token=null;director.cancel();});
  return {
   unlock(){try{const ctx=audioContext();ctx.resume().catch(()=>{status.textContent='Audio blocked · captions available';});loadPromise??=preload();socket.emit('commentary:authorize',{},result=>{token=result.token;});}catch{status.textContent='Captions only · Web Audio unavailable';}},
-  phase(phase,resumed,details={}){if(phase==='playing'){if(!resumed){match=details;game={map:match.map||'classic',winner:null,fighters:['red','blue'].map(team=>({team,character:match.fighters?.[team],damage:0,grounded:true}))};detector.reset(++round);director.reset(round,match);if(enabled)offer(detector.event('round_start',null));}director.paused=false;}else if(phase!=='results'){director.cancel();director.paused=true;}},
+  phase(phase,resumed,details={}){if(phase==='playing'){if(!resumed){detector.reset(++round);director.reset(round,details);if(enabled)offer(detector.event('round_start',null));}director.paused=false;}else if(phase!=='results'){director.cancel();director.paused=true;}},
   fight(){director.cancel();director.nextAt=0;},
   countdown(index){
    director.cancel();director.paused=index!==3;
@@ -110,13 +95,13 @@ export function createCommentary(socket){
     speaking=true;utterance.onend=utterance.onerror=()=>{speaking=false;};speechSynthesis.speak(utterance);
    }
    if(index===3){
-    // A calls the countdown; B welcomes the players once "Start!" finishes.
-    director.lastSpeaker='a';director.nextAt=detector.time+1.2;
+    // Welcome the players after the countdown finishes.
+    director.nextAt=detector.time+1.2;
     const opening=detector.event('round_start',null);opening.expires=detector.time+6;offer(opening);
    }
   },
-  step(sim,dt){game={map:sim.arena.id,winner:sim.winner??null,fighters:sim.fighters.map(f=>({team:f.team,character:match.fighters?.[f.team],damage:f.damage,grounded:f.grounded}))};for(const event of detector.step(sim.motionEvents,sim.winner,dt,sim.fighters))if(enabled)offer(event);},
-  tick(){if(enabled)void director.tick(SCRIPTS);if(metrics.length>100)metrics.splice(0,metrics.length-100);},
+  step(sim,dt){for(const event of detector.step(sim.motionEvents,sim.winner,dt,sim.fighters))if(enabled)offer(event);},
+  tick(){if(enabled)void director.tick(announcerScripts);if(metrics.length>100)metrics.splice(0,metrics.length-100);},
   metrics
  };
 }

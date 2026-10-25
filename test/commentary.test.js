@@ -7,6 +7,10 @@ import express from 'express';
 import {EventEmitter} from 'node:events';
 import {MAPS} from '../host/src/maps.js';
 const hit=(attacker,damage=16)=>({type:'hit',source:'fighter',attacker,team:attacker==='red'?'blue':'red',damage});
+test('single-announcer configuration uses only VOICE_A and disables two-person dialogue',()=>{
+ const config=configuration({ELEVENLABS_VOICE_A:'zGedNEybz7PeBgPNR4L7',ELEVENLABS_VOICE_B:'retired-voice',COMMENTARY_DIALOGUE:'1'});
+ assert.equal(config.a,'zGedNEybz7PeBgPNR4L7');assert.equal(config.b,config.a);assert.equal(config.dialogue,false);
+});
 test('script bank covers every arena and character without duplicate IDs',()=>{
  assert.equal(new Set(SCRIPTS.map(s=>s.id)).size,SCRIPTS.length);
  for(const map of MAPS)for(const type of ['round_start','quiet_brawl','ring_out'])
