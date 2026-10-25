@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "clips": {
+    "heavy_hit-red-0": {
+      "key": "3479cf79662e1c1f034fd78e4cc3e567deeee8b07740a55308264b047699eb2a",
+      "offset": 0,
+      "text": "Red lands a huge uppercut!",
+      "speaker": "a"
+    },
+    "heavy_hit-red-1": {
+      "key": "3f2cec7201a310bd9d9deee4b0e3287b32452c8c945eb3acd48cbb7d11127835",
+      "offset": 0,
+      "text": "Red puts some weight behind that one.",
+      "speaker": "b"
+    },
+    "pressure_run-red-0": {
+      "key": "8457b6c39d42fa324798be10bb6ef430c388b129c792ab661dd9af02fe32cc93",
+      "offset": 0,
+      "text": "Red: three unanswered hits!",
+      "speaker": "a"
+    },
+    "pressure_run-red-1": {
+      "key": "c8f79631724defb572694ae3ba05ebfbd99ed6230fef9f81f8d6ee6885c095f1",
+      "offset": 0,
+      "text": "Red is keeping the pressure on.",
+      "speaker": "b"
+    },
+    "counter_swing-red-0": {
+      "key": "8e280ef94872a595796540733a4ed1d8942515363645e03aab0c56c0941d0921",
+      "offset": 0,
+      "text": "Red answers with two of their own!",
+      "speaker": "b"
+    },
+    "counter_swing-red-1": {
+      "key": "a3cda940d21dab85eda8e149f977f694c29ba7f60ba90029552d9cf5e94a7f17",
+      "offset": 0,
+      "text": "Red turns the pressure around!",
+      "speaker": "a"
+    },
+    "hazard_impact-red-0": {
+      "key": "8df75de9e11696246832fe484277fd5c39535193753d3d53438f26aa6f636707",
+      "offset": 0,
+      "text": "Red gets caught by the train!",
+      "speaker": "a"
+    },
+    "hazard_impact-red-1": {
+      "key": "4442f651daccf857cb60f0bd913dffa7959620096a753c6f8e5916de7a056dce",
+      "offset": 0,
+      "text": "Red: that connection was not on the itinerary.",
+      "speaker": "b"
+    },
+    "ring_out-red-0": {
+      "key": "58bbdc8cd78eba23515fa4e5ee49698725210c00dcb643b753080d9700538118",
+      "offset": 0,
+      "text": "Red wins! The other team goes over the edge!",
+      "speaker": "a"
+    },
+    "ring_out-red-1": {
+      "key": "067f580242560e203a395b37da1274c8cfa17b52439aef6ee4825081cc4c0912",
+      "offset": 0,
+      "text": "Red takes the round!",
+      "speaker": "b"
+    },
+    "train_finish-red-0": {
+      "key": "6be1b589e02acfc45efd39874ed3f34432a4553e24cf2f036182371597cf2e6f",
+      "offset": 0,
+      "text": "Red wins after that train collision!",
+      "speaker": "a"
+    },
+    "train_finish-red-1": {
+      "key": "ddb682907f9e778a7147eda9a4d1896793c7a50278dc3bef88e50af164e1f4df",
+      "offset": 0,
+      "text": "Red takes it. The train had the final word.",
+      "speaker": "b"
+    },
+    "heavy_hit-blue-0": {
+      "key": "f1d95b44f789f1a4bdf1a3fbb1f330dcce2817f63376139b2ea8a03a740feb45",
+      "offset": 0,
+      "text": "Blue lands a huge uppercut!",
+      "speaker": "a"
+    },
+    "heavy_hit-blue-1": {
+      "key": "622dc15054a5f35753b1e3d70467f2a9dee797f5d19fa5a4b5e58276d147687f",
+      "offset": 0,
+      "text": "Blue puts some weight behind that one.",
+      "speaker": "b"
+    },
+    "pressure_run-blue-0": {
+      "key": "eea831f2fbf5fd33cedf48211c9cb864a88f136a0f4205b65d99b6e8c6816d25",
+      "offset": 0,
+      "text": "Blue: three unanswered hits!",
+      "speaker": "a"
+    },
+    "pressure_run-blue-1": {
+      "key": "01cdd95a4d49a0f22969179ea35da481fb44be7fc0bcf8b4438c78003e2a2a87",
+      "offset": 0,
+      "text": "Blue is keeping the pressure on.",
+      "speaker": "b"
+    },
+    "counter_swing-blue-0": {
+      "key": "2c5b214f483623fef46fbe9402621aa98e2546f5f3db4baee3f6c5fddca52a78",
+      "offset": 0,
+      "text": "Blue answers with two of their own!",
+      "speaker": "b"
+    },
+    "counter_swing-blue-1": {
+      "key": "5e068ce2a88c548e2a9654afd36a60ddb2c2830b3c31966fb35ec770fc4b35b3",
+      "offset": 0,
+      "text": "Blue turns the pressure around!",
+      "speaker": "a"
+    },
+    "hazard_impact-blue-0": {
+      "key": "9f75ffe2650966e8bd2ac70bf91a3df2f8b6489171eb2ad5f8012cf18bd8d62c",
+      "offset": 0,
+      "text": "Blue gets caught by the train!",
+      "speaker": "a"
+    },
+    "hazard_impact-blue-1": {
+      "key": "dfc863b1e30466cee96bee51a704093f5dd07a15834766dc17ba0b8bfa4559cc",
+      "offset": 0,
+      "text": "Blue: that connection was not on the itinerary.",
+      "speaker": "b"
+    },
+    "ring_out-blue-0": {
+      "key": "a074e9456de700021be1f211ff735a22ceb9e0830f325ed7862368b0674ea72c",
+      "offset": 0,
+      "text": "Blue wins! The other team goes over the edge!",
+      "speaker": "a"
+    },
+    "ring_out-blue-1": {
+      "key": "e19f96ae3795b77e2fc1e5e3cd64283f02712451195a404748d1a697ab394128",
+      "offset": 0,
+      "text": "Blue takes the round!",
+      "speaker": "b"
+    },
+    "train_finish-blue-0": {
+      "key": "fb17dd7da1b3c9ee86ba3a998e4e7b391c8357fb74238b956160ac13c6fc810d",
+      "offset": 0,
+      "text": "Blue wins after that train collision!",
+      "speaker": "a"
+    },
+    "train_finish-blue-1": {
+      "key": "d97024092c81d6a2991e6ea6bc588ecadaf85c3ecf018622548a59fd42bad448",
+      "offset": 0,
+      "text": "Blue takes it. The train had the final word.",
+      "speaker": "b"
+    },
+    "round_start-any-0": {
+      "key": "6c34ae6a5eb2572c3c7b6c60417c474abea07ddedfe7d55aa43a2d0ec6ebc4fb",
+      "offset": 0,
+      "text": "Two bodies, four operators. Let the brawl begin!",
+      "speaker": "a"
+    },
+    "round_start-any-1": {
+      "key": "302342b322072b24a8400209605b056fa3ef7eb15781da2ed08ea8d45c2bfc4e",
+      "offset": 0,
+      "text": "Arms and legs, please coordinate your opening statement.",
+      "speaker": "b"
+    },
+    "trade-any-0": {
+      "key": "18f9c6e4e4481d44b2928d9d9ec51018c1a1f35edef067350c82110ce2c819a2",
+      "offset": 0,
+      "text": "Both uppercuts connect!",
+      "speaker": "a"
+    },
+    "trade-any-1": {
+      "key": "80fd085c388aa00629982fc5f568002cd94dea38e9c62e1b16a5a08c3d12684d",
+      "offset": 0,
+      "text": "An exchange of strongly held opinions.",
+      "speaker": "b"
+    },
+    "double_fall-any-0": {
+      "key": "308ea9224f9527e752e9d88bcc2762191e2c3161fead5314725024c180999081",
+      "offset": 0,
+      "text": "Both go over! This round is a draw!",
+      "speaker": "a"
+    },
+    "double_fall-any-1": {
+      "key": "606d2996e4a4c27bb21a88d3583b92d5e9c1bddd996a57933090998a47cdf357",
+      "offset": 0,
+      "text": "A draw. Equal commitment to the wrong direction.",
+      "speaker": "b"
+    },
+    "quiet_brawl-any-0": {
+      "key": "8489e86e95d969fe0aa43c056c794e6bdbef0e658f5febe8d89697401667e13e",
+      "offset": 0,
+      "text": "Four people. Two bodies. No motion carried.",
+      "speaker": "b"
+    },
+    "quiet_brawl-any-1": {
+      "key": "21123e380619423052d860cb64b5e63cc46e4fcafee14bccaf33f3b966cd4fab",
+      "offset": 0,
+      "text": "I once waited this long for an opening. Worth every second.",
+      "speaker": "a"
+    },
+    "quiet_brawl-any-2": {
+      "key": "284ed7a0cc9da0024a57e40cecfd71ed1d66854a6ac5abb207a1d9d332354484",
+      "offset": 0,
+      "text": "The legs and arms are still in negotiations.",
+      "speaker": "b"
+    }
+  }
+}
