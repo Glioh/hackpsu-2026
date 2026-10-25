@@ -2,12 +2,13 @@ const clamp = (value, limit) => Math.max(-limit, Math.min(limit, value));
 export const wrapAngle = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 
 export const MOTION_CONFIG = Object.freeze({
-  torso: { frequency: 3.6, damping: .76, limit: .34 },
-  head: { frequency: 2.5, damping: .55, limit: .4 },
-  yaw: { frequency: 3, damping: .7, limit: .35 },
-  arm: { frequency: 2.7, damping: .6, limit: .44 },
-  leg: { frequency: 5, damping: .8, limit: .8 },
-  body: { frequency: 4.5, damping: .76, limit: .12 },
+  // Critically damped (1): joints lag and settle without overshoot; clumsy.js adds the stumbles on top.
+  torso: { frequency: 3.6, damping: 1, limit: .34 },
+  head: { frequency: 2.5, damping: 1, limit: .4 },
+  yaw: { frequency: 3, damping: 1, limit: .35 },
+  arm: { frequency: 2.7, damping: 1, limit: .44 },
+  leg: { frequency: 5, damping: 1, limit: .8 },
+  body: { frequency: 4.5, damping: 1, limit: .12 },
   stride: { frequency: 4, damping: 1, limit: 1 },
   accelerationLimit: 30, turnLimit: 6, gaitPerUnit: 3,
   presets: Object.freeze({ subtle: .55, floppy: 1, lively: 1.35 }),

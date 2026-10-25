@@ -14,24 +14,7 @@ export const FIGHTERS = {
 export const TEAM_FIGHTERS = ['crank', 'squish']; // default picks: red, blue
 const gltfs = new Map();
 
-// Jelly body: bends every vertex sideways by uJelly (world units at the top of the body) scaled by
-// (height above the feet / uHeight)^2, so feet stay planted and the top lags and sways. Shadows stay rigid.
-function makeJelly(material, uniforms) {
-  material.onBeforeCompile = shader => {
-    Object.assign(shader.uniforms, uniforms);
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uJelly; uniform vec3 uFeet; uniform float uHeight;')
-      .replace('#include <project_vertex>', `
-        vec4 jellyWorld = modelMatrix * vec4( transformed, 1.0 );
-        float jellyH = clamp( ( jellyWorld.y - uFeet.y ) / uHeight, 0.0, 1.5 );
-        jellyWorld.xyz += uJelly * jellyH * jellyH;
-        vec4 mvPosition = viewMatrix * jellyWorld;
-        gl_Position = projectionMatrix * mvPosition;`);
-  };
-  material.customProgramCacheKey = () => 'jelly';
-}
-
-// Resolves to make(teamColor) -> { root, torso, arms, legs, wobbly, jelly }, matching the placeholder rig in render.js:
+// Resolves to make(teamColor) -> { root, torso, arms, legs, wobbly }, matching the placeholder rig in render.js:
 // torso sways/bobs from the feet, arms pivot at the shoulders ([right, left]), legs at the hips.
 export async function loadFighter(id) {
   const spec = FIGHTERS[id];
@@ -49,11 +32,9 @@ export async function loadFighter(id) {
     if (spec.teamMaterial) materials.get(spec.teamMaterial)?.color.set(teamColor).lerp(new T.Color('#ffffff'), 0.3);
     // The arena has no environment map, so full metal (Sir Squish's pot) would render near-black.
     for (const m of materials.values()) if (m.metalness > 0.5) Object.assign(m, { metalness: 0.3, roughness: 0.4 });
-    const jelly = { uJelly: { value: new T.Vector3() }, uFeet: { value: new T.Vector3() }, uHeight: { value: 2.4 } };
-    for (const m of materials.values()) makeJelly(m, jelly);
-    // Heads and loose gear (pot helmet, shell) wobble on top of their rest pose; see wobble.js.
+    // Heads and loose gear (pot helmet, shell) lag behind the body on top of their rest pose; see clumsy.js.
     const wobbly = [];
-    // Gear: maxTilt caps the extra wobble (radians); lift = rim radius (m), so a tilted pot rides up on the head
+    // Gear: maxTilt caps the extra tilt (radians); lift = rim radius (m), so a tilted pot rides up on the head
     // instead of its rim swinging down through it.
     const WOBBLY = { head: { kind: 'head' }, helmet: { kind: 'gear', maxTilt: .18, lift: .35 }, shell: { kind: 'gear', maxTilt: .6, lift: 0 } };
     root.traverse(o => { const w = WOBBLY[o.userData.ragdoll_part]; if (w) wobbly.push({ node: o, ...w, rest: o.rotation.clone(), restY: o.position.y }); });
@@ -68,6 +49,6 @@ export async function loadFighter(id) {
     const combatRig = createCombatRig(collisionRoot,
       [collisionNode('Arm_R'), collisionNode('Arm_L')],
       [collisionNode('Hand_R') || collisionNode('Glove_R'), collisionNode('Hand_L') || collisionNode('Glove_L')], SCALE, collisionNode('Torso'));
-    return { combatRig, root, torso, arms: [node('Arm_R'), node('Arm_L')], legs, wobbly, jelly };
+    return { combatRig, root, torso, arms: [node('Arm_R'), node('Arm_L')], legs, wobbly };
   };
 }
