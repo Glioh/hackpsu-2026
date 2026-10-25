@@ -12,8 +12,8 @@ import { createBotController } from './bot.js';
 import { FINISH_DURATION, FINISH_TIME_SCALE, stepFinish } from './ko-finish.js';
 const $ = id => document.getElementById(id), socket = connectSocket(), sim = new Simulation();
 const commentary = createCommentary(socket), combatAudio = createCombatAudio();
-$('combatSoundEnabled').onchange = e => combatAudio.setEnabled(e.target.checked);
-$('combatSoundVolume').oninput = e => combatAudio.setVolume(Number(e.target.value));
+$('combatSoundEnabled').onchange = e => { combatAudio.setEnabled(e.target.checked); draw?.weaponAudio.setEnabled(e.target.checked); };
+$('combatSoundVolume').oninput = e => { combatAudio.setVolume(Number(e.target.value)); draw?.weaponAudio.setVolume(Number(e.target.value)); };
 const motions = sim.fighters.map(createMotion), renderFighters = motions.map(m => m.output);
 const presentation = createPresentation($('gameScreen'));
 function resetPoses() { motions.forEach((motion, i) => resetMotion(motion, sim.fighters[i])); draw?.resetMotion(); }
