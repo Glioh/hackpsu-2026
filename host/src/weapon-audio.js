@@ -1,4 +1,5 @@
-// Synthesised weapon sounds (Web Audio, no sample files): grenade pin ping, fuse sizzle and the explosion.
+// Synthesised weapon sounds (Web Audio, no sample files): grenade pin ping, fuse sizzle and the explosion, the
+// hammer's squeak, the frying pan's BONK and the rubber chicken's squawks.
 // Like piano-audio.js, the context unlocks on the first click or key press; before that every call is silent.
 // Follows the host's Sound effects toggle and volume (setEnabled / setVolume, like combat-audio.js).
 export function createWeaponAudio() {
@@ -62,6 +63,49 @@ export function createWeaponAudio() {
       for (let i = 0; i < 6; i++) {                                                  // debris pattering down
         const at = t + .25 + Math.random() * .9, d = noiseSource(at, .05), bp = audio.createBiquadFilter(), dg = audio.createGain();
         bp.type = 'bandpass'; bp.frequency.value = 900 + Math.random() * 1600; bp.Q.value = 3; env(dg, at, .12 * strength, .002, .04); chain(d, bp, dg);
+      }
+    },
+    // Squeaky toy: a rubbery whistle that bends up then down, with a wobble. pitch < 1 for the sad deflating miss.
+    squeak(pitch = 1, strength = 1) {
+      if (!ready()) return;
+      const t = audio.currentTime, len = pitch < 1 ? .45 : .26;
+      for (const [mult, type, peak] of [[1, 'triangle', .32], [2.01, 'sine', .08]]) {
+        const o = audio.createOscillator(), g = audio.createGain(), lfo = audio.createOscillator(), depth = audio.createGain(), f = 1250 * pitch * mult;
+        o.type = type; o.frequency.setValueAtTime(f * .7, t); o.frequency.exponentialRampToValueAtTime(f * 1.25, t + len * .3);
+        o.frequency.exponentialRampToValueAtTime(f * (pitch < 1 ? .45 : .8), t + len);
+        lfo.frequency.value = 28; depth.gain.value = f * .06; lfo.connect(depth); depth.connect(o.frequency); lfo.start(t); lfo.stop(t + len + .05);
+        env(g, t, peak * strength, .01, len); o.start(t); o.stop(t + len + .05); chain(o, g);
+      }
+      const air = noiseSource(t, len), bp = audio.createBiquadFilter(), ag = audio.createGain();      // breathy rubber
+      bp.type = 'bandpass'; bp.frequency.value = 2400 * pitch; bp.Q.value = 4; env(ag, t, .1 * strength, .01, len * .8); chain(air, bp, ag);
+    },
+    // Frying pan BONK: a dull thud plus a ring of inharmonic metallic partials that hangs in the air.
+    bonk(strength = 1) {
+      if (!ready()) return;
+      const t = audio.currentTime;
+      const thud = audio.createOscillator(), tg = audio.createGain();
+      thud.frequency.setValueAtTime(220, t); thud.frequency.exponentialRampToValueAtTime(90, t + .12);
+      env(tg, t, .7 * strength, .002, .16); thud.start(t); thud.stop(t + .2); chain(thud, tg);
+      for (const [f, peak, decay] of [[523, .3, 1.1], [1187, .2, .8], [1934, .14, .6], [2851, .1, .45], [3790, .06, .3]]) {
+        const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = f * (.98 + Math.random() * .04);
+        env(g, t, peak * strength, .001, decay); o.start(t); o.stop(t + decay + .05); chain(o, g);
+      }
+      const clank = noiseSource(t, .04), hp = audio.createBiquadFilter(), cg = audio.createGain();
+      hp.type = 'highpass'; hp.frequency.value = 3000; env(cg, t, .4 * strength, .001, .03); chain(clank, hp, cg);
+    },
+    // Rubber chicken: nasal "bawk" syllables. A hit gets the full strangled scream; a swing a couple of clucks.
+    chicken(scream = false) {
+      if (!ready()) return;
+      const t0 = audio.currentTime, notes = scream ? [[0, .55, 780, 1350]] : [[0, .09, 520, 640], [.13, .12, 560, 700]];
+      if (!scream && Math.random() < .5) notes.push([.28, .16, 600, 820]);
+      for (const [at, len, from, to] of notes) {
+        const t = t0 + at, o = audio.createOscillator(), f1 = audio.createBiquadFilter(), f2 = audio.createBiquadFilter(), g = audio.createGain();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(from, t); o.frequency.exponentialRampToValueAtTime(to, t + len * .35);
+        o.frequency.exponentialRampToValueAtTime(from * .8, t + len);
+        if (scream) { const lfo = audio.createOscillator(), d = audio.createGain(); lfo.frequency.value = 17; d.gain.value = 90; lfo.connect(d); d.connect(o.frequency); lfo.start(t); lfo.stop(t + len); }
+        f1.type = 'bandpass'; f1.frequency.value = 1100; f1.Q.value = 3;                   // nasal formants
+        f2.type = 'peaking'; f2.frequency.value = 2600; f2.gain.value = 10; f2.Q.value = 2;
+        env(g, t, scream ? .45 : .3, .008, len); o.start(t); o.stop(t + len + .05); chain(o, f1, f2, g);
       }
     },
     stopAll() { for (const id of [...fuses.keys()]) this.stopFuse(id); },

@@ -5,17 +5,29 @@ import { CONFIG as C } from '../../shared/config.js';
 // uses the weapon instead of the fist until its uses run out. Weapon hits go through the same damage/knockback
 // rules as fists and are reported as fighter hits, so commentary, hit effects and the damage meter all react.
 // reach / width / radius are metres from the attacker's centre to the target's body (target rig radius added).
+// Swung weapons connect inside `arc` (radians either side of facing) during their `window` (seconds into the attack).
+// speed: walking speed multiplier while holding it. whiff: forward lurch (m/s) when a swing misses; recoil: how hard
+// the attacker bounces back off a hit.
 export const WEAPONS = {
   spring: { name: 'Spring Glove', uses: 4, cooldown: .8, damage: 11, knockback: 1.7, reach: 3.2, width: .45 },
-  sword: { name: 'Sword', uses: 3, cooldown: .6, damage: 19, knockback: 1.05, reach: 1.8, arc: 1.15 },
+  sword: { name: 'Sword', uses: 3, cooldown: .6, damage: 19, knockback: 1.05, reach: 1.8, arc: 1.15, window: [.04, .2] },
   grenade: { name: 'Grenade', uses: 1, cooldown: .5, damage: 24, knockback: 1.5, radius: 2.8, fuse: 1.5, throwSpeed: 6.5, throwLift: 6 },
+  hammer: { name: 'Giant Squeaky Hammer', uses: 3, cooldown: 1.2, damage: 17, knockback: 2.2, reach: 2.4, arc: .8, window: [.28, .4], speed: .6, whiff: 7.5 },
+  pan: { name: 'Frying Pan', uses: 6, cooldown: .32, damage: 9, knockback: .85, reach: 1.55, arc: 1, window: [.03, .13], recoil: 4.5 },
+  chicken: { name: 'Rubber Chicken', uses: 5, cooldown: .5, damage: 8, knockback: 1.3, reach: 2.7, arc: 1.4, window: [.12, .3] },
 };
 export const WEAPON_TYPES = Object.keys(WEAPONS);
 // Spring glove extension (0..1) over its attack: shoots out, holds, snaps back.
 export const springExtension = t => t < .1 ? t / .1 : t < .28 ? 1 : Math.max(0, 1 - (t - .28) / .14);
 // Sword swing progress (0..1): a fast sweep from the off side across the front.
 export const swordSwing = t => Math.min(1, t / .22);
-const ATTACK_TIME = { spring: .42, sword: .32, grenade: .25 };
+// Hammer (-1..1): heaved up behind the head (-1), then slammed down in front (1), where it stays until the attack ends.
+export const hammerSwing = t => t < .22 ? -Math.sin(t / .22 * Math.PI / 2) : -1 + 2 * Math.min(1, (t - .22) / .12) ** 2;
+// Pan swing progress (0..1): a quick backhand flick.
+export const panSwing = t => Math.min(1, t / .12);
+// Chicken swing progress (0..1): a slower, wider wind-and-whip; the neck trails behind it (weapon-view.js).
+export const chickenSwing = t => Math.min(1, t / .32);
+const ATTACK_TIME = { spring: .42, sword: .32, grenade: .25, hammer: .62, pan: .2, chicken: .42 };
 export const PICKUP_LIFE = 25;
 const PICKUP_RANGE = .9, BLAST_LIFE = .9;
 
@@ -100,14 +112,22 @@ export function createWeapons(seed = 1) {
       }
       state.pickups = state.pickups.filter(p => !p.taken && p.age < PICKUP_LIFE && p.y > C.eliminationY);
 
-      // Spring glove and sword strikes: one hit per attack, inside each weapon's reach.
+      // Spring glove and swung weapon strikes: one hit per attack, inside each weapon's reach.
       fighters.forEach((f, i) => {
         const a = f.weaponAttack;
         if (!a || f.respawnRemaining || f.lives === 0) return;
         a.t += dt;
-        if (a.t >= ATTACK_TIME[a.type]) { f.weaponAttack = null; return; }
-        if (a.landed || a.type === 'grenade') return;
         const spec = WEAPONS[a.type];
+        if (a.t >= ATTACK_TIME[a.type]) {
+          f.weaponAttack = null;
+          if (spec.whiff && !a.landed) {                                    // a missed hammer drags its owner over
+            const s = Math.sin(f.heading), c = Math.cos(f.heading);
+            f.vx = s * spec.whiff; f.vz = c * spec.whiff; f.vy = 2.5; f.grounded = false; f.stun = Math.max(f.stun, .6);
+            events.push({ type: 'tumble', team: f.team, weapon: a.type });
+          }
+          return;
+        }
+        if (a.landed || a.type === 'grenade') return;
         const target = fighters.find((target, j) => {
           if (!sim.enemies(f, target) || target.respawnRemaining || target.lives === 0) return false;
           const dx = target.x - f.x, dz = target.z - f.z, s = Math.sin(f.heading), c = Math.cos(f.heading), r = rigs[j].radius;
@@ -115,13 +135,18 @@ export function createWeapons(seed = 1) {
           if (Math.abs(target.y - f.y) > 1.3 || forward <= 0) return false;
           return a.type === 'spring'
             ? springExtension(a.t) > .6 && forward < spec.reach * springExtension(a.t) + r && Math.abs(side) < spec.width + r
-            : a.t > .04 && a.t < .2 && Math.hypot(dx, dz) < spec.reach + r && Math.abs(Math.atan2(side, forward)) < spec.arc;
+            : a.t > spec.window[0] && a.t < spec.window[1] && Math.hypot(dx, dz) < spec.reach + r && Math.abs(Math.atan2(side, forward)) < spec.arc;
         });
         if (!target) return;
         const dx = target.x - f.x, dz = target.z - f.z;
         a.landed = true; a.target = target.team;
         const d = Math.hypot(dx, dz) || 1;
         hits.push(strike(f, target, dx / d, dz / d, spec.damage, spec.knockback, a.type, events));
+        if (spec.recoil) {                                                  // the pan bounces off their head, and so do you
+          f.vx = -dx / d * spec.recoil; f.vz = -dz / d * spec.recoil; f.vy = Math.max(f.vy, 1.5); f.grounded = false;
+          f.stun = Math.max(f.stun, .18); f.hit = Math.max(f.hit, .15);
+          events.push({ type: 'recoil', team: f.team, weapon: a.type });
+        }
       });
 
       // Grenades: lob, bounce, then blow up and fling everyone nearby (thrower included).

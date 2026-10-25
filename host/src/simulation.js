@@ -1,7 +1,7 @@
 import { CONFIG as C } from '../../shared/config.js';
 import { fallbackCombatRig, uppercutHits } from './combat-rig.js';
 import { createArena } from './maps.js';
-import { createWeapons } from './weapons.js';
+import { WEAPONS, createWeapons } from './weapons.js';
 import { legInputToWorld } from '../../shared/movement.js';
 import { staffMomentum } from './wukong-gags.js';
 export function fighter(team, x, heading) {
@@ -92,7 +92,7 @@ export class Simulation {
       const { x, z } = legInputToWorld(legs.moveX || 0, legs.moveZ || 0);
       // Brief hitstun preserves launch momentum; ordinary movement regains control smoothly.
       const floor = f.grounded ? this.arena.floorAt(f.x, f.z) : null, grip = floor?.grip ?? 1;
-      const damping = f.stun > 0 ? C.launchDamping : C.damping * grip, drive = f.stun > 0 ? 0 : 1;
+      const damping = f.stun > 0 ? C.launchDamping : C.damping * grip, drive = f.stun > 0 ? 0 : WEAPONS[f.weapon?.type]?.speed ?? 1;
       f.vx += (x * C.speed * drive - f.vx) * (1 - Math.exp(-damping * dt));
       f.vz += (z * C.speed * drive - f.vz) * (1 - Math.exp(-damping * dt));
       if (legs.jump && f.grounded) { f.vy = C.jump; f.grounded = false; this.motionEvents.push({type:'takeoff',team:f.team}); }

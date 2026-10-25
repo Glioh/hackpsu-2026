@@ -1,15 +1,20 @@
 import * as T from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { PICKUP_LIFE, springExtension, swordSwing } from './weapons.js';
+import { PICKUP_LIFE, chickenSwing, hammerSwing, panSwing, springExtension, swordSwing } from './weapons.js';
 import { createWeaponAudio } from './weapon-audio.js';
 
 // Draws weapons.js state: spinning pickups (like a dropped item: spin, bob, glow ring), weapons held in the
-// punching hand, the spring glove shooting out, sword swooshes, grenades in flight and their explosions (with
-// synthesised sound: weapon-audio.js).
+// punching hand, the spring glove shooting out, sword / pan / chicken swooshes, the hammer's overhead slam, the rubber
+// chicken's floppy neck, grenades in flight and their explosions, comic impact stickers (POW! BONK! SQUEAK! BAWK!)
+// and synthesised sound (weapon-audio.js).
 // Render-only. Models come from art/weapons/build_weapons.py, drawn at fighter scale.
 const SCALE = 1.4, PICKUP_SIZE = 1.15, BLAST_LIFE = .9, SCORCH_LIFE = 6;
-const URLS = { spring: '/host/assets/weapons/spring_glove.glb', sword: '/host/assets/weapons/sword.glb', grenade: '/host/assets/weapons/grenade.glb' };
-const COLORS = { spring: '#ff4757', sword: '#31c8ff', grenade: '#9be15d' };
+const URLS = { spring: '/host/assets/weapons/spring_glove.glb', sword: '/host/assets/weapons/sword.glb', grenade: '/host/assets/weapons/grenade.glb',
+  hammer: '/host/assets/weapons/squeaky_hammer.glb', pan: '/host/assets/weapons/frying_pan.glb', chicken: '/host/assets/weapons/rubber_chicken.glb' };
+const COLORS = { spring: '#ff4757', sword: '#31c8ff', grenade: '#9be15d', hammer: '#ff5fa2', pan: '#c9d1dc', chicken: '#ffd84a' };
+// Swung weapons sweep from the off side across the front: [start yaw, sweep, how far the tip tips forward].
+const SWEEP = { sword: [1.2, 2.3, 1.25], pan: [1.1, 2.2, 1], chicken: [1.4, 2.8, 1.05] };
+const SWING = { sword: swordSwing, pan: panSwing, chicken: chickenSwing };
 // Glove travel (world metres) at full extension: the tip reaches about WEAPONS.spring.reach from the fighter.
 const SPRING_TRAVEL = 1.75;
 
@@ -28,8 +33,9 @@ export function createWeaponView(scene) {
   function makePickup(type) {
     const group = new T.Group(), spin = new T.Group(), model = templates[type].clone(true);
     const box = new T.Box3().setFromObject(model), size = box.getSize(new T.Vector3()), centre = box.getCenter(new T.Vector3());
-    model.position.sub(centre); spin.add(model); spin.scale.setScalar(PICKUP_SIZE / Math.max(size.x, size.y, size.z));
+    model.position.sub(centre); spin.add(model); spin.scale.setScalar(PICKUP_SIZE * (type === 'hammer' ? 1.5 : 1) / Math.max(size.x, size.y, size.z));
     if (type === 'spring') spin.rotation.z = .5;                                // tilted so it reads from the side
+    if (type === 'chicken') spin.rotation.z = .35;
     const color = new T.Color(COLORS[type]);
     const ring = new T.Mesh(new T.RingGeometry(.42, .56, 40), new T.MeshBasicMaterial({ color, transparent: true, opacity: .8, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .03;
@@ -59,7 +65,8 @@ export function createWeaponView(scene) {
   function makeHeld(type) {
     const obj = templates[type].clone(true); obj.scale.setScalar(SCALE); root.add(obj);
     const spring = obj.getObjectByName('WP_Spring'), glove = obj.getObjectByName('WP_Glove');
-    return { type, obj, spring, glove, gloveZ: glove?.position.z };
+    const neck = obj.getObjectByName('WP_ChickenNeck'), head = obj.getObjectByName('WP_ChickenHead');
+    return { type, obj, spring, glove, gloveZ: glove?.position.z, neck, head, bend: 0, bendV: 0, yaw: null };
   }
   function makeSwoosh() {
     const mesh = new T.Mesh(new T.RingGeometry(.55, 1.75, 32, 1, 0, 2.3),
@@ -116,6 +123,8 @@ export function createWeaponView(scene) {
     g.lineWidth = 12; g.strokeStyle = '#101124'; g.strokeText(text, 0, 4); g.fillStyle = '#ffffff'; g.fillText(text, 0, 4);
   });
   const powTexture = starburst('POW!', '#ffd447', '#ff4757', 72), boomTexture = starburst('BOOM!', '#ff7a1a', '#ffd447', 64);
+  const stickers = { spring: powTexture, hammer: starburst('SQUEAK!', '#ff8fc4', '#ffffff', 44), pan: starburst('BONK!', '#d6dde6', '#3a3f4a', 58),
+    chicken: starburst('BAWK!', '#ffe066', '#ff8c1e', 58) };
   const scorchTexture = canvasTexture(g => {
     const r = g.createRadialGradient(128, 128, 10, 128, 128, 128);
     r.addColorStop(0, 'rgba(20,16,14,.9)'); r.addColorStop(.55, 'rgba(30,24,20,.6)'); r.addColorStop(1, 'rgba(30,24,20,0)');
@@ -123,7 +132,8 @@ export function createWeaponView(scene) {
   });
   const ringTexture = canvasTexture(g => { g.beginPath(); g.arc(128, 128, 112, 0, Math.PI * 2); g.lineWidth = 16; g.strokeStyle = '#ffffff'; g.stroke(); });
   const sprite = map => { const s = new T.Sprite(new T.SpriteMaterial({ map, transparent: true, depthTest: false, depthWrite: false })); s.renderOrder = 10; s.visible = false; root.add(s); return s; };
-  const pows = [0, 1].map(() => ({ pow: sprite(powTexture), ring: sprite(ringTexture), age: Infinity })), shown = new WeakSet();
+  const pows = [0, 1].map(() => ({ pow: sprite(powTexture), ring: sprite(ringTexture), age: Infinity })), shown = new WeakSet(), started = new WeakSet();
+  const lastAttack = [];
   const POW_LIFE = .5;
 
   return {
@@ -137,7 +147,8 @@ export function createWeaponView(scene) {
     // Camera shake owed to the renderer since the last call (grenade blasts rattle the screen).
     takeShake() { const s = shake; shake = 0; return s; },
     // state: sim.weapons.state; bodies: raw simulation fighters; models: render.js fighter models (already posed).
-    // Returns the fighters a spring glove just landed on, so the renderer can add sparks and camera shake.
+    // Returns the fighters a spring glove, hammer, pan or chicken just landed on, so the renderer can add sparks and
+    // camera shake.
     update(state, bodies, models, time, dt = 0) {
       const impacts = [];
       if (!state) return impacts;
@@ -168,13 +179,25 @@ export function createWeaponView(scene) {
         if(u===1)drop(arrivals,id);
       }
 
-      // Held weapons ride the punching hand; the spring glove fires level, the sword sweeps across the front.
+      // Held weapons ride the punching hand; the spring glove fires level, swung weapons sweep across the front, the
+      // hammer comes down overhead.
       bodies.forEach((f, i) => {
-        const landed = f.weaponAttack?.type === 'spring' && f.weaponAttack.landed ? f.weaponAttack : null;
+        const attack = f.weaponAttack, prev = lastAttack[i];
+        lastAttack[i] = attack;
+        if (attack && !started.has(attack)) {                                 // swing sounds
+          started.add(attack);
+          if (attack.type === 'chicken') audio.chicken();
+        }
+        if (prev && prev !== attack && prev.type === 'hammer' && !prev.landed) audio.squeak(.55, .8);   // sad whiffed squeak
+        const landed = attack && stickers[attack.type] && attack.landed ? attack : null;
         if (landed && !shown.has(landed)) {
           shown.add(landed); const target = bodies.find(body => body.team === landed.target);
           if (!target) return; impacts.push(target);
+          if (landed.type === 'hammer') { audio.squeak(1, 1.3); shake = Math.max(shake, .4); }
+          else if (landed.type === 'pan') audio.bonk();
+          else if (landed.type === 'chicken') audio.chicken(true);
           const k = pows[i] ??= { pow: sprite(powTexture), ring: sprite(ringTexture), age: Infinity }; k.age = 0; k.pow.position.set(target.x, target.y + 1.6, target.z); k.ring.position.set(target.x, target.y + 1.1, target.z);
+          k.pow.material.map = stickers[landed.type];
         }
         const m = models[i], type = f.weapon?.type ?? (f.weaponAttack && f.weaponAttack.type !== 'grenade' ? f.weaponAttack.type : null);
         if (held[i]?.type !== type) { held[i]?.obj.removeFromParent(); held[i] = type && templates[type] ? makeHeld(type) : null; }
@@ -191,16 +214,30 @@ export function createWeaponView(scene) {
           h.obj.rotation.set(0, f.heading, 0);
           h.spring.scale.z = 1 + ext / .26; h.glove.position.z = h.gloveZ + ext;
           h.glove.scale.setScalar(1 + .7 * (a ? springExtension(a.t) : 0));         // cartoon: the glove swells as it flies
-        } else if (h.type === 'sword') {
+        } else if (SWEEP[h.type]) {
+          const [from, sweep, tip] = SWEEP[h.type], fade = h.type === 'chicken' ? .4 : .26;
           h.obj.rotation.order = 'YXZ';
           if (a) {
-            const s = swordSwing(a.t);
-            h.obj.rotation.set(.3 + 1.25 * Math.sin(Math.min(1, s * 1.4) * Math.PI / 2), f.heading + 1.2 - 2.3 * s, 0);
+            const s = SWING[h.type](a.t);
+            h.obj.rotation.set(.3 + tip * Math.sin(Math.min(1, s * 1.4) * Math.PI / 2), f.heading + from - sweep * s, 0);
             swoosh.position.set(f.x, p.y, f.z); swoosh.rotation.set(-Math.PI / 2, f.heading, 0);
-            swoosh.rotation.z = 1.2 - 2.3 * s - Math.PI / 2;                     // trails the blade back to where it started
-            swoosh.material.opacity = a.t < .26 ? .55 * (1 - a.t / .26) : 0;
+            swoosh.rotation.z = from - sweep * s - Math.PI / 2;                 // trails the weapon back to where it started
+            swoosh.scale.setScalar(h.type === 'pan' ? .8 : h.type === 'chicken' ? 1.3 : 1);
+            swoosh.material.opacity = a.t < fade ? .55 * (1 - a.t / fade) : 0;
           } else h.obj.rotation.set(.45, f.heading + .25, 0);
+        } else if (h.type === 'hammer') {
+          h.obj.rotation.order = 'YXZ';                                          // rests on the shoulder, slams down in front
+          h.obj.rotation.set(a ? .2 + 1.45 * hammerSwing(a.t) : -.35, f.heading + (a ? 0 : .2), 0);
         } else h.obj.rotation.set(0, f.heading, 0);
+        if (h.neck && dt > 0) {
+          // Floppy rubber neck: a damped spring that lags behind how fast the chicken is being swung, then whips past.
+          const yaw = h.obj.rotation.y, rate = h.yaw === null ? 0 : (yaw - h.yaw) / dt; h.yaw = yaw;
+          h.bendV += ((Math.max(-1.3, Math.min(1.3, rate * .12)) - h.bend) * 160 - h.bendV * 7) * dt;
+          h.bend += h.bendV * dt;
+          const wobble = Math.sin(time * 9 + i) * .12 * Math.min(1, Math.hypot(f.vx, f.vz) / 4);
+          h.neck.rotation.z = h.bend + wobble; h.head.rotation.z = h.bend * .9 + wobble;
+          h.neck.rotation.x = -.3 * Math.abs(h.bend); h.head.rotation.x = .25 * Math.abs(h.bend);
+        }
       });
 
       // POW!: pops up big with a little overshoot, wobbles, fades; the ring races outwards.
