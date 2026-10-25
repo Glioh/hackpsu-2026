@@ -7,7 +7,6 @@ const city = { ...yard, zenith:'#527f9d', horizon:'#edc8a0', lower:'#435c68', fo
 export const ENVIRONMENTS = {
   yard,
   lava:{...yard,zenith:'#120e16',horizon:'#47252a',lower:'#a9380c',fog:'#492c30',fogRange:[38,110],sun:[-18,30,12],key:'#ffdab5',power:2.1,fill:'#b6bdce',bounce:'#ff5017',ambient:1.1,exposure:1,environment:.5,indoor:true},
-  sumo:{...yard, fogRange:[100,250]},
   skyline:city,
   twinspire:{...city, horizon:'#f0cfb6', fog:'#c7d2e2', sun:[-28,25,-12]},
   station:{...city, zenith:'#658da8', horizon:'#e2e8f0', key:'#fff1db', sun:[-16,32,18], power:2.3},

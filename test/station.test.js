@@ -110,7 +110,7 @@ test('Crossline platform and overhead bridge are safe from track impacts; open e
   for(let i=0;i<3600;i++)a.step(1/60,fighters,events);
   assert.equal(events.length,0);
   const s=new Simulation('station');Object.assign(s.fighters[0],{x:20,z:0,y:.58,heading:0});
-  run(s,180,{red:{legs:{moveX:1}}});assert.equal(s.winner,'blue');
+  run(s,180,{red:{legs:{moveX:1}}});assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2);
 });
 test('Crossline train impacts reach the normal hit-feedback channel and reset with a fresh round',()=>{
   const s=new Simulation('station');const before=s.arena.trains.map(t=>t.next);

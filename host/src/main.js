@@ -259,13 +259,24 @@ function frame(now) {
         draw?.hit(sim.fighters.find(f => f.team === team), sim.motionEvents.find(e => e.type === 'hit' && e.team === team));
       }
       for (const event of sim.motionEvents) combatAudio.event(event);
+      const ringouts = sim.motionEvents.filter(event => event.type === 'ringout');
+      if (ringouts.length) draw?.startKO(ringouts);
+      for (const event of sim.motionEvents) if (event.type === 'respawn') {
+        const index = sim.fighters.findIndex(f => f.team === event.team);
+        resetMotion(motions[index], sim.fighters[index]);
+      }
       commentary.step(sim,C.tick);
       motions.forEach((motion, i) => stepMotion(motion, sim.fighters[i], sim.motionEvents, C.tick, $('motionPreset').value, $('motionEnabled').checked));
-      if (sim.winner) { finishAge = 0; draw?.startKO(sim.fighters.filter(f => f.y < C.eliminationY)); }
+      if (sim.winner) finishAge = 0;
     }
     accumulator -= C.tick;
   }
   motions.forEach(motion => interpolateMotion(motion, phase === 'playing' && finishAge === null ? accumulator / C.tick : 1));
+  for (const f of sim.fighters) {
+    const lives = $(f.team + 'Lives');
+    lives.textContent = '●'.repeat(f.lives) + '○'.repeat(3 - f.lives);
+    lives.setAttribute('aria-label', `${f.team} team: ${f.lives} of 3 lives remaining`);
+  }
   if (phase !== 'lobby') draw?.(renderFighters, visualTime, sim.fighters, sim.arena, { active: phase === 'playing', motionEnabled: $('motionEnabled').checked, finishAge, weapons: sim.weapons.state });
   if ($('showStats').checked) $('stats').textContent = sim.fighters.map(f => `${f.team}: X ${f.x.toFixed(2)} Z ${f.z.toFixed(2)} Y ${f.y.toFixed(2)}\nheading ${f.heading.toFixed(2)} grounded ${f.grounded}\nspeed ${Math.hypot(f.vx,f.vz).toFixed(2)} cooldown ${f.cooldown.toFixed(2)}`).join('\n\n');
   commentary.tick();

@@ -32,6 +32,6 @@ test('simultaneous uppercuts trade fairly and ring-outs decide rounds',()=>{
   const sim=new Simulation();sim.fighters[0].x=-.65;sim.fighters[1].x=.65;
   sim.step({red:{arm:{punch:true,power:1}},blue:{arm:{punch:true,power:1}}});
   for(let i=0;i<12;i++)sim.step({});assert.ok(sim.fighters[0].damage>0);assert.equal(sim.fighters[0].damage,sim.fighters[1].damage);assert.equal(sim.winner,null);
-  sim.fighters[0].y=C.eliminationY-1;sim.step({});assert.equal(sim.winner,'blue');assert.deepEqual(sim.step({}),[]);
-  sim.reset();sim.fighters.forEach(f=>f.y=C.eliminationY-1);sim.step({});assert.equal(sim.winner,'draw');
+  sim.fighters[0].lives=1;sim.fighters[0].y=C.eliminationY-1;sim.step({});assert.equal(sim.winner,'blue');assert.deepEqual(sim.step({}),[]);
+  sim.reset();sim.fighters.forEach(f=>{f.lives=1;f.y=C.eliminationY-1;});sim.step({});assert.equal(sim.winner,'draw');
 });

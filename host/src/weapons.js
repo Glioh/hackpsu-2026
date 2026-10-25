@@ -92,7 +92,7 @@ export function createWeapons(seed = 1) {
         p.age += dt;
         const y = floorY(arena, p.x, p.z, p.y + .3);
         if (y !== undefined && p.y <= y + .01) { p.y = y; p.vy = 0; } else { p.vy -= C.gravity * dt; p.y = Math.max(y ?? -Infinity, p.y + p.vy * dt); }
-        const taker = fighters.find(f => !f.weapon && Math.hypot(f.x - p.x, f.z - p.z) < PICKUP_RANGE && Math.abs(f.y - p.y) < 1.3);
+        const taker = fighters.find(f => !f.respawnRemaining && f.lives !== 0 && !f.weapon && Math.hypot(f.x - p.x, f.z - p.z) < PICKUP_RANGE && Math.abs(f.y - p.y) < 1.3);
         if (taker) {
           taker.weapon = { type: p.type, uses: WEAPONS[p.type].uses }; p.taken = true;
           events.push({ type: 'pickup', team: taker.team, weapon: p.type });
@@ -103,11 +103,12 @@ export function createWeapons(seed = 1) {
       // Spring glove and sword strikes: one hit per attack, inside each weapon's reach.
       fighters.forEach((f, i) => {
         const a = f.weaponAttack;
-        if (!a) return;
+        if (!a || f.respawnRemaining || f.lives === 0) return;
         a.t += dt;
         if (a.t >= ATTACK_TIME[a.type]) { f.weaponAttack = null; return; }
         if (a.landed || a.type === 'grenade') return;
         const target = fighters[1 - i], spec = WEAPONS[a.type], r = rigs[1 - i].radius;
+        if (target.respawnRemaining || target.lives === 0) return;
         const dx = target.x - f.x, dz = target.z - f.z, s = Math.sin(f.heading), c = Math.cos(f.heading);
         const forward = dx * s + dz * c, side = dx * c - dz * s;
         if (Math.abs(target.y - f.y) > 1.3 || forward <= 0) return;
@@ -132,6 +133,7 @@ export function createWeapons(seed = 1) {
         state.blasts.push({ id: g.id, x: g.x, y: g.y, z: g.z, radius: spec.radius, age: 0, floor: floorY(arena, g.x, g.z, g.y + .4) ?? null });
         events.push({ type: 'explosion', x: g.x, y: g.y, z: g.z, radius: spec.radius, owner: g.owner });
         for (const target of fighters) {
+          if (target.respawnRemaining || target.lives === 0) continue;
           const dx = target.x - g.x, dz = target.z - g.z, d = Math.hypot(dx, dz, target.y + .6 - g.y);
           if (d > spec.radius) continue;
           const falloff = 1 - d / spec.radius, flat = Math.hypot(dx, dz);

@@ -34,8 +34,8 @@ export class CommentaryDetector {
 }
 
 export class CommentaryDirector {
-  constructor({play,stop=()=>{},caption=()=>{},clock=()=>0}){Object.assign(this,{play,stop,caption,clock});this.recent=[];this.reset(0);}
-  reset(round,context={}){this.cancel();this.round=round;this.context=context;this.pending=null;this.nextAt=0;this.paused=false;}
+  constructor({play,prepare,stop=()=>{},caption=()=>{},clock=()=>0}){Object.assign(this,{play,prepare,stop,caption,clock});this.recent=[];this.reset(0);}
+  reset(round,context={}){this.cancel();this.round=round;this.context=context;this.pending=null;this.nextAt=0;this.paused=false;this.history=[];}
   cancel(){this.generation=(this.generation||0)+1;this.abort?.abort();this.stop();this.busy=false;this.pending=null;this.caption('');}
   offer(event){if(this.paused||event.round!==this.round)return;if(event.priority===100){this.cancel();this.nextAt=0;}if(!this.pending||event.priority>=this.pending.priority)this.pending=event;}
   async tick(scripts){
@@ -50,10 +50,21 @@ export class CommentaryDirector {
     const specific=s=>Number(!!(s.map||s.fighter||s.hazard));
     const script=options.slice().sort((a,b)=>freshness(a)-freshness(b)||specific(b)-specific(a)
       ||Number(a.speaker===this.lastSpeaker)-Number(b.speaker===this.lastSpeaker))[0];if(!script)return;
-    this.lastSpeaker=script.speaker;
-    this.recent.push(script.id);this.recent=this.recent.slice(-128);this.busy=true;const generation=this.generation;this.abort=new AbortController();
-    this.caption(script.text,script.speaker);
-    try{await this.play(script,event,this.abort.signal);}catch{/* Audio is optional. */}
+    this.busy=true;const generation=this.generation;this.abort=new AbortController();const signal=this.abort.signal;
+    try{
+      let turns=[script];
+      if(this.prepare){try{turns=await this.prepare(event,this.history.slice(),script.speaker,signal)||turns;}catch{/* Use the local bank when generation is unavailable. */}}
+      if(signal.aborted||generation!==this.generation||event.expires<this.clock())return;
+      for(const turn of turns){
+        if(signal.aborted||generation!==this.generation)return;
+        this.caption(turn.text,turn.speaker);
+        const completed=await this.play(turn,event,signal);
+        if(signal.aborted||generation!==this.generation)return;
+        if(completed!==false){this.history.push({speaker:turn.speaker,text:turn.text});this.history=this.history.slice(-12);this.lastSpeaker=turn.speaker;}
+        this.recent.push(turn.id);this.recent=this.recent.slice(-128);
+        if(this.pending?.priority>event.priority)break;
+      }
+    }catch{/* Audio is optional. */}
     finally{if(generation===this.generation){this.busy=false;this.nextAt=this.clock()+2;this.caption('');}}
   }
 }

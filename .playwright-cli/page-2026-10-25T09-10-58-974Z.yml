@@ -1,0 +1,78 @@
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - generic [ref=f1e3]:
+      - text: TWO-BODY BRAWL
+      - superscript [ref=f1e4]: ↗
+    - generic [ref=f1e5]: COUCH CHAOS · 2 VS 2
+    - link "Join on phone ↗" [ref=f1e7] [cursor=pointer]:
+      - /url: /controller
+  - main [ref=f1e8]:
+    - navigation "Game setup" [ref=f1e9]:
+      - button "01 Join the crew" [ref=f1e10] [cursor=pointer]
+      - button "02 Player sprites" [disabled] [ref=f1e11]
+      - button "03 Choose map" [disabled] [ref=f1e12]
+      - generic [ref=f1e13]: 04 / BRAWL
+    - complementary [ref=f1e15]:
+      - generic [ref=f1e16]:
+        - generic [ref=f1e17]:
+          - generic [ref=f1e18]: 01 / ASSEMBLE YOUR CREW
+          - heading "SCAN. JOIN. BRAWL." [level=2] [ref=f1e19]
+          - paragraph [ref=f1e20]: Grab four phones. Scan the code to claim your role.
+          - generic [ref=f1e21]:
+            - img "QR code to join this room" [ref=f1e22]
+            - generic [ref=f1e23]:
+              - text: ROOM CODE
+              - generic [ref=f1e24]: 8D0133
+              - text: 4 phones · 2 teams · 1 brawl
+              - paragraph [ref=f1e25]:
+                - link "Open controller ↗" [ref=f1e26] [cursor=pointer]:
+                  - /url: http://localhost:3000/controller?room=8D0133
+          - group [ref=f1e27]:
+            - generic "Phone connection settings" [ref=f1e28] [cursor=pointer]
+        - generic [ref=f1e29]:
+          - generic [ref=f1e30]:
+            - heading "PLAYER LIST" [level=2] [ref=f1e31]
+            - generic [ref=f1e32]: 0 / 4 PLAYERS
+          - paragraph [ref=f1e33]: One friend takes the legs. One takes the arm.
+          - generic [ref=f1e34]:
+            - generic [ref=f1e35]:
+              - generic [ref=f1e36]: RED / LEGS
+              - generic [ref=f1e37]: Waiting for phone
+            - generic [ref=f1e38]:
+              - generic [ref=f1e39]: RED / ARM
+              - generic [ref=f1e40]: Waiting for phone
+            - generic [ref=f1e41]:
+              - generic [ref=f1e42]: BLUE / LEGS
+              - generic [ref=f1e43]: Waiting for phone
+            - generic [ref=f1e44]:
+              - generic [ref=f1e45]: BLUE / ARM
+              - generic [ref=f1e46]: Waiting for phone
+          - button "Waiting for 4 more phones" [disabled] [ref=f1e47]
+          - paragraph [ref=f1e48]: Calibrate on your phones while the host picks sprites and a map.
+      - group [ref=f1e49]:
+        - generic "GAME SETTINGS" [ref=f1e50] [cursor=pointer]
+      - group [ref=f1e51]:
+        - generic "DEVELOPER PLAYGROUND" [ref=f1e52] [cursor=pointer]
+        - option "Subtle" [selected]
+        - option "Floppy"
+        - option "Lively"
+      - 'button "Dev mode: preview maps with idle bots" [ref=f1e53] [cursor=pointer]'
+    - generic [ref=f1e54]:
+      - generic [ref=f1e55]:
+        - generic [ref=f1e56]: "01"
+        - generic [ref=f1e57]:
+          - strong [ref=f1e58]: LEGS
+          - text: Tilt farther to walk faster. Jolt to jump.
+      - generic [ref=f1e59]:
+        - generic [ref=f1e60]: "02"
+        - generic [ref=f1e61]:
+          - strong [ref=f1e62]: ARM
+          - text: Tilt farther to turn faster. Jolt for a two-arm uppercut.
+      - generic [ref=f1e63]:
+        - generic [ref=f1e64]: "03"
+        - generic [ref=f1e65]:
+          - strong [ref=f1e66]: THE ONLY RULE
+          - text: Three lives each. Knock them off three times to win.
+  - contentinfo [ref=f1e67]:
+    - generic [ref=f1e68]: BUILT FOR BEAUTIFUL MISCOMMUNICATION.
+    - generic [ref=f1e69]: HACKPSU 2026 / TWO-BODY BRAWL

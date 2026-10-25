@@ -46,7 +46,7 @@ test('disappearing tiles: blinking tiles drop out under you, then come back', ()
   const gone = tiles.find(t => t.state === 'gone');
   Object.assign(s.fighters[0], { x: gone.x, z: gone.z });
   run(s, 2);
-  assert.equal(s.winner, 'blue', 'standing on a missing tile drops you');
+  assert.equal(s.fighters[0].lives, 2, 'standing on a missing tile costs one life');
   const t = createArena('tiles', 2); t.pieces[0].state = 'warn'; t.pieces[0].t = .1;
   for (let i = 0; i < 400; i++) t.step(C.tick, [], []);
   assert.ok(t.pieces.filter(p => p.state === 'gone').length < t.pieces.length / 2, 'tiles return');
@@ -75,7 +75,7 @@ test('falling platforms: tiles crumble under you and never return', () => {
   const tile = s.arena.floorAt(red.x, red.z);
   run(s, 1); assert.equal(tile.state, 'warn');
   run(s, 3); assert.notEqual(tile.state, 'solid');
-  assert.equal(s.winner, 'blue', 'rode the tile down');
+  assert.equal(s.fighters[0].lives, 2, 'rode the tile down');
   const a = createArena('falling', 4);
   for (let i = 0; i < 60 / C.tick; i++) a.step(C.tick, [], []);
   assert.ok(a.pieces.filter(p => p.state === 'gone').length > 10);

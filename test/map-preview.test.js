@@ -21,11 +21,12 @@ function hostHarness(timed=false){
   const socket={on:(event,fn)=>handlers[event]=fn,emit:(event,payload,ack)=>{
     emitted.push({event,payload});ack?.({});
   }};
+  const beams=[],frames=[];
   class TrackedSimulation extends Simulation {
     constructor(...args){super(...args);activeSim=this;}
     step(inputs,dt){lastInputs=inputs;return super.step(inputs,dt);}
   }
-  const draw=()=>{};draw.setFighter=draw.clearKO=draw.resetMotion=()=>{};
+  const draw=(...args)=>frames.push(args[4]);draw.startKO=events=>beams.push(...events);draw.setFighter=draw.clearKO=draw.resetMotion=()=>{};
   const context={...motion,createCombatAudio,Simulation:TrackedSimulation,MAPS,C,SLOTS:[],chooseRandomMap:()=>randomChoices[randomCalls++],
     createWinnerView:()=>({show(winner,picks){winnerShown={winner,picks};},hide(){winnerHidden++;}}),
     document:{getElementById:$,querySelectorAll:()=>steps,createElement:element,addEventListener(){},hidden:false},
@@ -38,7 +39,7 @@ function hostHarness(timed=false){
   const source=readFileSync(new URL('../host/src/main.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'');
   if(timed)Object.assign(context,{setTimeout(fn,delay){const id=++timerId;timers.set(id,{fn,at:clock+delay});return id;},clearTimeout:id=>timers.delete(id)});
   vm.runInNewContext(source,context);
-  return {$,handlers,emitted,context,html,get activeSim(){return activeSim;},get randomCalls(){return randomCalls;},get winnerShown(){return winnerShown;},get winnerHidden(){return winnerHidden;},get lastInputs(){return lastInputs;},get timerCount(){return timers.size;},
+  return {$,handlers,emitted,context,html,beams,frames,get sim(){return activeSim;},get activeSim(){return activeSim;},get randomCalls(){return randomCalls;},get winnerShown(){return winnerShown;},get winnerHidden(){return winnerHidden;},get lastInputs(){return lastInputs;},get timerCount(){return timers.size;},
     advance(to){for(const [id,timer] of [...timers].sort((a,b)=>a[1].at-b[1].at))if(timer.at<=to&&timers.has(id)){clock=timer.at;timers.delete(id);timer.fn();}clock=to;frame(clock);}};
 }
 
@@ -80,6 +81,30 @@ test('dev button skips crew, survives roster updates, previews idle teams and re
   handlers['game:state']({phase:'results',debug:true,winner:'draw'});assert.equal($('winner').textContent,'Draw!');
   assert.equal(h.winnerShown.winner,'draw');
   $('resultLobby').onclick();assert.equal(emitted.at(-1).payload.phase,'lobby');
+});
+
+test('host shows life circles and every beam, with finish effects only after final life',()=>{
+  const h=hostHarness(),{$,handlers,sim}=h;
+  $('devMode').onclick(); handlers['game:state']({phase:'playing',debug:true});
+  h.advance(40); assert.equal($('redLives').textContent,'●●●');
+  sim.fighters[0].y=-6; h.advance(80);
+  assert.equal($('redLives').textContent,'●●○'); assert.equal(h.beams.length,1);
+  assert.equal(h.frames.at(-1).finishAge,null);
+  handlers['game:state']({phase:'paused',debug:true});
+  const remaining=sim.fighters[0].respawnRemaining;
+  h.advance(120);assert.equal(sim.fighters[0].respawnRemaining,remaining);
+  handlers['game:state']({phase:'playing',debug:true,resumed:true});
+  for(let time=160;time<=1760;time+=40)h.advance(time);
+  assert.equal(sim.fighters[0].respawnRemaining,0);
+  sim.fighters[0].y=-6; h.advance(1800);
+  assert.equal($('redLives').textContent,'●○○');assert.equal(h.beams.length,2);
+  assert.equal(h.frames.at(-1).finishAge,null);
+  for(let time=1840;time<=3440;time+=40)h.advance(time);
+  sim.fighters[0].y=-6;h.advance(3480);
+  assert.equal($('redLives').textContent,'○○○');assert.equal(h.beams.length,3);
+  assert.equal(h.frames.at(-1).finishAge,0);assert.equal(sim.winner,'blue');
+  handlers['game:state']({phase:'playing',debug:true});h.advance(3520);
+  assert.equal($('redLives').textContent,'●●●');assert.equal(h.frames.at(-1).finishAge,null);
 });
 
 test('faceoff freezes combat until FIGHT, keeps countdown styling and cancels on pause/disconnect',()=>{

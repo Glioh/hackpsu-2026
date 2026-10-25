@@ -16,11 +16,11 @@ test('unrendered contextual lines use speech fallback and cancel on fight or com
  const commentary=createCommentary({on(){},emit(event,data,ack){ack({token:'test'});}});
  try{
  commentary.unlock();await new Promise(resolve=>setImmediate(resolve));
- commentary.phase('playing',false,{map:'piano',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();
+ commentary.phase('playing',false,{map:'piano',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();await new Promise(resolve=>setImmediate(resolve));
  assert.match(spoken[0].text,/piano|keys/i);assert.match(element('commentaryCaption').textContent,/Rex|Vera/);
  commentary.fight();assert.ok(cancelled>0);assert.equal(element('commentaryCaption').textContent,'');
  await new Promise(resolve=>setImmediate(resolve));
- commentary.phase('playing',false,{map:'station',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();
+ commentary.phase('playing',false,{map:'station',fighters:{red:'tung',blue:'bubbles'}});commentary.tick();await new Promise(resolve=>setImmediate(resolve));
  assert.match(spoken.at(-1).text,/Station|trains|tracks/i);
  element('commentaryEnabled').onchange({target:{checked:false}});assert.equal(element('commentaryCaption').textContent,'');
  }finally{commentary.phase('paused');}

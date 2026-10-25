@@ -19,8 +19,8 @@ test('punch has a windup, directional range, hit reaction, and cooldown',()=>{
   const remaining=s.fighters[0].cooldown;s.step({red:{arm:{punch:true}}});assert.ok(s.fighters[0].cooldown<remaining);
 });
 test('fighters separate at contact',()=>{const s=new Simulation();s.fighters[0].x=0;s.fighters[1].x=0;s.step({});assert.ok(Math.abs(s.fighters[0].x-s.fighters[1].x)>=C.radius*2-.001);});
-test('all four platform edges produce a fall, winner, and clean rematch',()=>{
-  for(const [x,z] of [[C.arenaX+1,0],[-C.arenaX-1,0],[0,C.arenaZ+1],[0,-C.arenaZ-1]]){const s=new Simulation();Object.assign(s.fighters[0],{x,z});s.step({});assert.equal(s.winner,null);for(let i=0;i<120;i++)s.step({});assert.equal(s.winner,'blue');s.reset();assert.equal(s.winner,null);assert.equal(s.fighters[0].cooldown,0);assert.equal(s.fighters[0].y,0);}
+test('all four platform edges cost a life and allow a clean rematch',()=>{
+  for(const [x,z] of [[C.arenaX+1,0],[-C.arenaX-1,0],[0,C.arenaZ+1],[0,-C.arenaZ-1]]){const s=new Simulation();Object.assign(s.fighters[0],{x,z});s.step({});assert.equal(s.winner,null);for(let i=0;i<120;i++)s.step({});assert.equal(s.winner,null);assert.equal(s.fighters[0].lives,2);s.reset();assert.equal(s.fighters[0].lives,3);assert.equal(s.winner,null);assert.equal(s.fighters[0].cooldown,0);assert.equal(s.fighters[0].y,0);}
 });
 test('airborne fighter can cross edge and return before falling',()=>{const s=new Simulation();Object.assign(s.fighters[0],{x:C.arenaX+.1,y:1,vy:1});s.step({});assert.equal(s.winner,null);s.fighters[0].x=C.arenaX-1;for(let i=0;i<60;i++)s.step({});assert.equal(s.winner,null);assert.equal(s.fighters[0].grounded,true);});
 
